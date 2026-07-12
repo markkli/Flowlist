@@ -1,9 +1,13 @@
-node_modules
-dist
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Env / secrets
 .env
 .env.*
 !.env.example
-*.tsbuildinfo
-vite.config.js
-vite.config.d.ts
+
+# OS
 .DS_Store
