@@ -15,3 +15,20 @@ class Goal(GoalCreate):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+
+
+class TaskCreate(BaseModel):
+    title: str
+
+
+class TaskUpdate(BaseModel):
+    title: str | None = None
+    completed: bool | None = None
+
+
+class Task(TaskCreate):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    goal_id: int
+    completed: bool
