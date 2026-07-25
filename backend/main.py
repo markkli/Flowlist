@@ -1,4 +1,5 @@
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -9,6 +10,13 @@ from models import GoalModel, TaskModel
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Flowlist API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://127.0.0.1:5500", "http://localhost:5500"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def find_goal(db: Session, goal_id: int) -> GoalModel:

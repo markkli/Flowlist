@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Flowlist</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Source Sans 3', sans-serif; background: #F0FDFA; color: #134E4A; }
+    h1, h2, .brand { font-family: 'Lexend', sans-serif; }
+  </style>
+</head>
+<body class="min-h-screen">
+  <div class="max-w-3xl mx-auto px-6 py-10">
+    <h1 class="brand text-2xl font-semibold text-teal-800 mb-1">Flowlist</h1>
+    <p class="text-teal-700/70 mb-8">Goals and tasks, talking to a real API.</p>
+
+    <section class="bg-white border border-teal-100 rounded-xl p-5 mb-6">
+      <h2 class="font-medium mb-3">New goal</h2>
+      <form id="goal-form" class="flex gap-2">
+        <input id="goal-title" type="text" placeholder="e.g. Learn FastAPI"
+          class="flex-1 border border-teal-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+        <button class="bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium px-4 py-2 rounded-lg cursor-pointer transition-colors">
+          Add goal
+        </button>
+      </form>
+    </section>
+
+    <div id="goals" class="space-y-4"></div>
+  </div>
+
+  <template id="goal-template">
+    <section class="bg-white border border-teal-100 rounded-xl p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="goal-title font-medium text-lg"></h2>
+        <button class="delete-goal text-sm text-red-600 hover:text-red-700 cursor-pointer">Delete goal</button>
+      </div>
+      <ul class="task-list space-y-2 mb-3"></ul>
+      <form class="task-form flex gap-2">
+        <input type="text" placeholder="New task"
+          class="flex-1 border border-teal-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+        <button class="bg-teal-50 hover:bg-teal-100 text-teal-800 text-sm font-medium px-4 py-2 rounded-lg cursor-pointer transition-colors">
+          Add task
+        </button>
+      </form>
+    </section>
+  </template>
+
+  <template id="task-template">
+    <li class="flex items-center gap-3 border border-teal-50 bg-teal-50/40 rounded-lg px-3 py-2">
+      <input type="checkbox" class="task-completed w-4 h-4 accent-teal-600 cursor-pointer" />
+      <span class="task-title flex-1 text-sm"></span>
+      <button class="delete-task text-xs text-red-600 hover:text-red-700 cursor-pointer">Remove</button>
+    </li>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
