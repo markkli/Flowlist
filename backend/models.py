@@ -1,4 +1,6 @@
-from sqlalchemy import ForeignKey
+from datetime import datetime
+
+from sqlalchemy import ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
@@ -23,5 +25,22 @@ class TaskModel(Base):
     goal_id: Mapped[int] = mapped_column(ForeignKey("goals.id", ondelete="CASCADE"))
     title: Mapped[str]
     completed: Mapped[bool] = mapped_column(default=False)
+    estimated_minutes: Mapped[int] = mapped_column(default=25)
 
     goal: Mapped["GoalModel"] = relationship(back_populates="tasks")
+    sessions: Mapped[list["FocusSessionModel"]] = relationship(
+        back_populates="task", cascade="all, delete-orphan"
+    )
+
+
+class FocusSessionModel(Base):
+    __tablename__ = "focus_sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"))
+    planned_minutes: Mapped[int]
+    actual_minutes: Mapped[int]
+    completed: Mapped[bool]
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    task: Mapped["TaskModel"] = relationship(back_populates="sessions")

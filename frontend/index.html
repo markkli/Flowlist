@@ -42,6 +42,8 @@
       <form class="task-form flex gap-2">
         <input type="text" placeholder="New task"
           class="flex-1 border border-teal-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+        <input type="number" min="1" value="25" title="Estimated minutes"
+          class="task-minutes w-16 border border-teal-200 rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-teal-500" />
         <button class="bg-teal-50 hover:bg-teal-100 text-teal-800 text-sm font-medium px-4 py-2 rounded-lg cursor-pointer transition-colors">
           Add task
         </button>
@@ -53,9 +55,21 @@
     <li class="flex items-center gap-3 border border-teal-50 bg-teal-50/40 rounded-lg px-3 py-2">
       <input type="checkbox" class="task-completed w-4 h-4 accent-teal-600 cursor-pointer" />
       <span class="task-title flex-1 text-sm"></span>
+      <span class="task-minutes-label text-xs text-teal-700/60"></span>
+      <button class="start-focus text-xs bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 rounded-lg cursor-pointer transition-colors">Focus</button>
       <button class="delete-task text-xs text-red-600 hover:text-red-700 cursor-pointer">Remove</button>
     </li>
   </template>
+
+  <div id="focus-overlay" class="hidden fixed inset-0 bg-teal-950/60 flex items-center justify-center">
+    <div class="bg-white rounded-2xl p-8 w-80 text-center">
+      <p id="focus-task-title" class="text-sm text-teal-700/70 mb-2"></p>
+      <p id="focus-time" class="brand text-5xl font-semibold text-teal-800 mb-6">25:00</p>
+      <button id="focus-stop" class="w-full bg-red-50 hover:bg-red-100 text-red-700 text-sm font-medium px-4 py-2 rounded-lg cursor-pointer transition-colors">
+        Stop session
+      </button>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

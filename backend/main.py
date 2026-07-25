@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 import schemas
 from database import Base, engine, get_db
-from models import GoalModel, TaskModel
+from models import FocusSessionModel, GoalModel, TaskModel
 
 Base.metadata.create_all(bind=engine)
 
@@ -115,3 +115,26 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
     db.delete(task)
     db.commit()
     return {"deleted": True}
+
+
+@app.post("/tasks/{task_id}/sessions", response_model=schemas.FocusSession)
+def log_session(
+    task_id: int, session: schemas.FocusSessionCreate, db: Session = Depends(get_db)
+):
+    task = find_task(db, task_id)
+    new_session = FocusSessionModel(
+        task_id=task_id,
+        planned_minutes=task.estimated_minutes,
+        **session.model_dump(),
+    )
+    db.add(new_session)
+    db.commit()
+    db.refresh(new_session)
+    return new_session
+
+
+@app.get("/sessions", response_model=list[schemas.FocusSession])
+def list_sessions(db: Session = Depends(get_db)):
+    return db.scalars(
+        select(FocusSessionModel).order_by(FocusSessionModel.created_at.desc())
+    ).all()
