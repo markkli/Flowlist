@@ -13,6 +13,7 @@ async function api(path, options = {}) {
 const goalsContainer = document.getElementById("goals");
 const goalTemplate = document.getElementById("goal-template");
 const taskTemplate = document.getElementById("task-template");
+const suggestionTemplate = document.getElementById("suggestion-template");
 
 async function loadGoals() {
   const goals = await api("/goals");
@@ -49,38 +50,114 @@ async function loadGoals() {
   }
 }
 
+const MAX_DEPTH = 3;
+
 async function loadTasks(goalId) {
   const tasks = await api(`/goals/${goalId}/tasks`);
   const list = document.querySelector(`section[data-goal-id="${goalId}"] .task-list`);
   list.innerHTML = "";
-  for (const task of tasks) {
-    const node = taskTemplate.content.cloneNode(true);
-    const checkbox = node.querySelector(".task-completed");
-    const title = node.querySelector(".task-title");
-    checkbox.checked = task.completed;
-    title.textContent = task.title;
-    node.querySelector(".task-minutes-label").textContent = `${task.estimated_minutes} min`;
-    if (task.completed) title.classList.add("line-through", "text-teal-700/50");
+  const roots = tasks.filter((task) => task.parent_id === null);
+  roots.forEach((task) => renderTask(task, tasks, list));
+}
 
+function renderTask(task, allTasks, container) {
+  const children = allTasks.filter((t) => t.parent_id === task.id);
+  const isLeaf = children.length === 0;
+
+  const node = taskTemplate.content.cloneNode(true);
+  const checkbox = node.querySelector(".task-completed");
+  const title = node.querySelector(".task-title");
+  const progress = node.querySelector(".task-progress");
+  const minutesLabel = node.querySelector(".task-minutes-label");
+  const focusButton = node.querySelector(".start-focus");
+  const addButton = node.querySelector(".add-subtask");
+  const breakDownButton = node.querySelector(".break-down");
+  const subtaskForm = node.querySelector(".subtask-form");
+  const subtaskList = node.querySelector(".subtask-list");
+  const suggestionList = node.querySelector(".suggestion-list");
+
+  title.textContent = task.title;
+
+  if (isLeaf) {
+    progress.remove();
+    checkbox.checked = task.completed;
+    minutesLabel.textContent = `${task.estimated_minutes} min`;
+    if (task.completed) {
+      title.classList.add("line-through", "text-teal-700/50");
+      focusButton.remove();
+    } else {
+      focusButton.addEventListener("click", () => startFocus(task));
+    }
     checkbox.addEventListener("change", async () => {
       await api(`/tasks/${task.id}`, {
         method: "PATCH",
         body: JSON.stringify({ completed: checkbox.checked }),
       });
-      loadTasks(goalId);
+      loadTasks(task.goal_id);
     });
-
-    node.querySelector(".delete-task").addEventListener("click", async () => {
-      await api(`/tasks/${task.id}`, { method: "DELETE" });
-      loadTasks(goalId);
-    });
-
-    node.querySelector(".start-focus").addEventListener("click", () => {
-      startFocus(task);
-    });
-
-    list.appendChild(node);
+  } else {
+    checkbox.remove();
+    minutesLabel.remove();
+    focusButton.remove();
+    const done = children.filter((child) => child.completed).length;
+    progress.textContent = `${done}/${children.length} done`;
   }
+
+  node.querySelector(".delete-task").addEventListener("click", async () => {
+    await api(`/tasks/${task.id}`, { method: "DELETE" });
+    loadTasks(task.goal_id);
+  });
+
+  if (task.depth >= MAX_DEPTH) {
+    addButton.remove();
+    subtaskForm.remove();
+    breakDownButton.remove();
+  } else {
+    addButton.addEventListener("click", () => subtaskForm.classList.toggle("hidden"));
+    subtaskForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const input = subtaskForm.querySelector('input[type="text"]');
+      const minutesInput = subtaskForm.querySelector(".subtask-minutes");
+      if (!input.value.trim()) return;
+      await api(`/tasks/${task.id}/subtasks`, {
+        method: "POST",
+        body: JSON.stringify({
+          title: input.value.trim(),
+          estimated_minutes: Number(minutesInput.value) || 25,
+        }),
+      });
+      loadTasks(task.goal_id);
+    });
+
+    breakDownButton.addEventListener("click", async () => {
+      breakDownButton.textContent = "Thinking...";
+      breakDownButton.disabled = true;
+      const suggestions = await api(`/tasks/${task.id}/breakdown`, { method: "POST" });
+      suggestionList.innerHTML = "";
+      for (const suggestion of suggestions) {
+        const suggestionNode = suggestionTemplate.content.cloneNode(true);
+        suggestionNode.querySelector(".suggestion-title").textContent = suggestion.title;
+        suggestionNode.querySelector(".suggestion-minutes").textContent =
+          `${suggestion.estimated_minutes} min`;
+        suggestionNode.querySelector(".suggestion-add").addEventListener("click", async () => {
+          await api(`/tasks/${task.id}/subtasks`, {
+            method: "POST",
+            body: JSON.stringify({
+              title: suggestion.title,
+              estimated_minutes: suggestion.estimated_minutes,
+            }),
+          });
+          loadTasks(task.goal_id);
+        });
+        suggestionList.appendChild(suggestionNode);
+      }
+      breakDownButton.textContent = "Break down";
+      breakDownButton.disabled = false;
+    });
+  }
+
+  container.appendChild(node);
+  children.forEach((child) => renderTask(child, allTasks, subtaskList));
 }
 
 document.getElementById("goal-form").addEventListener("submit", async (event) => {

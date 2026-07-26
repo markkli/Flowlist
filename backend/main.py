@@ -6,10 +6,13 @@ from sqlalchemy import Date, cast, func, select
 from sqlalchemy.orm import Session
 
 import schemas
+from ai import suggest_subtasks
 from database import Base, engine, get_db
 from models import FocusSessionModel, GoalModel, TaskModel
 
 Base.metadata.create_all(bind=engine)
+
+MAX_DEPTH = 3
 
 app = FastAPI(title="Flowlist API")
 
@@ -97,6 +100,40 @@ def list_tasks(goal_id: int, db: Session = Depends(get_db)):
     return db.scalars(
         select(TaskModel).where(TaskModel.goal_id == goal_id)
     ).all()
+
+
+@app.post("/tasks/{parent_id}/subtasks", response_model=schemas.Task)
+def create_subtask(
+    parent_id: int, task: schemas.TaskCreate, db: Session = Depends(get_db)
+):
+    parent = find_task(db, parent_id)
+    if parent.depth >= MAX_DEPTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Maximum depth of {MAX_DEPTH} reached; this task can't have subtasks.",
+        )
+    new_task = TaskModel(
+        goal_id=parent.goal_id,
+        parent_id=parent.id,
+        depth=parent.depth + 1,
+        **task.model_dump(),
+    )
+    db.add(new_task)
+    db.commit()
+    db.refresh(new_task)
+    return new_task
+
+
+@app.post("/tasks/{task_id}/breakdown", response_model=list[schemas.SuggestedSubtask])
+def breakdown_task(task_id: int, db: Session = Depends(get_db)):
+    task = find_task(db, task_id)
+    if task.depth >= MAX_DEPTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Maximum depth of {MAX_DEPTH} reached; this task can't have subtasks.",
+        )
+    goal = find_goal(db, task.goal_id)
+    return suggest_subtasks(goal.title, task.title)
 
 
 @app.patch("/tasks/{task_id}", response_model=schemas.Task)

@@ -35,7 +35,14 @@ class Task(TaskCreate):
 
     id: int
     goal_id: int
+    parent_id: int | None
+    depth: int
     completed: bool
+
+
+class SuggestedSubtask(BaseModel):
+    title: str
+    estimated_minutes: int
 
 
 class FocusSessionCreate(BaseModel):

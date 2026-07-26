@@ -23,6 +23,10 @@ class TaskModel(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     goal_id: Mapped[int] = mapped_column(ForeignKey("goals.id", ondelete="CASCADE"))
+    parent_id: Mapped[int | None] = mapped_column(
+        ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True
+    )
+    depth: Mapped[int] = mapped_column(default=1)
     title: Mapped[str]
     completed: Mapped[bool] = mapped_column(default=False)
     estimated_minutes: Mapped[int] = mapped_column(default=25)

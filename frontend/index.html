@@ -76,12 +76,34 @@
   </template>
 
   <template id="task-template">
-    <li class="flex items-center gap-3 border border-teal-50 bg-teal-50/40 rounded-lg px-3 py-2">
-      <input type="checkbox" class="task-completed w-4 h-4 accent-teal-600 cursor-pointer" />
-      <span class="task-title flex-1 text-sm"></span>
-      <span class="task-minutes-label text-xs text-teal-700/60"></span>
-      <button class="start-focus text-xs bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 rounded-lg cursor-pointer transition-colors">Focus</button>
-      <button class="delete-task text-xs text-red-600 hover:text-red-700 cursor-pointer">Remove</button>
+    <li class="task-node">
+      <div class="flex items-center gap-3 border border-teal-50 bg-teal-50/40 rounded-lg px-3 py-2">
+        <input type="checkbox" class="task-completed w-4 h-4 accent-teal-600 cursor-pointer" />
+        <span class="task-title flex-1 text-sm"></span>
+        <span class="task-progress text-xs text-teal-700/60"></span>
+        <span class="task-minutes-label text-xs text-teal-700/60"></span>
+        <button class="start-focus text-xs bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 rounded-lg cursor-pointer transition-colors">Focus</button>
+        <button class="add-subtask text-xs text-teal-700 hover:text-teal-800 cursor-pointer">+ Subtask</button>
+        <button class="break-down text-xs text-teal-700 hover:text-teal-800 cursor-pointer">Break down</button>
+        <button class="delete-task text-xs text-red-600 hover:text-red-700 cursor-pointer">Remove</button>
+      </div>
+      <form class="subtask-form hidden flex gap-2 mt-2 ml-6">
+        <input type="text" placeholder="Subtask title"
+          class="flex-1 border border-teal-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+        <input type="number" min="1" value="25" title="Estimated minutes"
+          class="subtask-minutes w-16 border border-teal-200 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-teal-500" />
+        <button class="bg-teal-50 hover:bg-teal-100 text-teal-800 text-xs font-medium px-3 py-1.5 rounded-lg cursor-pointer transition-colors">Add</button>
+      </form>
+      <ul class="suggestion-list space-y-2 mt-2 ml-6"></ul>
+      <ul class="subtask-list space-y-2 mt-2 ml-6"></ul>
+    </li>
+  </template>
+
+  <template id="suggestion-template">
+    <li class="flex items-center gap-3 border border-dashed border-teal-200 bg-white rounded-lg px-3 py-2">
+      <span class="suggestion-title flex-1 text-sm text-teal-800"></span>
+      <span class="suggestion-minutes text-xs text-teal-700/60"></span>
+      <button class="suggestion-add text-xs bg-teal-50 hover:bg-teal-100 text-teal-800 px-3 py-1.5 rounded-lg cursor-pointer transition-colors">Add</button>
     </li>
   </template>
 
