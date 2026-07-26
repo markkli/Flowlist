@@ -1,6 +1,8 @@
+from datetime import date, timedelta
+
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select
+from sqlalchemy import Date, cast, func, select
 from sqlalchemy.orm import Session
 
 import schemas
@@ -138,3 +140,29 @@ def list_sessions(db: Session = Depends(get_db)):
     return db.scalars(
         select(FocusSessionModel).order_by(FocusSessionModel.created_at.desc())
     ).all()
+
+
+@app.get("/stats", response_model=schemas.Stats)
+def get_stats(db: Session = Depends(get_db)):
+    session_dates = set(
+        db.scalars(
+            select(func.distinct(cast(FocusSessionModel.created_at, Date)))
+        ).all()
+    )
+
+    streak = 0
+    cursor = date.today()
+    if cursor not in session_dates:
+        cursor -= timedelta(days=1)
+    while cursor in session_dates:
+        streak += 1
+        cursor -= timedelta(days=1)
+
+    total_sessions = db.scalar(select(func.count(FocusSessionModel.id))) or 0
+    total_minutes = db.scalar(select(func.sum(FocusSessionModel.actual_minutes))) or 0
+
+    return schemas.Stats(
+        current_streak=streak,
+        total_sessions=total_sessions,
+        total_minutes=total_minutes,
+    )

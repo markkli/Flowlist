@@ -18,6 +18,21 @@
     <h1 class="brand text-2xl font-semibold text-teal-800 mb-1">Flowlist</h1>
     <p class="text-teal-700/70 mb-6">Goals and tasks, talking to a real API.</p>
 
+    <div id="stats-bar" class="grid grid-cols-3 gap-3 mb-6">
+      <div class="bg-white border border-teal-100 rounded-xl p-4 text-center">
+        <p id="stat-streak" class="brand text-2xl font-semibold text-teal-800">0</p>
+        <p class="text-xs text-teal-700/60">day streak</p>
+      </div>
+      <div class="bg-white border border-teal-100 rounded-xl p-4 text-center">
+        <p id="stat-sessions" class="brand text-2xl font-semibold text-teal-800">0</p>
+        <p class="text-xs text-teal-700/60">sessions</p>
+      </div>
+      <div class="bg-white border border-teal-100 rounded-xl p-4 text-center">
+        <p id="stat-minutes" class="brand text-2xl font-semibold text-teal-800">0</p>
+        <p class="text-xs text-teal-700/60">minutes focused</p>
+      </div>
+    </div>
+
     <nav class="flex gap-2 mb-6">
       <button id="nav-goals" class="nav-tab text-sm font-medium px-3 py-1.5 rounded-lg cursor-pointer transition-colors bg-teal-600 text-white">Goals</button>
       <button id="nav-history" class="nav-tab text-sm font-medium px-3 py-1.5 rounded-lg cursor-pointer transition-colors bg-white text-teal-700 border border-teal-200">History</button>

@@ -124,6 +124,7 @@ function startFocus(task) {
       method: "POST",
       body: JSON.stringify({ actual_minutes: actualMinutes, completed }),
     });
+    loadStats();
   };
 
   focusStop.onclick = () => finish(false);
@@ -193,4 +194,12 @@ async function loadHistory() {
   }
 }
 
+async function loadStats() {
+  const stats = await api("/stats");
+  document.getElementById("stat-streak").textContent = stats.current_streak;
+  document.getElementById("stat-sessions").textContent = stats.total_sessions;
+  document.getElementById("stat-minutes").textContent = stats.total_minutes;
+}
+
 loadGoals();
+loadStats();

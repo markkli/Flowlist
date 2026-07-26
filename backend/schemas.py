@@ -51,3 +51,9 @@ class FocusSession(FocusSessionCreate):
     task_title: str
     planned_minutes: int
     created_at: datetime
+
+
+class Stats(BaseModel):
+    current_streak: int
+    total_sessions: int
+    total_minutes: int
