@@ -16,20 +16,29 @@
 <body class="min-h-screen">
   <div class="max-w-3xl mx-auto px-6 py-10">
     <h1 class="brand text-2xl font-semibold text-teal-800 mb-1">Flowlist</h1>
-    <p class="text-teal-700/70 mb-8">Goals and tasks, talking to a real API.</p>
+    <p class="text-teal-700/70 mb-6">Goals and tasks, talking to a real API.</p>
 
-    <section class="bg-white border border-teal-100 rounded-xl p-5 mb-6">
-      <h2 class="font-medium mb-3">New goal</h2>
-      <form id="goal-form" class="flex gap-2">
-        <input id="goal-title" type="text" placeholder="e.g. Learn FastAPI"
-          class="flex-1 border border-teal-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-        <button class="bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium px-4 py-2 rounded-lg cursor-pointer transition-colors">
-          Add goal
-        </button>
-      </form>
-    </section>
+    <nav class="flex gap-2 mb-6">
+      <button id="nav-goals" class="nav-tab text-sm font-medium px-3 py-1.5 rounded-lg cursor-pointer transition-colors bg-teal-600 text-white">Goals</button>
+      <button id="nav-history" class="nav-tab text-sm font-medium px-3 py-1.5 rounded-lg cursor-pointer transition-colors bg-white text-teal-700 border border-teal-200">History</button>
+    </nav>
 
-    <div id="goals" class="space-y-4"></div>
+    <div id="goals-view">
+      <section class="bg-white border border-teal-100 rounded-xl p-5 mb-6">
+        <h2 class="font-medium mb-3">New goal</h2>
+        <form id="goal-form" class="flex gap-2">
+          <input id="goal-title" type="text" placeholder="e.g. Learn FastAPI"
+            class="flex-1 border border-teal-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          <button class="bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium px-4 py-2 rounded-lg cursor-pointer transition-colors">
+            Add goal
+          </button>
+        </form>
+      </section>
+
+      <div id="goals" class="space-y-4"></div>
+    </div>
+
+    <div id="history-view" class="hidden space-y-2"></div>
   </div>
 
   <template id="goal-template">
@@ -59,6 +68,16 @@
       <button class="start-focus text-xs bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 rounded-lg cursor-pointer transition-colors">Focus</button>
       <button class="delete-task text-xs text-red-600 hover:text-red-700 cursor-pointer">Remove</button>
     </li>
+  </template>
+
+  <template id="session-template">
+    <div class="bg-white border border-teal-100 rounded-xl p-4 flex items-center justify-between">
+      <div>
+        <p class="session-title text-sm font-medium"></p>
+        <p class="session-meta text-xs text-teal-700/60"></p>
+      </div>
+      <span class="session-status text-xs px-2 py-1 rounded-full"></span>
+    </div>
   </template>
 
   <div id="focus-overlay" class="hidden fixed inset-0 bg-teal-950/60 flex items-center justify-center">

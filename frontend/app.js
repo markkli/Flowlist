@@ -139,4 +139,58 @@ function startFocus(task) {
   }, 1000);
 }
 
+const goalsView = document.getElementById("goals-view");
+const historyView = document.getElementById("history-view");
+const navGoals = document.getElementById("nav-goals");
+const navHistory = document.getElementById("nav-history");
+const sessionTemplate = document.getElementById("session-template");
+
+const activeTabClasses = ["bg-teal-600", "text-white"];
+const inactiveTabClasses = ["bg-white", "text-teal-700", "border", "border-teal-200"];
+
+function setActiveTab(activeButton, inactiveButton) {
+  activeButton.classList.remove(...inactiveTabClasses);
+  activeButton.classList.add(...activeTabClasses);
+  inactiveButton.classList.remove(...activeTabClasses);
+  inactiveButton.classList.add(...inactiveTabClasses);
+}
+
+navGoals.addEventListener("click", () => {
+  goalsView.classList.remove("hidden");
+  historyView.classList.add("hidden");
+  setActiveTab(navGoals, navHistory);
+});
+
+navHistory.addEventListener("click", () => {
+  goalsView.classList.add("hidden");
+  historyView.classList.remove("hidden");
+  setActiveTab(navHistory, navGoals);
+  loadHistory();
+});
+
+async function loadHistory() {
+  const sessions = await api("/sessions");
+  historyView.innerHTML = "";
+  if (!sessions.length) {
+    historyView.innerHTML = '<p class="text-sm text-teal-700/60">No focus sessions logged yet.</p>';
+    return;
+  }
+  for (const session of sessions) {
+    const node = sessionTemplate.content.cloneNode(true);
+    node.querySelector(".session-title").textContent = session.task_title;
+    const when = new Date(session.created_at).toLocaleString();
+    node.querySelector(".session-meta").textContent =
+      `${session.actual_minutes}/${session.planned_minutes} min · ${when}`;
+    const status = node.querySelector(".session-status");
+    if (session.completed) {
+      status.textContent = "Completed";
+      status.classList.add("bg-teal-50", "text-teal-700");
+    } else {
+      status.textContent = "Stopped early";
+      status.classList.add("bg-orange-50", "text-orange-700");
+    }
+    historyView.appendChild(node);
+  }
+}
+
 loadGoals();

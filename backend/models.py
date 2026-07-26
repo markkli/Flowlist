@@ -44,3 +44,7 @@ class FocusSessionModel(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     task: Mapped["TaskModel"] = relationship(back_populates="sessions")
+
+    @property
+    def task_title(self) -> str:
+        return self.task.title

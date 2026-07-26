@@ -48,5 +48,6 @@ class FocusSession(FocusSessionCreate):
 
     id: int
     task_id: int
+    task_title: str
     planned_minutes: int
     created_at: datetime
