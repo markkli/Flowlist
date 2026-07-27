@@ -51,6 +51,7 @@ async function loadGoals() {
 }
 
 const MAX_DEPTH = 3;
+const celebratedGoals = new Set();
 
 async function loadTasks(goalId) {
   const tasks = await api(`/goals/${goalId}/tasks`);
@@ -58,7 +59,36 @@ async function loadTasks(goalId) {
   list.innerHTML = "";
   const roots = tasks.filter((task) => task.parent_id === null);
   roots.forEach((task) => renderTask(task, tasks, list));
+  checkGoalComplete(goalId, tasks);
 }
+
+function checkGoalComplete(goalId, tasks) {
+  const leaves = tasks.filter(
+    (task) => !tasks.some((other) => other.parent_id === task.id)
+  );
+  const isComplete = leaves.length > 0 && leaves.every((leaf) => leaf.completed);
+
+  if (!isComplete) {
+    celebratedGoals.delete(goalId);
+    return;
+  }
+  if (celebratedGoals.has(goalId)) return;
+
+  celebratedGoals.add(goalId);
+  const goalTitle = document.querySelector(
+    `section[data-goal-id="${goalId}"] .goal-title`
+  ).textContent;
+  showCelebration(goalTitle);
+}
+
+function showCelebration(goalTitle) {
+  document.getElementById("celebration-goal-title").textContent = goalTitle;
+  document.getElementById("celebration-overlay").classList.remove("hidden");
+}
+
+document.getElementById("celebration-dismiss").addEventListener("click", () => {
+  document.getElementById("celebration-overlay").classList.add("hidden");
+});
 
 function renderTask(task, allTasks, container) {
   const children = allTasks.filter((t) => t.parent_id === task.id);
@@ -83,7 +113,7 @@ function renderTask(task, allTasks, container) {
     checkbox.checked = task.completed;
     minutesLabel.textContent = `${task.estimated_minutes} min`;
     if (task.completed) {
-      title.classList.add("line-through", "text-teal-700/50");
+      title.classList.add("strike");
       focusButton.remove();
     } else {
       focusButton.addEventListener("click", () => startFocus(task));
@@ -113,7 +143,7 @@ function renderTask(task, allTasks, container) {
     subtaskForm.remove();
     breakDownButton.remove();
   } else {
-    addButton.addEventListener("click", () => subtaskForm.classList.toggle("hidden"));
+    addButton.addEventListener("click", () => subtaskForm.classList.toggle("show"));
     subtaskForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       const input = subtaskForm.querySelector('input[type="text"]');
@@ -172,7 +202,10 @@ document.getElementById("goal-form").addEventListener("submit", async (event) =>
   loadGoals();
 });
 
+const BREAK_SECONDS = 5 * 60;
+
 const overlay = document.getElementById("focus-overlay");
+const focusPhaseLabel = document.getElementById("focus-phase-label");
 const focusTaskTitle = document.getElementById("focus-task-title");
 const focusTime = document.getElementById("focus-time");
 const focusStop = document.getElementById("focus-stop");
@@ -189,68 +222,72 @@ function startFocus(task) {
   const plannedSeconds = task.estimated_minutes * 60;
   let secondsLeft = plannedSeconds;
 
+  focusPhaseLabel.textContent = "Focus";
   focusTaskTitle.textContent = task.title;
   focusTime.textContent = formatTime(secondsLeft);
+  focusStop.textContent = "Stop session";
   overlay.classList.remove("hidden");
 
-  const finish = async (completed) => {
-    clearInterval(timerHandle);
-    overlay.classList.add("hidden");
+  const logSession = (completed) => {
     const actualMinutes = Math.round((plannedSeconds - secondsLeft) / 60) || task.estimated_minutes;
-    await api(`/tasks/${task.id}/sessions`, {
+    api(`/tasks/${task.id}/sessions`, {
       method: "POST",
       body: JSON.stringify({ actual_minutes: actualMinutes, completed }),
-    });
-    loadStats();
+    }).then(loadStats);
   };
 
-  focusStop.onclick = () => finish(false);
+  focusStop.onclick = () => {
+    clearInterval(timerHandle);
+    overlay.classList.add("hidden");
+    logSession(false);
+  };
 
   timerHandle = setInterval(() => {
     secondsLeft -= 1;
     if (secondsLeft <= 0) {
       focusTime.textContent = "00:00";
-      finish(true);
+      clearInterval(timerHandle);
+      logSession(true);
+      startBreak();
       return;
     }
     focusTime.textContent = formatTime(secondsLeft);
   }, 1000);
 }
 
-const goalsView = document.getElementById("goals-view");
-const historyView = document.getElementById("history-view");
-const navGoals = document.getElementById("nav-goals");
-const navHistory = document.getElementById("nav-history");
-const sessionTemplate = document.getElementById("session-template");
+function startBreak() {
+  let secondsLeft = BREAK_SECONDS;
 
-const activeTabClasses = ["bg-teal-600", "text-white"];
-const inactiveTabClasses = ["bg-white", "text-teal-700", "border", "border-teal-200"];
+  focusPhaseLabel.textContent = "Break";
+  focusTaskTitle.textContent = "Step away for a few minutes.";
+  focusTime.textContent = formatTime(secondsLeft);
+  focusStop.textContent = "Skip break";
+  overlay.classList.remove("hidden");
 
-function setActiveTab(activeButton, inactiveButton) {
-  activeButton.classList.remove(...inactiveTabClasses);
-  activeButton.classList.add(...activeTabClasses);
-  inactiveButton.classList.remove(...activeTabClasses);
-  inactiveButton.classList.add(...inactiveTabClasses);
+  focusStop.onclick = () => {
+    clearInterval(timerHandle);
+    overlay.classList.add("hidden");
+  };
+
+  timerHandle = setInterval(() => {
+    secondsLeft -= 1;
+    if (secondsLeft <= 0) {
+      clearInterval(timerHandle);
+      overlay.classList.add("hidden");
+      return;
+    }
+    focusTime.textContent = formatTime(secondsLeft);
+  }, 1000);
 }
 
-navGoals.addEventListener("click", () => {
-  goalsView.classList.remove("hidden");
-  historyView.classList.add("hidden");
-  setActiveTab(navGoals, navHistory);
-});
-
-navHistory.addEventListener("click", () => {
-  goalsView.classList.add("hidden");
-  historyView.classList.remove("hidden");
-  setActiveTab(navHistory, navGoals);
-  loadHistory();
-});
+const sessionTemplate = document.getElementById("session-template");
+const historyView = document.getElementById("history-view");
 
 async function loadHistory() {
   const sessions = await api("/sessions");
   historyView.innerHTML = "";
   if (!sessions.length) {
-    historyView.innerHTML = '<p class="text-sm text-teal-700/60">No focus sessions logged yet.</p>';
+    historyView.innerHTML = '<p class="text-muted">No focus sessions logged yet.</p>';
     return;
   }
   for (const session of sessions) {
@@ -262,21 +299,255 @@ async function loadHistory() {
     const status = node.querySelector(".session-status");
     if (session.completed) {
       status.textContent = "Completed";
-      status.classList.add("bg-teal-50", "text-teal-700");
+      status.classList.add("pill-success");
     } else {
       status.textContent = "Stopped early";
-      status.classList.add("bg-orange-50", "text-orange-700");
+      status.classList.add("pill-warning");
     }
     historyView.appendChild(node);
   }
 }
 
 async function loadStats() {
-  const stats = await api("/stats");
-  document.getElementById("stat-streak").textContent = stats.current_streak;
-  document.getElementById("stat-sessions").textContent = stats.total_sessions;
-  document.getElementById("stat-minutes").textContent = stats.total_minutes;
+  return api("/stats");
 }
 
-loadGoals();
-loadStats();
+// --- Shared "dot-path" renderer: the one visual motif reused everywhere ---
+// nodes: array of "filled" | "current" | "" booleans/strings, in order.
+// connectors are drawn between consecutive nodes unless a gap is requested via null.
+function renderDotPath(container, nodes) {
+  container.innerHTML = "";
+  nodes.forEach((state, index) => {
+    if (state === "gap") {
+      const gap = document.createElement("span");
+      gap.className = "gap";
+      container.appendChild(gap);
+      return;
+    }
+    if (index > 0 && nodes[index - 1] !== "gap") {
+      const connector = document.createElement("span");
+      connector.className = "connector" + (state === "filled" || state === "current" ? " filled" : "");
+      container.appendChild(connector);
+    }
+    const node = document.createElement("span");
+    node.className = "node" + (state ? ` ${state}` : "");
+    container.appendChild(node);
+  });
+}
+
+function greetingForNow() {
+  const hour = new Date().getHours();
+  if (hour < 5) return "Still up?";
+  if (hour < 12) return "Good morning.";
+  if (hour < 18) return "Good afternoon.";
+  return "Good evening.";
+}
+
+// --- Dashboard: everything below is real data, no mocks ---
+
+async function loadDashboard() {
+  document.getElementById("dashboard-greeting").textContent = greetingForNow();
+
+  const goals = await api("/goals");
+  const goalsWithTasks = await Promise.all(
+    goals.map(async (goal) => ({ goal, tasks: await api(`/goals/${goal.id}/tasks`) }))
+  );
+
+  renderWhatsNext(goalsWithTasks);
+  renderActiveGoals(goalsWithTasks);
+  const stats = await loadStats();
+  await renderMomentum(stats);
+}
+
+function renderWhatsNext(goalsWithTasks) {
+  const goalLabel = document.getElementById("whats-next-goal");
+  const titleLabel = document.getElementById("whats-next-title");
+  const stepsRow = document.getElementById("whats-next-steps");
+  const actionSlot = document.getElementById("whats-next-action");
+  actionSlot.innerHTML = "";
+  stepsRow.innerHTML = "";
+
+  for (const { goal, tasks } of goalsWithTasks) {
+    const leaves = tasks
+      .filter((t) => !tasks.some((o) => o.parent_id === t.id))
+      .sort((a, b) => a.id - b.id);
+    const nextIndex = leaves.findIndex((t) => !t.completed);
+    if (nextIndex === -1) continue;
+    const next = leaves[nextIndex];
+
+    goalLabel.textContent = goal.title;
+    titleLabel.textContent = next.title;
+
+    const nodes = leaves.map((_, i) =>
+      i === nextIndex ? "current" : i < nextIndex ? "filled" : ""
+    );
+    renderDotPath(stepsRow, nodes);
+    const stepsText = document.createElement("span");
+    stepsText.className = "next-steps-text";
+    stepsText.textContent = `Step ${nextIndex + 1} of ${leaves.length}`;
+    stepsRow.appendChild(stepsText);
+
+    const button = document.createElement("button");
+    button.className = "btn btn-primary";
+    button.textContent = `Focus (${next.estimated_minutes} min)`;
+    button.addEventListener("click", () => startFocus(next));
+    actionSlot.appendChild(button);
+    return;
+  }
+
+  goalLabel.textContent = "";
+  titleLabel.textContent = "Nothing left to do";
+  const empty = document.createElement("p");
+  empty.className = "text-muted";
+  empty.style.margin = "0";
+  empty.textContent = "Add a goal or a task to get started.";
+  actionSlot.appendChild(empty);
+}
+
+function renderActiveGoals(goalsWithTasks) {
+  const container = document.getElementById("dashboard-goals");
+  container.innerHTML = "";
+
+  if (!goalsWithTasks.length) {
+    const empty = document.createElement("p");
+    empty.className = "text-muted";
+    empty.textContent = "No goals yet.";
+    container.appendChild(empty);
+    return;
+  }
+
+  for (const { goal, tasks } of goalsWithTasks) {
+    const leaves = tasks
+      .filter((t) => !tasks.some((o) => o.parent_id === t.id))
+      .sort((a, b) => a.id - b.id);
+    const done = leaves.filter((l) => l.completed).length;
+
+    const row = document.createElement("div");
+    row.className = "goal-row";
+
+    const name = document.createElement("span");
+    name.className = "goal-row-name";
+    name.textContent = goal.title;
+
+    const right = document.createElement("div");
+    right.style.cssText = "display:flex; align-items:center; gap:0.75rem;";
+    const path = document.createElement("div");
+    path.className = "dot-path";
+    renderDotPath(path, leaves.map((l) => (l.completed ? "filled" : "")));
+    const count = document.createElement("span");
+    count.className = "goal-row-count";
+    count.textContent = `${done}/${leaves.length}`;
+    right.append(path, count);
+
+    row.append(name, right);
+    container.appendChild(row);
+  }
+}
+
+async function renderMomentum(stats) {
+  document.getElementById("streak-value").textContent = stats.current_streak;
+  document.getElementById("momentum-totals").textContent =
+    `${stats.total_sessions} sessions · ${stats.total_minutes} minutes focused, all time`;
+
+  const sessions = await api("/sessions");
+  const daysWithSessions = new Set(sessions.map((s) => s.created_at.slice(0, 10)));
+
+  const today = new Date();
+  const dateKey = (d) => d.toISOString().slice(0, 10);
+
+  // Streak beads: last 7 days, today marked as "current" regardless of fill.
+  const beadNodes = [];
+  for (let i = 6; i >= 0; i--) {
+    const day = new Date(today);
+    day.setDate(day.getDate() - i);
+    const hadSession = daysWithSessions.has(dateKey(day));
+    beadNodes.push(i === 0 ? (hadSession ? "current" : "current") : hadSession ? "filled" : "");
+  }
+  renderDotPath(document.getElementById("streak-beads"), beadNodes);
+
+  // Weekly rhythm: last 8 weeks, each week a cluster of 7 day-dots.
+  const rhythmContainer = document.getElementById("rhythm-strip");
+  rhythmContainer.innerHTML = "";
+  const totalWeeks = 8;
+  const totalDays = totalWeeks * 7;
+  const startOffset = totalDays - 1;
+
+  for (let week = 0; week < totalWeeks; week++) {
+    const weekGroup = document.createElement("div");
+    weekGroup.className = "dot-path rhythm-week";
+    const nodes = [];
+    for (let dayInWeek = 0; dayInWeek < 7; dayInWeek++) {
+      const i = startOffset - (week * 7 + dayInWeek);
+      const day = new Date(today);
+      day.setDate(day.getDate() - i);
+      nodes.push(daysWithSessions.has(dateKey(day)) ? "filled" : "");
+    }
+    renderDotPath(weekGroup, nodes);
+    rhythmContainer.appendChild(weekGroup);
+    if (week < totalWeeks - 1) {
+      const gap = document.createElement("span");
+      gap.className = "gap";
+      rhythmContainer.appendChild(gap);
+    }
+  }
+}
+
+// --- Calendar: real date grid, illustrative (fake) entries only ---
+
+function renderCalendarPreview() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+
+  document.getElementById("calendar-month-label").textContent = today.toLocaleDateString(
+    "en",
+    { month: "long", year: "numeric" }
+  );
+
+  const grid = document.getElementById("calendar-grid");
+  grid.innerHTML = "";
+
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const exampleDays = new Set([5, 14, 22]);
+
+  for (let i = 0; i < firstWeekday; i++) {
+    grid.appendChild(document.createElement("div"));
+  }
+  for (let dayNum = 1; dayNum <= daysInMonth; dayNum++) {
+    const cell = document.createElement("div");
+    cell.className = "calendar-cell";
+    const label = document.createElement("div");
+    label.textContent = dayNum;
+    cell.appendChild(label);
+
+    if (exampleDays.has(dayNum)) {
+      const chip = document.createElement("div");
+      chip.className = "calendar-chip";
+      chip.textContent = "Example task";
+      cell.appendChild(chip);
+    }
+    grid.appendChild(cell);
+  }
+}
+
+// --- Nav ---
+
+const views = ["dashboard", "goals", "history", "calendar", "explore"];
+
+function switchView(name) {
+  views.forEach((view) => {
+    document.getElementById(`view-${view}`).classList.toggle("hidden", view !== name);
+    document.getElementById(`nav-${view}`).classList.toggle("active", view === name);
+  });
+  if (name === "dashboard") loadDashboard();
+  if (name === "goals") loadGoals();
+  if (name === "history") loadHistory();
+  if (name === "calendar") renderCalendarPreview();
+}
+
+views.forEach((name) => {
+  document.getElementById(`nav-${name}`).addEventListener("click", () => switchView(name));
+});
+
+switchView("dashboard");

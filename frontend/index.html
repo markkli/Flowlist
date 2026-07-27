@@ -4,126 +4,452 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Flowlist</title>
-  <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
-    body { font-family: 'Source Sans 3', sans-serif; background: #F0FDFA; color: #134E4A; }
-    h1, h2, .brand { font-family: 'Lexend', sans-serif; }
+    :root {
+      --bg: #F5F4F0;
+      --surface: #FFFFFF;
+      --surface-sunken: #ECEAE2;
+      --ink: #1B1D18;
+      --ink-soft: #63665F;
+      --ink-faint: #96988E;
+      --accent: #1F4D3A;
+      --accent-strong: #163829;
+      --accent-soft: #E3ECE5;
+      --border: #DEDCD3;
+      --danger: #A23B2E;
+      --danger-soft: #F2DEDA;
+      --shadow: rgba(20, 23, 20, 0.10);
+      --shadow-soft: rgba(20, 23, 20, 0.05);
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #14140F;
+        --surface: #1D1F17;
+        --surface-sunken: #0E0F0B;
+        --ink: #EDEEE7;
+        --ink-soft: #A6A79C;
+        --ink-faint: #6E7066;
+        --accent: #7FBF9C;
+        --accent-strong: #9CD3B3;
+        --accent-soft: #1D2E22;
+        --border: #2C2E25;
+        --danger: #D97F6D;
+        --danger-soft: #2E1F1A;
+        --shadow: rgba(0, 0, 0, 0.5);
+        --shadow-soft: rgba(0, 0, 0, 0.28);
+        color-scheme: dark;
+      }
+    }
+
+    html { scroll-behavior: smooth; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      overflow-x: hidden;
+      font-family: 'Public Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+    h1, h2, .brand, .display { font-family: 'Space Grotesk', system-ui, sans-serif; }
+    ::selection { background: var(--accent); color: var(--surface); }
+    a, button, input, textarea { font-family: inherit; }
+    button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .app-shell { display: flex; min-height: 100vh; }
+
+    /* Sidebar: light-weight, no box, left-mark active state */
+    .sidebar {
+      width: 14rem; flex-shrink: 0; padding: 1.75rem 1rem;
+      background: var(--bg);
+      display: flex; flex-direction: column;
+    }
+    .sidebar-mark { display: flex; align-items: center; gap: 0.6rem; padding: 0 0.5rem; margin-bottom: 0.5rem; }
+    .brand-mark {
+      width: 1.6rem; height: 1.6rem; border-radius: 0.4rem; background: var(--accent);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .sidebar-brand { font-size: 1.15rem; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; }
+    .sidebar-tagline {
+      font-size: 0.68rem; color: var(--ink-faint); letter-spacing: 0.08em;
+      padding: 0 0.5rem; margin-bottom: 2rem;
+    }
+
+    .nav-item {
+      position: relative;
+      display: flex; align-items: center; gap: 0.65rem; width: 100%;
+      padding: 0.5rem 0.6rem 0.5rem 0.85rem; border-radius: 0.4rem; font-size: 0.87rem;
+      font-weight: 500; text-align: left;
+      cursor: pointer; border: none; background: none; color: var(--ink-soft);
+      transition: color 150ms ease;
+    }
+    .nav-item::before {
+      content: ""; position: absolute; left: 0; top: 20%; bottom: 20%; width: 2px;
+      background: var(--accent); border-radius: 2px; opacity: 0; transition: opacity 150ms ease;
+    }
+    .nav-item:hover { color: var(--ink); }
+    .nav-item.active { color: var(--ink); font-weight: 600; }
+    .nav-item.active::before { opacity: 1; }
+    .nav-item svg { flex-shrink: 0; }
+    .nav-list { display: flex; flex-direction: column; gap: 0.1rem; flex: 1; }
+
+    .sidebar-footer {
+      display: flex; align-items: center; gap: 0.5rem; font-size: 0.68rem;
+      color: var(--ink-faint); padding: 1rem 0.5rem 0;
+      margin-top: 1rem;
+    }
+    .dot-live { width: 0.35rem; height: 0.35rem; border-radius: 50%; background: var(--accent); }
+
+    main.content { flex: 1; min-width: 0; padding: 3rem 3.5rem; max-width: 44rem; }
+    .view.hidden { display: none; }
+    @media (prefers-reduced-motion: no-preference) {
+      .view:not(.hidden) { animation: view-in 220ms ease-out; }
+    }
+    @keyframes view-in {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .page-title { font-size: 1.7rem; font-weight: 600; margin: 0 0 0.2rem; color: var(--ink); }
+    .page-subtitle { font-size: 0.92rem; color: var(--ink-soft); margin: 0 0 1.5rem; }
+    .eyebrow { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 0.4rem; }
+
+    hr.divider { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+
+    /* Cards reserved for genuine objects (a Goal). Everything else = zones. */
+    .zone { padding: 1.5rem; background: var(--surface-sunken); border-radius: 0.6rem; margin-bottom: 1.75rem; }
+
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 0.6rem; padding: 1.35rem; margin-bottom: 1.35rem;
+      box-shadow: 0 1px 2px var(--shadow-soft);
+    }
+    .card h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 0.85rem; color: var(--ink); }
+
+    .field {
+      border: 1px solid var(--border); border-radius: 0.4rem; padding: 0.5rem 0.75rem;
+      font-size: 0.9rem; background: var(--surface); color: var(--ink);
+    }
+    .field:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .field-narrow { width: 4.5rem; text-align: center; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;
+      font-weight: 500; padding: 0.5rem 1rem;
+      border-radius: 0.4rem; border: 1px solid transparent; cursor: pointer;
+      transition: background-color 150ms ease, opacity 150ms ease, transform 150ms ease;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-strong); transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-secondary { background: var(--accent-soft); color: var(--accent-strong); }
+    .btn-secondary:hover { opacity: 0.8; }
+    .btn-quiet { background: none; color: var(--ink-soft); padding: 0.5rem 0.6rem; }
+    .btn-quiet:hover { color: var(--ink); }
+    .btn-danger { background: none; color: var(--danger); padding: 0.5rem 0.6rem; }
+    .btn-danger:hover { text-decoration: underline; }
+    .btn-sm { font-size: 0.75rem; padding: 0.35rem 0.7rem; }
+    .btn:disabled { opacity: 0.6; cursor: default; }
+
+    .pill { display: inline-block; font-size: 0.72rem; padding: 0.2rem 0.6rem; border-radius: 999px; }
+    .pill-success { background: var(--accent-soft); color: var(--accent-strong); }
+    .pill-warning { background: var(--danger-soft); color: var(--danger); }
+    .pill-muted { background: var(--surface-sunken); color: var(--ink-soft); }
+
+    /* Shared "dot-path" motif: reused for step indicators, streak, rhythm, goal progress */
+    .dot-path { display: flex; align-items: center; }
+    .dot-path .node {
+      width: 0.5rem; height: 0.5rem; border-radius: 50%;
+      background: var(--border); flex-shrink: 0; transition: background-color 200ms ease, transform 200ms ease;
+    }
+    .dot-path .node.filled { background: var(--accent); }
+    .dot-path .node.current {
+      width: 0.7rem; height: 0.7rem; background: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    .dot-path .connector { width: 0.7rem; height: 1px; background: var(--border); flex-shrink: 0; }
+    .dot-path .connector.filled { background: var(--accent); }
+    .dot-path .gap { width: 0.5rem; flex-shrink: 0; }
+
+    .task-node { list-style: none; }
+    .task-row {
+      display: flex; align-items: center; gap: 0.65rem;
+      border: 1px solid var(--border); background: var(--surface);
+      border-radius: 0.5rem; padding: 0.55rem 0.75rem;
+      transition: background-color 200ms ease;
+    }
+    .task-row input[type="checkbox"] { width: 1rem; height: 1rem; accent-color: var(--accent); cursor: pointer; }
+    .task-title { flex: 1; font-size: 0.9rem; }
+    .task-meta { font-size: 0.72rem; color: var(--ink-faint); }
+    .strike { text-decoration: line-through; color: var(--ink-faint); }
+    .subtask-list, .suggestion-list { list-style: none; margin: 0.5rem 0 0 1.4rem; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+    .subtask-form { display: none; gap: 0.5rem; margin: 0.5rem 0 0 1.4rem; }
+    .subtask-form.show { display: flex; }
+    .suggestion-row {
+      display: flex; align-items: center; gap: 0.65rem; border: 1px dashed var(--accent);
+      background: var(--surface); border-radius: 0.4rem; padding: 0.5rem 0.75rem;
+    }
+
+    .session-row {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 0.5rem;
+      padding: 0.85rem 1rem; display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+
+    .goal-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 0.6rem; padding: 1.35rem; margin-bottom: 1rem;
+      box-shadow: 0 1px 2px var(--shadow-soft);
+    }
+
+    .text-muted { color: var(--ink-soft); font-size: 0.85rem; }
+
+    .calendar-cell {
+      border: 1px solid var(--border); border-radius: 0.4rem; padding: 0.4rem;
+      font-size: 0.72rem; min-height: 3.5rem; color: var(--ink-faint);
+    }
+    .calendar-chip { margin-top: 0.25rem; background: var(--accent-soft); color: var(--accent-strong); border-radius: 0.25rem; padding: 0.1rem 0.3rem; font-size: 0.65rem; }
+
+    .overlay {
+      display: flex; align-items: center; justify-content: center; position: fixed; inset: 0;
+      background: rgba(15, 16, 12, 0.6); z-index: 50;
+    }
+    .overlay.hidden { display: none; }
+    .overlay-card {
+      background: var(--surface); border-radius: 0.9rem; padding: 2.25rem; width: 20rem;
+      text-align: center; border: 1px solid var(--border);
+      box-shadow: 0 24px 60px -12px rgba(0,0,0,0.35);
+    }
+    .check-pop {
+      width: 3.5rem; height: 3.5rem; border-radius: 50%; background: var(--accent-soft);
+      display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      .check-pop { animation: pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+    }
+    @keyframes pop {
+      from { transform: scale(0.6); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    /* Dashboard specifics */
+    .next-goal-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 0.5rem; }
+    .next-task-title { font-family: 'Space Grotesk', sans-serif; font-size: 1.6rem; font-weight: 600; margin: 0 0 1rem; line-height: 1.25; }
+    .next-steps-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1.35rem; }
+    .next-steps-text { font-size: 0.78rem; color: var(--ink-soft); }
+
+    .momentum-grid { display: flex; align-items: flex-start; gap: 2.5rem; margin-bottom: 0.5rem; }
+    .momentum-streak { flex-shrink: 0; }
+    .momentum-streak .value { font-family: 'Space Grotesk', sans-serif; font-size: 2.1rem; font-weight: 600; line-height: 1; }
+    .momentum-streak .label { font-size: 0.72rem; color: var(--ink-faint); margin-top: 0.15rem; }
+    .momentum-rhythm { flex: 1; min-width: 0; }
+    .rhythm-weeks { display: flex; align-items: center; gap: 0.2rem 0.15rem; flex-wrap: wrap; }
+    .rhythm-week { display: flex; align-items: center; flex-shrink: 0; }
+
+    .goal-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+      padding: 0.85rem 0; border-bottom: 1px solid var(--border);
+    }
+    .goal-row:last-child { border-bottom: none; }
+    .goal-row-name { font-size: 0.92rem; font-weight: 500; }
+    .goal-row-count { font-size: 0.75rem; color: var(--ink-faint); }
   </style>
 </head>
-<body class="min-h-screen">
-  <div class="max-w-3xl mx-auto px-6 py-10">
-    <h1 class="brand text-2xl font-semibold text-teal-800 mb-1">Flowlist</h1>
-    <p class="text-teal-700/70 mb-6">Goals and tasks, talking to a real API.</p>
-
-    <div id="stats-bar" class="grid grid-cols-3 gap-3 mb-6">
-      <div class="bg-white border border-teal-100 rounded-xl p-4 text-center">
-        <p id="stat-streak" class="brand text-2xl font-semibold text-teal-800">0</p>
-        <p class="text-xs text-teal-700/60">day streak</p>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-mark">
+        <span class="brand-mark">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </span>
+        <div class="sidebar-brand">Flowlist</div>
       </div>
-      <div class="bg-white border border-teal-100 rounded-xl p-4 text-center">
-        <p id="stat-sessions" class="brand text-2xl font-semibold text-teal-800">0</p>
-        <p class="text-xs text-teal-700/60">sessions</p>
-      </div>
-      <div class="bg-white border border-teal-100 rounded-xl p-4 text-center">
-        <p id="stat-minutes" class="brand text-2xl font-semibold text-teal-800">0</p>
-        <p class="text-xs text-teal-700/60">minutes focused</p>
-      </div>
-    </div>
+      <div class="sidebar-tagline">A quieter kind of progress</div>
 
-    <nav class="flex gap-2 mb-6">
-      <button id="nav-goals" class="nav-tab text-sm font-medium px-3 py-1.5 rounded-lg cursor-pointer transition-colors bg-teal-600 text-white">Goals</button>
-      <button id="nav-history" class="nav-tab text-sm font-medium px-3 py-1.5 rounded-lg cursor-pointer transition-colors bg-white text-teal-700 border border-teal-200">History</button>
-    </nav>
+      <nav class="nav-list">
+        <button id="nav-dashboard" class="nav-item active">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>
+          Dashboard
+        </button>
+        <button id="nav-goals" class="nav-item">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4"></circle></svg>
+          Goals
+        </button>
+        <button id="nav-history" class="nav-item">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 16 14"></polyline></svg>
+          History
+        </button>
+        <button id="nav-calendar" class="nav-item">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="16" y1="3" x2="16" y2="7"></line></svg>
+          Calendar
+        </button>
+        <button id="nav-explore" class="nav-item">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><polygon points="14.5 9.5 12 12 9.5 14.5 12 12 14.5 9.5"></polygon></svg>
+          Explore
+        </button>
+      </nav>
 
-    <div id="goals-view">
-      <section class="bg-white border border-teal-100 rounded-xl p-5 mb-6">
-        <h2 class="font-medium mb-3">New goal</h2>
-        <form id="goal-form" class="flex gap-2">
-          <input id="goal-title" type="text" placeholder="e.g. Learn FastAPI"
-            class="flex-1 border border-teal-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-          <button class="bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium px-4 py-2 rounded-lg cursor-pointer transition-colors">
-            Add goal
-          </button>
-        </form>
+      <div class="sidebar-footer">
+        <span class="dot-live"></span>
+        Local-first, backed by Postgres
+      </div>
+    </aside>
+
+    <main class="content">
+      <section id="view-dashboard" class="view">
+        <h1 id="dashboard-greeting" class="page-title"></h1>
+        <p class="page-subtitle">Here's what matters next.</p>
+
+        <div class="zone">
+          <p id="whats-next-goal" class="next-goal-label"></p>
+          <p id="whats-next-title" class="next-task-title"></p>
+          <div id="whats-next-steps" class="next-steps-row"></div>
+          <div id="whats-next-action"></div>
+        </div>
+
+        <div class="momentum-grid">
+          <div class="momentum-streak">
+            <div id="streak-value" class="value">0</div>
+            <div class="label">day streak</div>
+            <div id="streak-beads" class="dot-path" style="margin-top:0.5rem;"></div>
+          </div>
+          <div class="momentum-rhythm">
+            <p class="eyebrow">Weekly rhythm</p>
+            <div id="rhythm-strip" class="rhythm-weeks"></div>
+          </div>
+        </div>
+        <p id="momentum-totals" class="text-muted" style="margin: 0.9rem 0 0;"></p>
+
+        <hr class="divider" />
+
+        <p class="eyebrow">Active goals</p>
+        <div id="dashboard-goals"></div>
       </section>
 
-      <div id="goals" class="space-y-4"></div>
-    </div>
+      <section id="view-goals" class="view hidden">
+        <h1 class="page-title">Goals</h1>
+        <p class="page-subtitle">Goals and tasks, talking to a real API.</p>
 
-    <div id="history-view" class="hidden space-y-2"></div>
+        <div class="card">
+          <h2>New goal</h2>
+          <form id="goal-form" style="display:flex; gap:0.5rem;">
+            <input id="goal-title" type="text" placeholder="e.g. Learn FastAPI" class="field" style="flex:1;" />
+            <button class="btn btn-primary">Add goal</button>
+          </form>
+        </div>
+
+        <div id="goals"></div>
+      </section>
+
+      <section id="view-history" class="view hidden">
+        <h1 class="page-title">History</h1>
+        <p class="page-subtitle">Every focus session you've logged.</p>
+        <div id="history-view"></div>
+      </section>
+
+      <section id="view-calendar" class="view hidden">
+        <h1 class="page-title">Calendar</h1>
+        <p class="page-subtitle">Preview — scheduling isn't wired up to real data yet. <span class="pill pill-warning">Coming soon</span></p>
+        <div class="card">
+          <p id="calendar-month-label" style="font-weight:600; margin-bottom:0.75rem;"></p>
+          <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:0.5rem; text-align:center; font-size:0.72rem; color:var(--ink-faint); margin-bottom:0.5rem;">
+            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+          </div>
+          <div id="calendar-grid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:0.5rem;"></div>
+        </div>
+      </section>
+
+      <section id="view-explore" class="view hidden">
+        <h1 class="page-title">Explore</h1>
+        <p class="page-subtitle">Preview — AI-suggested related goals aren't wired up yet. <span class="pill pill-warning">Coming soon</span></p>
+        <div class="card" style="border-style:dashed; border-color:var(--accent);">
+          <h2>Example: after finishing "Learn Python"</h2>
+          <p style="font-size:0.9rem; color:var(--ink-soft); margin:0;">This page will eventually suggest related skills worth learning next, like "Data Structures" or "SQL Fundamentals" — generated by the same AI call already used for "Break down."</p>
+        </div>
+      </section>
+    </main>
   </div>
 
   <template id="goal-template">
-    <section class="bg-white border border-teal-100 rounded-xl p-5">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="goal-title font-medium text-lg"></h2>
-        <button class="delete-goal text-sm text-red-600 hover:text-red-700 cursor-pointer">Delete goal</button>
+    <section class="goal-card">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.85rem;">
+        <h2 class="goal-title" style="font-size:1.15rem; font-weight:600; margin:0;"></h2>
+        <button class="delete-goal btn-danger btn-sm btn">Delete goal</button>
       </div>
-      <ul class="task-list space-y-2 mb-3"></ul>
-      <form class="task-form flex gap-2">
-        <input type="text" placeholder="New task"
-          class="flex-1 border border-teal-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-        <input type="number" min="1" value="25" title="Estimated minutes"
-          class="task-minutes w-16 border border-teal-200 rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-teal-500" />
-        <button class="bg-teal-50 hover:bg-teal-100 text-teal-800 text-sm font-medium px-4 py-2 rounded-lg cursor-pointer transition-colors">
-          Add task
-        </button>
+      <ul class="task-list" style="list-style:none; margin:0 0 0.85rem; padding:0; display:flex; flex-direction:column; gap:0.5rem;"></ul>
+      <form class="task-form" style="display:flex; gap:0.5rem;">
+        <input type="text" placeholder="New task" class="field" style="flex:1;" />
+        <input type="number" min="1" value="25" title="Estimated minutes" class="task-minutes field field-narrow" />
+        <button class="btn btn-secondary">Add task</button>
       </form>
     </section>
   </template>
 
   <template id="task-template">
     <li class="task-node">
-      <div class="flex items-center gap-3 border border-teal-50 bg-teal-50/40 rounded-lg px-3 py-2">
-        <input type="checkbox" class="task-completed w-4 h-4 accent-teal-600 cursor-pointer" />
-        <span class="task-title flex-1 text-sm"></span>
-        <span class="task-progress text-xs text-teal-700/60"></span>
-        <span class="task-minutes-label text-xs text-teal-700/60"></span>
-        <button class="start-focus text-xs bg-teal-600 hover:bg-teal-700 text-white px-3 py-1.5 rounded-lg cursor-pointer transition-colors">Focus</button>
-        <button class="add-subtask text-xs text-teal-700 hover:text-teal-800 cursor-pointer">+ Subtask</button>
-        <button class="break-down text-xs text-teal-700 hover:text-teal-800 cursor-pointer">Break down</button>
-        <button class="delete-task text-xs text-red-600 hover:text-red-700 cursor-pointer">Remove</button>
+      <div class="task-row">
+        <input type="checkbox" class="task-completed" />
+        <span class="task-title"></span>
+        <span class="task-progress task-meta"></span>
+        <span class="task-minutes-label task-meta"></span>
+        <button class="start-focus btn btn-primary btn-sm">Focus</button>
+        <button class="add-subtask btn btn-quiet btn-sm">+ Subtask</button>
+        <button class="break-down btn btn-quiet btn-sm">Break down</button>
+        <button class="delete-task btn btn-danger btn-sm">Remove</button>
       </div>
-      <form class="subtask-form hidden flex gap-2 mt-2 ml-6">
-        <input type="text" placeholder="Subtask title"
-          class="flex-1 border border-teal-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-        <input type="number" min="1" value="25" title="Estimated minutes"
-          class="subtask-minutes w-16 border border-teal-200 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-teal-500" />
-        <button class="bg-teal-50 hover:bg-teal-100 text-teal-800 text-xs font-medium px-3 py-1.5 rounded-lg cursor-pointer transition-colors">Add</button>
+      <form class="subtask-form">
+        <input type="text" placeholder="Subtask title" class="field" style="flex:1;" />
+        <input type="number" min="1" value="25" title="Estimated minutes" class="subtask-minutes field field-narrow" />
+        <button class="btn btn-secondary btn-sm">Add</button>
       </form>
-      <ul class="suggestion-list space-y-2 mt-2 ml-6"></ul>
-      <ul class="subtask-list space-y-2 mt-2 ml-6"></ul>
+      <ul class="suggestion-list"></ul>
+      <ul class="subtask-list"></ul>
     </li>
   </template>
 
   <template id="suggestion-template">
-    <li class="flex items-center gap-3 border border-dashed border-teal-200 bg-white rounded-lg px-3 py-2">
-      <span class="suggestion-title flex-1 text-sm text-teal-800"></span>
-      <span class="suggestion-minutes text-xs text-teal-700/60"></span>
-      <button class="suggestion-add text-xs bg-teal-50 hover:bg-teal-100 text-teal-800 px-3 py-1.5 rounded-lg cursor-pointer transition-colors">Add</button>
+    <li class="suggestion-row">
+      <span class="suggestion-title" style="flex:1; font-size:0.9rem;"></span>
+      <span class="suggestion-minutes task-meta"></span>
+      <button class="suggestion-add btn btn-secondary btn-sm">Add</button>
     </li>
   </template>
 
   <template id="session-template">
-    <div class="bg-white border border-teal-100 rounded-xl p-4 flex items-center justify-between">
+    <div class="session-row">
       <div>
-        <p class="session-title text-sm font-medium"></p>
-        <p class="session-meta text-xs text-teal-700/60"></p>
+        <p class="session-title" style="font-weight:600; margin:0 0 0.15rem; font-size:0.9rem;"></p>
+        <p class="session-meta task-meta" style="margin:0;"></p>
       </div>
-      <span class="session-status text-xs px-2 py-1 rounded-full"></span>
+      <span class="session-status pill"></span>
     </div>
   </template>
 
-  <div id="focus-overlay" class="hidden fixed inset-0 bg-teal-950/60 flex items-center justify-center">
-    <div class="bg-white rounded-2xl p-8 w-80 text-center">
-      <p id="focus-task-title" class="text-sm text-teal-700/70 mb-2"></p>
-      <p id="focus-time" class="brand text-5xl font-semibold text-teal-800 mb-6">25:00</p>
-      <button id="focus-stop" class="w-full bg-red-50 hover:bg-red-100 text-red-700 text-sm font-medium px-4 py-2 rounded-lg cursor-pointer transition-colors">
-        Stop session
-      </button>
+  <div id="focus-overlay" class="overlay hidden">
+    <div class="overlay-card">
+      <p id="focus-phase-label" class="pill pill-muted" style="margin:0 0 0.75rem;">Focus</p>
+      <p id="focus-task-title" style="font-size:0.85rem; color:var(--ink-soft); margin:0 0 0.5rem;"></p>
+      <p id="focus-time" class="display" style="font-size:3rem; font-weight:600; color:var(--accent); margin:0 0 1.5rem;">25:00</p>
+      <button id="focus-stop" class="btn btn-danger" style="width:100%; justify-content:center; border:1px solid var(--danger);">Stop session</button>
+    </div>
+  </div>
+
+  <div id="celebration-overlay" class="overlay hidden">
+    <div class="overlay-card">
+      <div class="check-pop">
+        <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+      <p style="font-size:0.75rem; color:var(--ink-soft); margin:0 0 0.25rem;">Goal complete</p>
+      <p id="celebration-goal-title" class="display" style="font-size:1.3rem; font-weight:600; margin:0 0 1.5rem;"></p>
+      <button id="celebration-dismiss" class="btn btn-primary" style="width:100%; justify-content:center;">Nice work</button>
     </div>
   </div>
 
