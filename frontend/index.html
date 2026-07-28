@@ -106,7 +106,7 @@
     }
     .dot-live { width: 0.35rem; height: 0.35rem; border-radius: 50%; background: var(--accent); }
 
-    main.content { flex: 1; min-width: 0; padding: 3rem 3.5rem; max-width: 44rem; }
+    main.content { flex: 1 1 auto; min-width: 0; max-width: 44rem; margin: 0 auto; padding: 3rem 3.5rem; }
     .view.hidden { display: none; }
     @media (prefers-reduced-motion: no-preference) {
       .view:not(.hidden) { animation: view-in 220ms ease-out; }
@@ -179,13 +179,14 @@
 
     .task-node { list-style: none; }
     .task-row {
-      display: flex; align-items: center; gap: 0.65rem;
+      display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem 0.65rem;
       border: 1px solid var(--border); background: var(--surface);
       border-radius: 0.5rem; padding: 0.55rem 0.75rem;
       transition: background-color 200ms ease;
     }
-    .task-row input[type="checkbox"] { width: 1rem; height: 1rem; accent-color: var(--accent); cursor: pointer; }
-    .task-title { flex: 1; font-size: 0.9rem; }
+    .task-row input[type="checkbox"] { width: 1rem; height: 1rem; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+    .task-title { flex: 1 1 10rem; min-width: 8rem; font-size: 0.9rem; }
+    .task-row .btn, .task-row .task-meta { flex-shrink: 0; }
     .task-meta { font-size: 0.72rem; color: var(--ink-faint); }
     .strike { text-decoration: line-through; color: var(--ink-faint); }
     .subtask-list, .suggestion-list { list-style: none; margin: 0.5rem 0 0 1.4rem; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
