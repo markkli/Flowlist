@@ -3,457 +3,109 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Flowlist</title>
+  <title>Flowlist — make the day count</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #F5F4F0;
-      --surface: #FFFFFF;
-      --surface-sunken: #ECEAE2;
-      --ink: #1B1D18;
-      --ink-soft: #63665F;
-      --ink-faint: #96988E;
-      --accent: #1F4D3A;
-      --accent-strong: #163829;
-      --accent-soft: #E3ECE5;
-      --border: #DEDCD3;
-      --danger: #A23B2E;
-      --danger-soft: #F2DEDA;
-      --shadow: rgba(20, 23, 20, 0.10);
-      --shadow-soft: rgba(20, 23, 20, 0.05);
+      --paper: #f3f0e8; --paper-raised: rgba(255,255,252,.72); --surface: #fffdf8;
+      --ink: #17241f; --muted: #68736d; --muted-2: #909790; --line: rgba(38,58,49,.14);
+      --forest: #174d3b; --forest-deep: #0d3528; --mint: #bce5c9; --mint-soft: #e2f1e5;
+      --gold: #c77c27; --gold-soft: #faead0; --red: #a84236;
+      --shadow: 0 20px 60px rgba(25,42,33,.08); --ring-track: rgba(23,77,59,.13);
       color-scheme: light;
     }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #14140F;
-        --surface: #1D1F17;
-        --surface-sunken: #0E0F0B;
-        --ink: #EDEEE7;
-        --ink-soft: #A6A79C;
-        --ink-faint: #6E7066;
-        --accent: #7FBF9C;
-        --accent-strong: #9CD3B3;
-        --accent-soft: #1D2E22;
-        --border: #2C2E25;
-        --danger: #D97F6D;
-        --danger-soft: #2E1F1A;
-        --shadow: rgba(0, 0, 0, 0.5);
-        --shadow-soft: rgba(0, 0, 0, 0.28);
-        color-scheme: dark;
-      }
+    [data-theme="dark"] {
+      --paper: #101813; --paper-raised: rgba(24,35,29,.75); --surface: #19251f;
+      --ink: #edf4eb; --muted: #a7b2aa; --muted-2: #718078; --line: rgba(211,234,215,.13);
+      --forest: #91d3ae; --forest-deep: #c4e9d0; --mint: #244e3b; --mint-soft: #1a382b;
+      --gold: #edb560; --gold-soft: #3e301e; --red: #ef9589;
+      --shadow: 0 24px 60px rgba(0,0,0,.25); --ring-track: rgba(193,232,206,.14);
+      color-scheme: dark;
     }
-
-    html { scroll-behavior: smooth; }
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      overflow-x: hidden;
-      font-family: 'Public Sans', system-ui, sans-serif;
-      background: var(--bg);
-      color: var(--ink);
-    }
-    h1, h2, .brand, .display { font-family: 'Space Grotesk', system-ui, sans-serif; }
-    ::selection { background: var(--accent); color: var(--surface); }
-    a, button, input, textarea { font-family: inherit; }
-    button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
-    }
-
-    .app-shell { display: flex; min-height: 100vh; }
-
-    /* Sidebar: light-weight, no box, left-mark active state */
-    .sidebar {
-      width: 14rem; flex-shrink: 0; padding: 1.75rem 1rem;
-      background: var(--bg);
-      display: flex; flex-direction: column;
-    }
-    .sidebar-mark { display: flex; align-items: center; gap: 0.6rem; padding: 0 0.5rem; margin-bottom: 0.5rem; }
-    .brand-mark {
-      width: 1.6rem; height: 1.6rem; border-radius: 0.4rem; background: var(--accent);
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-    }
-    .sidebar-brand { font-size: 1.15rem; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; }
-    .sidebar-tagline {
-      font-size: 0.68rem; color: var(--ink-faint); letter-spacing: 0.08em;
-      padding: 0 0.5rem; margin-bottom: 2rem;
-    }
-
-    .nav-item {
-      position: relative;
-      display: flex; align-items: center; gap: 0.65rem; width: 100%;
-      padding: 0.5rem 0.6rem 0.5rem 0.85rem; border-radius: 0.4rem; font-size: 0.87rem;
-      font-weight: 500; text-align: left;
-      cursor: pointer; border: none; background: none; color: var(--ink-soft);
-      transition: color 150ms ease;
-    }
-    .nav-item::before {
-      content: ""; position: absolute; left: 0; top: 20%; bottom: 20%; width: 2px;
-      background: var(--accent); border-radius: 2px; opacity: 0; transition: opacity 150ms ease;
-    }
-    .nav-item:hover { color: var(--ink); }
-    .nav-item.active { color: var(--ink); font-weight: 600; }
-    .nav-item.active::before { opacity: 1; }
-    .nav-item svg { flex-shrink: 0; }
-    .nav-list { display: flex; flex-direction: column; gap: 0.1rem; flex: 1; }
-
-    .sidebar-footer {
-      display: flex; align-items: center; gap: 0.5rem; font-size: 0.68rem;
-      color: var(--ink-faint); padding: 1rem 0.5rem 0;
-      margin-top: 1rem;
-    }
-    .dot-live { width: 0.35rem; height: 0.35rem; border-radius: 50%; background: var(--accent); }
-
-    main.content { flex: 1 1 auto; min-width: 0; max-width: 44rem; margin: 0 auto; padding: 3rem 3.5rem; }
-    .view.hidden { display: none; }
-    @media (prefers-reduced-motion: no-preference) {
-      .view:not(.hidden) { animation: view-in 220ms ease-out; }
-    }
-    @keyframes view-in {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .page-title { font-size: 1.7rem; font-weight: 600; margin: 0 0 0.2rem; color: var(--ink); }
-    .page-subtitle { font-size: 0.92rem; color: var(--ink-soft); margin: 0 0 1.5rem; }
-    .eyebrow { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 0.4rem; }
-
-    hr.divider { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
-
-    /* Cards reserved for genuine objects (a Goal). Everything else = zones. */
-    .zone { padding: 1.5rem; background: var(--surface-sunken); border-radius: 0.6rem; margin-bottom: 1.75rem; }
-
-    .card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 0.6rem; padding: 1.35rem; margin-bottom: 1.35rem;
-      box-shadow: 0 1px 2px var(--shadow-soft);
-    }
-    .card h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 0.85rem; color: var(--ink); }
-
-    .field {
-      border: 1px solid var(--border); border-radius: 0.4rem; padding: 0.5rem 0.75rem;
-      font-size: 0.9rem; background: var(--surface); color: var(--ink);
-    }
-    .field:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-    .field-narrow { width: 4.5rem; text-align: center; }
-
-    .btn {
-      display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;
-      font-weight: 500; padding: 0.5rem 1rem;
-      border-radius: 0.4rem; border: 1px solid transparent; cursor: pointer;
-      transition: background-color 150ms ease, opacity 150ms ease, transform 150ms ease;
-    }
-    .btn-primary { background: var(--accent); color: white; }
-    .btn-primary:hover { background: var(--accent-strong); transform: translateY(-1px); }
-    .btn-primary:active { transform: translateY(0); }
-    .btn-secondary { background: var(--accent-soft); color: var(--accent-strong); }
-    .btn-secondary:hover { opacity: 0.8; }
-    .btn-quiet { background: none; color: var(--ink-soft); padding: 0.5rem 0.6rem; }
-    .btn-quiet:hover { color: var(--ink); }
-    .btn-danger { background: none; color: var(--danger); padding: 0.5rem 0.6rem; }
-    .btn-danger:hover { text-decoration: underline; }
-    .btn-sm { font-size: 0.75rem; padding: 0.35rem 0.7rem; }
-    .btn:disabled { opacity: 0.6; cursor: default; }
-
-    .pill { display: inline-block; font-size: 0.72rem; padding: 0.2rem 0.6rem; border-radius: 999px; }
-    .pill-success { background: var(--accent-soft); color: var(--accent-strong); }
-    .pill-warning { background: var(--danger-soft); color: var(--danger); }
-    .pill-muted { background: var(--surface-sunken); color: var(--ink-soft); }
-
-    /* Shared "dot-path" motif: reused for step indicators, streak, rhythm, goal progress */
-    .dot-path { display: flex; align-items: center; }
-    .dot-path .node {
-      width: 0.5rem; height: 0.5rem; border-radius: 50%;
-      background: var(--border); flex-shrink: 0; transition: background-color 200ms ease, transform 200ms ease;
-    }
-    .dot-path .node.filled { background: var(--accent); }
-    .dot-path .node.current {
-      width: 0.7rem; height: 0.7rem; background: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-soft);
-    }
-    .dot-path .connector { width: 0.7rem; height: 1px; background: var(--border); flex-shrink: 0; }
-    .dot-path .connector.filled { background: var(--accent); }
-    .dot-path .gap { width: 0.5rem; flex-shrink: 0; }
-
-    .task-node { list-style: none; }
-    .task-row {
-      display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem 0.65rem;
-      border: 1px solid var(--border); background: var(--surface);
-      border-radius: 0.5rem; padding: 0.55rem 0.75rem;
-      transition: background-color 200ms ease;
-    }
-    .task-row input[type="checkbox"] { width: 1rem; height: 1rem; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
-    .task-title { flex: 1 1 10rem; min-width: 8rem; font-size: 0.9rem; }
-    .task-row .btn, .task-row .task-meta { flex-shrink: 0; }
-    .task-meta { font-size: 0.72rem; color: var(--ink-faint); }
-    .strike { text-decoration: line-through; color: var(--ink-faint); }
-    .subtask-list, .suggestion-list { list-style: none; margin: 0.5rem 0 0 1.4rem; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
-    .subtask-form { display: none; gap: 0.5rem; margin: 0.5rem 0 0 1.4rem; }
-    .subtask-form.show { display: flex; }
-    .suggestion-row {
-      display: flex; align-items: center; gap: 0.65rem; border: 1px dashed var(--accent);
-      background: var(--surface); border-radius: 0.4rem; padding: 0.5rem 0.75rem;
-    }
-
-    .session-row {
-      background: var(--surface); border: 1px solid var(--border); border-radius: 0.5rem;
-      padding: 0.85rem 1rem; display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 0.5rem;
-    }
-
-    .goal-card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 0.6rem; padding: 1.35rem; margin-bottom: 1rem;
-      box-shadow: 0 1px 2px var(--shadow-soft);
-    }
-
-    .text-muted { color: var(--ink-soft); font-size: 0.85rem; }
-
-    .calendar-cell {
-      border: 1px solid var(--border); border-radius: 0.4rem; padding: 0.4rem;
-      font-size: 0.72rem; min-height: 3.5rem; color: var(--ink-faint);
-    }
-    .calendar-chip { margin-top: 0.25rem; background: var(--accent-soft); color: var(--accent-strong); border-radius: 0.25rem; padding: 0.1rem 0.3rem; font-size: 0.65rem; }
-
-    .overlay {
-      display: flex; align-items: center; justify-content: center; position: fixed; inset: 0;
-      background: rgba(15, 16, 12, 0.6); z-index: 50;
-    }
-    .overlay.hidden { display: none; }
-    .overlay-card {
-      background: var(--surface); border-radius: 0.9rem; padding: 2.25rem; width: 20rem;
-      text-align: center; border: 1px solid var(--border);
-      box-shadow: 0 24px 60px -12px rgba(0,0,0,0.35);
-    }
-    .check-pop {
-      width: 3.5rem; height: 3.5rem; border-radius: 50%; background: var(--accent-soft);
-      display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;
-    }
-    @media (prefers-reduced-motion: no-preference) {
-      .check-pop { animation: pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1); }
-    }
-    @keyframes pop {
-      from { transform: scale(0.6); opacity: 0; }
-      to { transform: scale(1); opacity: 1; }
-    }
-
-    /* Dashboard specifics */
-    .next-goal-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 0.5rem; }
-    .next-task-title { font-family: 'Space Grotesk', sans-serif; font-size: 1.6rem; font-weight: 600; margin: 0 0 1rem; line-height: 1.25; }
-    .next-steps-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1.35rem; }
-    .next-steps-text { font-size: 0.78rem; color: var(--ink-soft); }
-
-    .momentum-grid { display: flex; align-items: flex-start; gap: 2.5rem; margin-bottom: 0.5rem; }
-    .momentum-streak { flex-shrink: 0; }
-    .momentum-streak .value { font-family: 'Space Grotesk', sans-serif; font-size: 2.1rem; font-weight: 600; line-height: 1; }
-    .momentum-streak .label { font-size: 0.72rem; color: var(--ink-faint); margin-top: 0.15rem; }
-    .momentum-rhythm { flex: 1; min-width: 0; }
-    .rhythm-weeks { display: flex; align-items: center; gap: 0.2rem 0.15rem; flex-wrap: wrap; }
-    .rhythm-week { display: flex; align-items: center; flex-shrink: 0; }
-
-    .goal-row {
-      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-      padding: 0.85rem 0; border-bottom: 1px solid var(--border);
-    }
-    .goal-row:last-child { border-bottom: none; }
-    .goal-row-name { font-size: 0.92rem; font-weight: 500; }
-    .goal-row-count { font-size: 0.75rem; color: var(--ink-faint); }
+    html { min-width: 320px; }
+    body { margin: 0; min-height: 100vh; background: var(--paper); color: var(--ink); font-family: "DM Sans", sans-serif; }
+    body::before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.26; background-image:url('images/texture-paper.png'); mix-blend-mode:multiply; z-index:-1; }
+    [data-theme="dark"] body::before { opacity:.045; filter:invert(1); mix-blend-mode:screen; }
+    button, input { font: inherit; } button { cursor:pointer; }
+    button:focus-visible, input:focus-visible { outline:2px solid var(--gold); outline-offset:3px; }
+    .shell { max-width: 1600px; min-height:100vh; margin:0 auto; padding: 20px 28px 28px; display:grid; grid-template-columns: 224px minmax(0,1fr); gap: 28px; }
+    .sidebar { padding:12px 0; display:flex; flex-direction:column; min-height:calc(100vh - 48px); }
+    .brand { display:flex; gap:11px; align-items:center; color:var(--ink); text-decoration:none; margin: 2px 0 58px 8px; }
+    .brand-mark { width:32px;height:32px; display:grid;place-items:center; border-radius:10px; color:#fff; background:var(--forest); box-shadow:inset 0 1px rgba(255,255,255,.28); }
+    .brand-name { font-family:Fraunces,serif; font-size:21px; letter-spacing:-.04em; }
+    .brand small { display:block; margin-top:1px; color:var(--muted); font:10px "DM Mono",monospace; letter-spacing:.08em; text-transform:uppercase; }
+    .nav { display:grid; gap:5px; }
+    .nav-item { border:0; background:transparent; color:var(--muted); display:flex; gap:12px; align-items:center; padding:11px 12px; border-radius:10px; text-align:left; font-size:14px; font-weight:500; transition:background .18s,color .18s,transform .18s; }
+    .nav-item:hover { color:var(--ink); background:var(--paper-raised); }
+    .nav-item.active { color:var(--ink); background:var(--mint-soft); }
+    .nav-item svg { width:18px; height:18px; stroke-width:1.7; }
+    .side-ritual { margin-top:auto; padding:17px 14px; border:1px solid var(--line); border-radius:14px; background:var(--paper-raised); }
+    .side-ritual p { margin:0; } .side-ritual .label, .eyebrow { font:10px "DM Mono",monospace; letter-spacing:.1em; color:var(--muted); text-transform:uppercase; }
+    .side-ritual .value { margin-top:9px; font-size:14px; font-weight:600; } .side-ritual .note { margin-top:4px; color:var(--muted); font-size:12px; }
+    main { min-width:0; padding: 8px 0 40px; } .view.hidden { display:none; }
+    .topbar { min-height:47px; display:flex; justify-content:space-between; align-items:center; margin-bottom:30px; }
+    .date-line { color:var(--muted); font-size:13px; } .date-line strong { color:var(--ink); font-weight:600; }
+    .top-actions { display:flex; gap:9px; align-items:center; }
+    .icon-btn { width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;background:var(--paper-raised);color:var(--ink);transition:transform .18s,background .18s; }
+    .icon-btn:hover { transform:translateY(-2px); background:var(--surface); }.icon-btn svg { width:17px; height:17px; }
+    .view-head { display:flex; justify-content:space-between; align-items:end; margin-bottom:24px; }
+    h1 { margin:0; font-family:Fraunces,serif; font-size:clamp(34px,4vw,52px); letter-spacing:-.055em; font-weight:500; line-height:1; }
+    .subtitle { margin:10px 0 0; font-size:15px; color:var(--muted); } .date-stamp { font:11px "DM Mono",monospace; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; }
+    .today-grid { display:grid; grid-template-columns:minmax(360px,1.15fr) minmax(330px,.85fr); gap:20px; align-items:stretch; }
+    .card { background:var(--paper-raised); border:1px solid var(--line); border-radius:18px; box-shadow:var(--shadow); }
+    .focus-card { min-height:435px; padding:26px; position:relative; overflow:hidden; display:flex; flex-direction:column; }
+    .focus-card::after { content:""; position:absolute; width:380px;height:380px; right:-120px;top:-170px; border-radius:50%; background:radial-gradient(circle,rgba(120,205,157,.18),transparent 68%); pointer-events:none; }
+    .focus-card-top { display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1; } .status { display:flex;gap:7px;align-items:center;font:10px "DM Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--forest); }
+    .status i { width:7px;height:7px;border-radius:50%;background:var(--forest);box-shadow:0 0 0 4px var(--mint-soft); }.focus-duration { color:var(--muted);font:12px "DM Mono",monospace; }
+    .focus-main { display:grid;grid-template-columns:175px 1fr;align-items:center;gap:28px;flex:1;position:relative;z-index:1; }
+    .timer-orbit { width:175px;height:175px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--forest) 0deg 248deg,var(--ring-track) 248deg 360deg);position:relative; }
+    .timer-orbit::before { content:""; position:absolute;inset:9px;border-radius:50%;background:var(--surface);box-shadow:inset 0 0 0 1px var(--line); }
+    .timer-time { position:relative; z-index:1; text-align:center; font:31px "DM Mono",monospace;letter-spacing:-.1em; }.timer-time span { display:block;margin-top:6px;font:10px "DM Mono",monospace;color:var(--muted);letter-spacing:.08em;text-transform:uppercase; }
+    .focus-copy .eyebrow { color:var(--forest); }.focus-copy h2 { margin:10px 0 10px; max-width:380px;font-family:Fraunces,serif;font-size:clamp(25px,2.8vw,34px);font-weight:500;letter-spacing:-.045em;line-height:1.08; }.focus-copy p { margin:0;color:var(--muted);font-size:13px;line-height:1.6; }
+    .focus-actions { display:flex;gap:9px;align-items:center;position:relative;z-index:1; }.primary-btn,.secondary-btn { border-radius:10px;padding:12px 17px;border:1px solid transparent;font-size:13px;font-weight:600;transition:transform .18s,background .18s; }.primary-btn { background:var(--forest);color:#fff; }.primary-btn:hover { transform:translateY(-2px);background:var(--forest-deep); }.secondary-btn { background:transparent;color:var(--ink);border-color:var(--line); }.secondary-btn:hover { background:var(--surface); }
+    .daily-card { padding:25px; display:flex; flex-direction:column; }.card-label { display:flex;align-items:center;justify-content:space-between; }.card-label h2 { margin:0;font-size:14px;font-weight:600; }.quiet-link { border:0;background:0;color:var(--forest);font:11px "DM Mono",monospace;letter-spacing:.03em; }.quiet-link:hover { text-decoration:underline; }
+    .progress-line { margin:23px 0 18px; }.progress-meta { display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin-bottom:9px; }.progress-track {height:7px;background:var(--ring-track);border-radius:99px;overflow:hidden;}.progress-value {height:100%;width:33%;border-radius:inherit;background:linear-gradient(90deg,var(--forest),#78ba91);}
+    .agenda { display:grid;gap:2px; }.agenda-item { display:grid;grid-template-columns:22px 1fr auto;gap:10px;align-items:center;padding:11px 4px;border-bottom:1px solid var(--line); }.agenda-item:last-child{border:0}.task-check { width:18px;height:18px;border:1.5px solid var(--muted-2);border-radius:50%;background:transparent; }.agenda-item.done .task-check { background:var(--forest);border-color:var(--forest);position:relative; }.agenda-item.done .task-check::after {content:"";position:absolute;left:5px;top:2px;width:5px;height:9px;border:solid white;border-width:0 1.5px 1.5px 0;transform:rotate(45deg);}.agenda-title{font-size:13px;font-weight:500}.agenda-item.done .agenda-title{text-decoration:line-through;color:var(--muted)}.agenda-goal{display:block;font-size:11px;color:var(--muted);margin-top:2px}.agenda-time{font:10px "DM Mono",monospace;color:var(--muted)}
+    .section-row{display:flex;justify-content:space-between;align-items:end;margin:38px 0 15px}.section-row h2{margin:0;font-family:Fraunces,serif;font-size:26px;font-weight:500;letter-spacing:-.04em}.section-row p{margin:0;color:var(--muted);font-size:12px}
+    .lower-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:20px}.rhythm-card,.roadmap-card{padding:23px}.stat-strip{display:grid;grid-template-columns:repeat(3,1fr);margin:20px 0 25px;border:1px solid var(--line);border-radius:13px;overflow:hidden}.stat{padding:14px;border-right:1px solid var(--line)}.stat:last-child{border:0}.stat b{display:block;font-family:Fraunces,serif;font-size:26px;font-weight:500;letter-spacing:-.04em}.stat span{font-size:11px;color:var(--muted)}
+    .week{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}.day{text-align:center}.day span{display:block;color:var(--muted);font:10px "DM Mono",monospace;margin-bottom:9px}.day i{display:block;width:100%;aspect-ratio:1;border-radius:6px;background:var(--ring-track);}.day.done i{background:var(--forest)}.day.today i{outline:2px solid var(--gold);outline-offset:3px}.day.today span{color:var(--gold)}.legend{margin:17px 0 0;color:var(--muted);font-size:12px}.roadmap-list{display:grid;gap:3px;margin-top:15px}.goal-line{display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px;padding:13px 0;border-bottom:1px solid var(--line)}.goal-line:last-child{border:0}.goal-name{font-size:13px;font-weight:600}.goal-detail{margin-top:4px;font-size:11px;color:var(--muted)}.mini-progress{width:98px}.mini-progress .progress-track{height:5px}.mini-progress small{display:block;margin-top:5px;text-align:right;color:var(--muted);font:10px "DM Mono",monospace;}
+    .roadmap-layout{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:20px;align-items:start}.new-goal{padding:20px}.form-row{display:flex;gap:8px}.field{min-width:0;flex:1;padding:11px 12px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:13px}.field::placeholder{color:var(--muted-2)}.goal-stack{display:grid;gap:13px}.goal-card{padding:20px}.goal-card-head{display:flex;justify-content:space-between;align-items:start;gap:15px}.goal-card h2{font-family:Fraunces,serif;font-size:25px;letter-spacing:-.04em;font-weight:500;margin:2px 0 4px}.goal-card p{margin:0;color:var(--muted);font-size:12px}.goal-actions{display:flex;gap:6px}.text-btn{border:0;background:none;color:var(--muted);font-size:12px;padding:5px}.text-btn:hover{color:var(--red)}.task-list{list-style:none;margin:20px 0 15px;padding:0;display:grid;gap:7px}.task-row{display:grid;grid-template-columns:19px minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:10px 12px;background:var(--surface);border:1px solid var(--line);border-radius:10px}.task-title{font-size:13px}.task-meta{font:10px "DM Mono",monospace;color:var(--muted)}.task-actions{display:flex;gap:4px}.task-actions button{border:0;background:transparent;color:var(--muted);font-size:11px;padding:4px}.task-actions button:hover{color:var(--forest)}.task-actions .remove:hover{color:var(--red)}.add-task{display:grid;grid-template-columns:1fr 68px auto;gap:7px}.minutes{width:68px;text-align:center}
+    .archive-list{display:grid;gap:9px}.session-row{display:flex;justify-content:space-between;align-items:center;padding:17px 19px}.session-title{font-weight:600;font-size:14px}.session-meta{margin-top:4px;font-size:12px;color:var(--muted)}.pill{border-radius:99px;padding:5px 9px;font:10px "DM Mono",monospace}.pill-success{background:var(--mint-soft);color:var(--forest)}.pill-warning{background:var(--gold-soft);color:var(--gold)}
+    .overlay{position:fixed;inset:0;z-index:10;display:grid;place-items:center;padding:20px;background:rgba(7,17,12,.28);backdrop-filter:blur(5px)}.overlay.hidden{display:none}.timer-modal{width:min(510px,100%);padding:28px;text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:22px;box-shadow:0 32px 90px rgba(0,0,0,.22)}.timer-modal .timer-orbit{margin:24px auto;width:210px;height:210px}.timer-modal .timer-time{font-size:39px}.timer-modal h2{font-family:Fraunces,serif;font-size:26px;font-weight:500;letter-spacing:-.04em;margin:8px 0}.timer-modal p{margin:0;color:var(--muted);font-size:13px}.timer-modal .focus-actions{justify-content:center;margin-top:25px}
+    @media(max-width:980px){.shell{grid-template-columns:1fr;padding:16px}.sidebar{min-height:auto;flex-direction:row;align-items:center;justify-content:space-between;padding:0}.brand{margin:0}.nav{display:flex}.nav-item{padding:9px}.nav-item span{display:none}.side-ritual{display:none}.today-grid,.lower-grid,.roadmap-layout{grid-template-columns:1fr}.topbar{margin-bottom:20px}.focus-card{min-height:390px}}@media(max-width:600px){.shell{padding:13px}.nav-item{padding:8px}.nav-item svg{width:17px}.focus-card,.daily-card,.rhythm-card,.roadmap-card{padding:18px}.focus-main{grid-template-columns:1fr;gap:16px}.timer-orbit{width:145px;height:145px}.focus-copy h2{font-size:27px}.focus-actions{flex-wrap:wrap}.today-grid{gap:13px}.view-head{display:block}.date-stamp{display:block;margin-top:12px}.lower-grid{gap:13px}.roadmap-layout{gap:13px}.add-task{grid-template-columns:1fr 54px auto}.minutes{width:54px}.task-actions button:nth-child(2){display:none}.task-row{grid-template-columns:19px minmax(0,1fr) auto}.task-meta{display:none}}
   </style>
 </head>
 <body>
-  <div class="app-shell">
+  <div class="shell">
     <aside class="sidebar">
-      <div class="sidebar-mark">
-        <span class="brand-mark">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-        </span>
-        <div class="sidebar-brand">Flowlist</div>
-      </div>
-      <div class="sidebar-tagline">A quieter kind of progress</div>
-
-      <nav class="nav-list">
-        <button id="nav-dashboard" class="nav-item active">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>
-          Dashboard
-        </button>
-        <button id="nav-goals" class="nav-item">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4"></circle></svg>
-          Goals
-        </button>
-        <button id="nav-history" class="nav-item">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 16 14"></polyline></svg>
-          History
-        </button>
-        <button id="nav-calendar" class="nav-item">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="16" y1="3" x2="16" y2="7"></line></svg>
-          Calendar
-        </button>
-        <button id="nav-explore" class="nav-item">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><polygon points="14.5 9.5 12 12 9.5 14.5 12 12 14.5 9.5"></polygon></svg>
-          Explore
-        </button>
+      <a class="brand" href="#" aria-label="Flowlist home"><span class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5"/></svg></span><span class="brand-name">Flowlist<small>Make the day count</small></span></a>
+      <nav class="nav" aria-label="Main navigation">
+        <button class="nav-item active" id="nav-dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 12a8 8 0 1 1 16 0 8 8 0 0 1-16 0Z"/><path d="M12 7v5l3 2"/></svg><span>Today</span></button>
+        <button class="nav-item" id="nav-goals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 20V10m7 10V4m7 16v-7"/><path d="M2 20h20"/></svg><span>Roadmap</span></button>
+        <button class="nav-item" id="nav-history"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 5h16v15H4z"/><path d="M8 3v4m8-4v4M7 11h10m-10 4h7"/></svg><span>Archive</span></button>
       </nav>
-
-      <div class="sidebar-footer">
-        <span class="dot-live"></span>
-        Local-first, backed by Postgres
-      </div>
+      <div class="side-ritual"><p class="label">This week</p><p class="value" id="side-session-count">— sessions</p><p class="note">Show up, then begin again.</p></div>
     </aside>
-
-    <main class="content">
+    <main>
+      <div class="topbar"><p class="date-line" id="top-date"></p><div class="top-actions"><button class="icon-btn" id="theme-toggle" aria-label="Switch color theme"><svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></button></div></div>
       <section id="view-dashboard" class="view">
-        <h1 id="dashboard-greeting" class="page-title"></h1>
-        <p class="page-subtitle">Here's what matters next.</p>
-
-        <div class="zone">
-          <p id="whats-next-goal" class="next-goal-label"></p>
-          <p id="whats-next-title" class="next-task-title"></p>
-          <div id="whats-next-steps" class="next-steps-row"></div>
-          <div id="whats-next-action"></div>
-        </div>
-
-        <div class="momentum-grid">
-          <div class="momentum-streak">
-            <div id="streak-value" class="value">0</div>
-            <div class="label">day streak</div>
-            <div id="streak-beads" class="dot-path" style="margin-top:0.5rem;"></div>
-          </div>
-          <div class="momentum-rhythm">
-            <p class="eyebrow">Weekly rhythm</p>
-            <div id="rhythm-strip" class="rhythm-weeks"></div>
-          </div>
-        </div>
-        <p id="momentum-totals" class="text-muted" style="margin: 0.9rem 0 0;"></p>
-
-        <hr class="divider" />
-
-        <p class="eyebrow">Active goals</p>
-        <div id="dashboard-goals"></div>
+        <header class="view-head"><div><h1 id="dashboard-greeting">Good morning.</h1><p class="subtitle">A clear day starts with one honest next step.</p></div><span class="date-stamp" id="today-date-stamp"></span></header>
+        <div class="today-grid"><article class="focus-card card"><div class="focus-card-top"><span class="status"><i></i>Ready to begin</span><span class="focus-duration" id="focus-duration">25 MIN FOCUS</span></div><div class="focus-main"><div class="timer-orbit"><div class="timer-time" id="hero-time">25:00<span>Focus block</span></div></div><div class="focus-copy"><p class="eyebrow" id="whats-next-goal">Your next step</p><h2 id="whats-next-title">Choose what deserves your attention.</h2><p id="focus-description">One uninterrupted block. Everything else can wait.</p></div></div><div class="focus-actions" id="whats-next-action"></div></article><article class="daily-card card"><div class="card-label"><h2>Today’s shape</h2><button class="quiet-link" id="open-roadmap">VIEW ROADMAP</button></div><div class="progress-line"><div class="progress-meta"><span id="daily-progress-copy">A quiet start</span><span id="daily-progress-number">0 / 0</span></div><div class="progress-track"><div class="progress-value" id="daily-progress-value"></div></div></div><div class="agenda" id="today-agenda"></div></article></div>
+        <div class="section-row"><div><h2>Momentum, not pressure.</h2><p>What your practice has looked like lately.</p></div></div><div class="lower-grid"><article class="rhythm-card card"><div class="card-label"><h2>Your rhythm</h2><span class="eyebrow">Last 7 days</span></div><div class="stat-strip"><div class="stat"><b id="stat-streak">0</b><span>day rhythm</span></div><div class="stat"><b id="stat-sessions">0</b><span>focus sessions</span></div><div class="stat"><b id="stat-minutes">0</b><span>minutes held</span></div></div><div class="week" id="rhythm-week"></div><p class="legend" id="rhythm-copy">The ritual is waiting for its first mark.</p></article><article class="roadmap-card card"><div class="card-label"><h2>In the works</h2><button class="quiet-link" id="open-roadmap-2">SEE ALL</button></div><div class="roadmap-list" id="dashboard-goals"></div></article></div>
       </section>
-
-      <section id="view-goals" class="view hidden">
-        <h1 class="page-title">Goals</h1>
-        <p class="page-subtitle">Goals and tasks, talking to a real API.</p>
-
-        <div class="card">
-          <h2>New goal</h2>
-          <form id="goal-form" style="display:flex; gap:0.5rem;">
-            <input id="goal-title" type="text" placeholder="e.g. Learn FastAPI" class="field" style="flex:1;" />
-            <button class="btn btn-primary">Add goal</button>
-          </form>
-        </div>
-
-        <div id="goals"></div>
-      </section>
-
-      <section id="view-history" class="view hidden">
-        <h1 class="page-title">History</h1>
-        <p class="page-subtitle">Every focus session you've logged.</p>
-        <div id="history-view"></div>
-      </section>
-
-      <section id="view-calendar" class="view hidden">
-        <h1 class="page-title">Calendar</h1>
-        <p class="page-subtitle">Preview — scheduling isn't wired up to real data yet. <span class="pill pill-warning">Coming soon</span></p>
-        <div class="card">
-          <p id="calendar-month-label" style="font-weight:600; margin-bottom:0.75rem;"></p>
-          <div style="display:grid; grid-template-columns:repeat(7,1fr); gap:0.5rem; text-align:center; font-size:0.72rem; color:var(--ink-faint); margin-bottom:0.5rem;">
-            <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
-          </div>
-          <div id="calendar-grid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:0.5rem;"></div>
-        </div>
-      </section>
-
-      <section id="view-explore" class="view hidden">
-        <h1 class="page-title">Explore</h1>
-        <p class="page-subtitle">Preview — AI-suggested related goals aren't wired up yet. <span class="pill pill-warning">Coming soon</span></p>
-        <div class="card" style="border-style:dashed; border-color:var(--accent);">
-          <h2>Example: after finishing "Learn Python"</h2>
-          <p style="font-size:0.9rem; color:var(--ink-soft); margin:0;">This page will eventually suggest related skills worth learning next, like "Data Structures" or "SQL Fundamentals" — generated by the same AI call already used for "Break down."</p>
-        </div>
-      </section>
+      <section id="view-goals" class="view hidden"><header class="view-head"><div><h1>Your roadmap.</h1><p class="subtitle">Keep the long view visible. Only the next action needs to be small.</p></div><span class="date-stamp">Projects in motion</span></header><div class="roadmap-layout"><aside class="new-goal card"><p class="eyebrow">A new direction</p><h2 style="font-family:Fraunces,serif;font-size:26px;font-weight:500;letter-spacing:-.04em;margin:9px 0 16px">What are you building toward?</h2><form id="goal-form" class="form-row"><input id="goal-title" class="field" type="text" placeholder="Name the goal" aria-label="Goal title"><button class="primary-btn">Add</button></form></aside><div id="goals" class="goal-stack"></div></div></section>
+      <section id="view-history" class="view hidden"><header class="view-head"><div><h1>Your archive.</h1><p class="subtitle">A simple record of the attention you protected.</p></div></header><div id="history-view" class="archive-list"></div></section>
     </main>
   </div>
-
-  <template id="goal-template">
-    <section class="goal-card">
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.85rem;">
-        <h2 class="goal-title" style="font-size:1.15rem; font-weight:600; margin:0;"></h2>
-        <button class="delete-goal btn-danger btn-sm btn">Delete goal</button>
-      </div>
-      <ul class="task-list" style="list-style:none; margin:0 0 0.85rem; padding:0; display:flex; flex-direction:column; gap:0.5rem;"></ul>
-      <form class="task-form" style="display:flex; gap:0.5rem;">
-        <input type="text" placeholder="New task" class="field" style="flex:1;" />
-        <input type="number" min="1" value="25" title="Estimated minutes" class="task-minutes field field-narrow" />
-        <button class="btn btn-secondary">Add task</button>
-      </form>
-    </section>
-  </template>
-
-  <template id="task-template">
-    <li class="task-node">
-      <div class="task-row">
-        <input type="checkbox" class="task-completed" />
-        <span class="task-title"></span>
-        <span class="task-progress task-meta"></span>
-        <span class="task-minutes-label task-meta"></span>
-        <button class="start-focus btn btn-primary btn-sm">Focus</button>
-        <button class="add-subtask btn btn-quiet btn-sm">+ Subtask</button>
-        <button class="break-down btn btn-quiet btn-sm">Break down</button>
-        <button class="delete-task btn btn-danger btn-sm">Remove</button>
-      </div>
-      <form class="subtask-form">
-        <input type="text" placeholder="Subtask title" class="field" style="flex:1;" />
-        <input type="number" min="1" value="25" title="Estimated minutes" class="subtask-minutes field field-narrow" />
-        <button class="btn btn-secondary btn-sm">Add</button>
-      </form>
-      <ul class="suggestion-list"></ul>
-      <ul class="subtask-list"></ul>
-    </li>
-  </template>
-
-  <template id="suggestion-template">
-    <li class="suggestion-row">
-      <span class="suggestion-title" style="flex:1; font-size:0.9rem;"></span>
-      <span class="suggestion-minutes task-meta"></span>
-      <button class="suggestion-add btn btn-secondary btn-sm">Add</button>
-    </li>
-  </template>
-
-  <template id="session-template">
-    <div class="session-row">
-      <div>
-        <p class="session-title" style="font-weight:600; margin:0 0 0.15rem; font-size:0.9rem;"></p>
-        <p class="session-meta task-meta" style="margin:0;"></p>
-      </div>
-      <span class="session-status pill"></span>
-    </div>
-  </template>
-
-  <div id="focus-overlay" class="overlay hidden">
-    <div class="overlay-card">
-      <p id="focus-phase-label" class="pill pill-muted" style="margin:0 0 0.75rem;">Focus</p>
-      <p id="focus-task-title" style="font-size:0.85rem; color:var(--ink-soft); margin:0 0 0.5rem;"></p>
-      <p id="focus-time" class="display" style="font-size:3rem; font-weight:600; color:var(--accent); margin:0 0 1.5rem;">25:00</p>
-      <button id="focus-stop" class="btn btn-danger" style="width:100%; justify-content:center; border:1px solid var(--danger);">Stop session</button>
-    </div>
-  </div>
-
-  <div id="celebration-overlay" class="overlay hidden">
-    <div class="overlay-card">
-      <div class="check-pop">
-        <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
-      </div>
-      <p style="font-size:0.75rem; color:var(--ink-soft); margin:0 0 0.25rem;">Goal complete</p>
-      <p id="celebration-goal-title" class="display" style="font-size:1.3rem; font-weight:600; margin:0 0 1.5rem;"></p>
-      <button id="celebration-dismiss" class="btn btn-primary" style="width:100%; justify-content:center;">Nice work</button>
-    </div>
-  </div>
-
+  <template id="goal-template"><article class="goal-card card"><div class="goal-card-head"><div><p class="eyebrow">Project</p><h2 class="goal-title"></h2><p class="goal-progress-copy"></p></div><div class="goal-actions"><button class="text-btn delete-goal">Remove goal</button></div></div><ul class="task-list"></ul><form class="task-form add-task"><input class="field" type="text" placeholder="Add a next step" aria-label="New task"><input class="field minutes task-minutes" type="number" min="1" value="25" title="Estimated minutes"><button class="secondary-btn">Add</button></form></article></template>
+  <template id="task-template"><li class="task-node"><div class="task-row"><input type="checkbox" class="task-completed" aria-label="Complete task"><span class="task-title"></span><span class="task-progress task-meta"></span><span class="task-minutes-label task-meta"></span><div class="task-actions"><button class="start-focus">Focus</button><button class="add-subtask">Add step</button><button class="break-down">Break down</button><button class="delete-task remove">Remove</button></div></div><form class="subtask-form add-task" style="display:none;margin:7px 0 0 28px"><input class="field" type="text" placeholder="Add a smaller step" aria-label="Subtask title"><input class="field minutes subtask-minutes" type="number" min="1" value="25"><button class="secondary-btn">Add</button></form><ul class="suggestion-list task-list" style="margin-left:28px"></ul><ul class="subtask-list task-list" style="margin-left:28px"></ul></li></template>
+  <template id="suggestion-template"><li class="task-row"><span></span><span class="suggestion-title task-title"></span><span class="suggestion-minutes task-meta"></span><div class="task-actions"><button class="suggestion-add">Use this</button></div></li></template>
+  <template id="session-template"><article class="session-row card"><div><div class="session-title"></div><div class="session-meta"></div></div><span class="session-status pill"></span></article></template>
+  <div id="focus-overlay" class="overlay hidden"><div class="timer-modal"><span id="focus-phase-label" class="status" style="justify-content:center"><i></i>Focus block</span><h2 id="focus-task-title">Your next step</h2><p id="focus-goal-title">Make room for what matters.</p><div class="timer-orbit"><div id="focus-time" class="timer-time">25:00<span>Stay with it</span></div></div><div class="focus-actions"><button id="focus-stop" class="secondary-btn">End session</button></div></div></div>
+  <div id="celebration-overlay" class="overlay hidden"><div class="timer-modal"><span class="status" style="justify-content:center"><i></i>Milestone reached</span><h2 id="celebration-goal-title">Goal complete</h2><p>Take a second to notice the work you did.</p><div class="focus-actions"><button id="celebration-dismiss" class="primary-btn">Continue</button></div></div></div>
   <script src="app.js"></script>
 </body>
 </html>

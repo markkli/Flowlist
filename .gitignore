@@ -11,3 +11,7 @@ venv/
 
 # OS
 .DS_Store
+
+# Local Codex agent skills (not application source)
+.agents/
+skills-lock.json
