@@ -52,7 +52,7 @@ async function loadGoals() {
 
 async function loadTasks(goalId) {
   const tasks = await api(`/goals/${goalId}/tasks`); const section = document.querySelector(`article[data-goal-id="${goalId}"]`); if (!section) return;
-  const list = section.querySelector(".task-list"); list.innerHTML = ""; leafTasks(tasks).forEach((task) => { const root = tasks.find((maybeParent) => maybeParent.id === task.parent_id); if (!root || root.parent_id === null) renderTask(root || task, tasks, list); });
+  const list = section.querySelector(".task-list"); list.innerHTML = ""; tasks.filter((task) => task.parent_id === null).forEach((task) => renderTask(task, tasks, list));
   const leaves = leafTasks(tasks); section.querySelector(".goal-progress-copy").textContent = leaves.length ? `${leaves.filter((task) => task.completed).length} of ${leaves.length} steps complete` : "Add the first meaningful step.";
   checkGoalComplete(goalId, tasks);
 }
