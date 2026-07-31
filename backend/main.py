@@ -23,6 +23,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# i left a note here
 
 def find_goal(db: Session, goal_id: int) -> GoalModel:
     goal = db.get(GoalModel, goal_id)
