@@ -3,7 +3,6 @@ import os
 from openai import OpenAI
 from pydantic import BaseModel
 
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 model = os.environ.get("OPENAI_SUBTASK_MODEL", "gpt-5.4-mini")
 
 
@@ -16,8 +15,21 @@ class Breakdown(BaseModel):
     subtasks: list[SuggestedSubtask]
 
 
+class AIConfigurationError(RuntimeError):
+    """Raised when an optional AI feature is requested without configuration."""
+
+
+def get_client() -> OpenAI:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise AIConfigurationError(
+            "AI task breakdown is not configured. Add OPENAI_API_KEY to enable it."
+        )
+    return OpenAI(api_key=api_key)
+
+
 def suggest_subtasks(goal_title: str, task_title: str) -> list[SuggestedSubtask]:
-    result = client.responses.parse(
+    result = get_client().responses.parse(
         model=model,
         input=[
             {

@@ -1,3 +1,4 @@
+import os
 from datetime import date, timedelta
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -6,7 +7,7 @@ from sqlalchemy import Date, cast, func, select
 from sqlalchemy.orm import Session
 
 import schemas
-from ai import suggest_subtasks
+from ai import AIConfigurationError, suggest_subtasks
 from database import Base, engine, get_db
 from models import FocusSessionModel, GoalModel, TaskModel
 
@@ -40,8 +41,14 @@ def find_task(db: Session, task_id: int) -> TaskModel:
 
 
 @app.get("/health")
-def health():
-    return {"ok": True}
+def health(db: Session = Depends(get_db)):
+    # A tiny query confirms the app can actually talk to PostgreSQL.
+    db.execute(select(1))
+    return {
+        "ok": True,
+        "database": "connected",
+        "ai_breakdown_configured": bool(os.getenv("OPENAI_API_KEY")),
+    }
 
 
 @app.post("/goals", response_model=schemas.Goal)
@@ -134,7 +141,10 @@ def breakdown_task(task_id: int, db: Session = Depends(get_db)):
             detail=f"Maximum depth of {MAX_DEPTH} reached; this task can't have subtasks.",
         )
     goal = find_goal(db, task.goal_id)
-    return suggest_subtasks(goal.title, task.title)
+    try:
+        return suggest_subtasks(goal.title, task.title)
+    except AIConfigurationError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
 
 
 @app.patch("/tasks/{task_id}", response_model=schemas.Task)
