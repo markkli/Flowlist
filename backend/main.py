@@ -1,5 +1,5 @@
 import os
-from datetime import date, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -198,7 +198,9 @@ def get_stats(db: Session = Depends(get_db)):
     }
 
     streak = 0
-    cursor = date.today()
+    # Session timestamps are stored in UTC, so streak boundaries must use the
+    # same clock. User-specific timezones can be introduced with accounts later.
+    cursor = datetime.now(timezone.utc).date()
     if cursor not in session_dates:
         cursor -= timedelta(days=1)
     while cursor in session_dates:

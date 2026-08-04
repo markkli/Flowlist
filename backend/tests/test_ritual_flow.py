@@ -1,6 +1,7 @@
 """End-to-end proof of Flowlist's core goal → focus → progress loop."""
 
 import os
+import sys
 import tempfile
 from pathlib import Path
 
@@ -14,6 +15,7 @@ TEST_DATABASE = Path(tempfile.gettempdir()) / "flowlist-ritual-test.sqlite3"
 TEST_DATABASE.unlink(missing_ok=True)
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DATABASE}"
 os.environ.pop("OPENAI_API_KEY", None)
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from database import Base, engine  # noqa: E402
 from main import app  # noqa: E402
