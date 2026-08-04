@@ -3,7 +3,7 @@ from datetime import date, timedelta
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import Date, cast, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 import schemas
@@ -192,11 +192,10 @@ def list_sessions(db: Session = Depends(get_db)):
 
 @app.get("/stats", response_model=schemas.Stats)
 def get_stats(db: Session = Depends(get_db)):
-    session_dates = set(
-        db.scalars(
-            select(func.distinct(cast(FocusSessionModel.created_at, Date)))
-        ).all()
-    )
+    session_dates = {
+        created_at.date()
+        for created_at in db.scalars(select(FocusSessionModel.created_at)).all()
+    }
 
     streak = 0
     cursor = date.today()
