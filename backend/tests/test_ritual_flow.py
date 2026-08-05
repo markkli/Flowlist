@@ -60,3 +60,27 @@ def test_focus_ritual_updates_stats():
         "total_sessions": 1,
         "total_minutes": 25,
     }
+
+
+def test_rejects_blank_titles_and_invalid_durations():
+    client = TestClient(app)
+
+    blank_goal = client.post("/goals", json={"title": "   "})
+    assert blank_goal.status_code == 422
+
+    goal = client.post("/goals", json={"title": "Study FastAPI"})
+    too_short_task = client.post(
+        f"/goals/{goal.json()['id']}/tasks",
+        json={"title": "Read routing", "estimated_minutes": 4},
+    )
+    assert too_short_task.status_code == 422
+
+    task = client.post(
+        f"/goals/{goal.json()['id']}/tasks",
+        json={"title": "Read routing", "estimated_minutes": 25},
+    )
+    too_long_session = client.post(
+        f"/tasks/{task.json()['id']}/sessions",
+        json={"actual_minutes": 481, "completed": True},
+    )
+    assert too_long_session.status_code == 422

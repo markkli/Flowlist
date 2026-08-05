@@ -1,15 +1,39 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-class GoalCreate(BaseModel):
-    title: str
+class TitledPayload(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+
+    @field_validator("title")
+    @classmethod
+    def normalize_title(cls, value: str) -> str:
+        title = value.strip()
+        if not title:
+            raise ValueError("Title must not be blank")
+        return title
+
+
+class OptionalTitleUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=120)
+
+    @field_validator("title")
+    @classmethod
+    def normalize_title(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        title = value.strip()
+        if not title:
+            raise ValueError("Title must not be blank")
+        return title
+
+
+class GoalCreate(TitledPayload):
     description: str | None = None
 
 
-class GoalUpdate(BaseModel):
-    title: str | None = None
+class GoalUpdate(OptionalTitleUpdate):
     description: str | None = None
 
 
@@ -19,15 +43,13 @@ class Goal(GoalCreate):
     id: int
 
 
-class TaskCreate(BaseModel):
-    title: str
-    estimated_minutes: int = 25
+class TaskCreate(TitledPayload):
+    estimated_minutes: int = Field(default=25, ge=5, le=480)
 
 
-class TaskUpdate(BaseModel):
-    title: str | None = None
+class TaskUpdate(OptionalTitleUpdate):
     completed: bool | None = None
-    estimated_minutes: int | None = None
+    estimated_minutes: int | None = Field(default=None, ge=5, le=480)
 
 
 class Task(TaskCreate):
@@ -40,13 +62,12 @@ class Task(TaskCreate):
     completed: bool
 
 
-class SuggestedSubtask(BaseModel):
-    title: str
-    estimated_minutes: int
+class SuggestedSubtask(TitledPayload):
+    estimated_minutes: int = Field(ge=5, le=480)
 
 
 class FocusSessionCreate(BaseModel):
-    actual_minutes: int
+    actual_minutes: int = Field(ge=0, le=480)
     completed: bool
 
 
