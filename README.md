@@ -39,6 +39,18 @@ docker compose up --build
 This starts PostgreSQL and FastAPI. The backend health endpoint is available at
 `http://127.0.0.1:8000/health`.
 
+On a new database, the backend automatically runs all Alembic migrations before
+it starts. If you already created a local Flowlist database before migrations
+were added, do not run the initial migration against those existing tables.
+Instead, once, mark its matching baseline version:
+
+```bash
+docker compose run --rm backend alembic stamp 20260804_01
+```
+
+`stamp` records the version without changing tables. Future Flowlist migrations
+will then run normally when the backend starts.
+
 ### 3. Serve the frontend
 
 In another terminal:

@@ -8,10 +8,8 @@ from sqlalchemy.orm import Session
 
 import schemas
 from ai import AIConfigurationError, suggest_subtasks
-from database import Base, engine, get_db
+from database import get_db
 from models import FocusSessionModel, GoalModel, TaskModel
-
-Base.metadata.create_all(bind=engine)
 
 MAX_DEPTH = 3
 
