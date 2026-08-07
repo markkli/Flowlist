@@ -30,6 +30,7 @@ class TaskModel(Base):
     title: Mapped[str]
     completed: Mapped[bool] = mapped_column(default=False)
     estimated_minutes: Mapped[int] = mapped_column(default=25)
+    priority: Mapped[int] = mapped_column(default=2)
 
     goal: Mapped["GoalModel"] = relationship(back_populates="tasks")
     sessions: Mapped[list["FocusSessionModel"]] = relationship(

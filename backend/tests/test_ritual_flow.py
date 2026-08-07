@@ -84,3 +84,25 @@ def test_rejects_blank_titles_and_invalid_durations():
         json={"actual_minutes": 481, "completed": True},
     )
     assert too_long_session.status_code == 422
+
+
+def test_next_focus_prefers_priority_then_age():
+    client = TestClient(app)
+    goal = client.post("/goals", json={"title": "Build Flowlist"}).json()
+
+    later_task = client.post(
+        f"/goals/{goal['id']}/tasks",
+        json={"title": "Polish copy", "priority": 3},
+    ).json()
+    urgent_task = client.post(
+        f"/goals/{goal['id']}/tasks",
+        json={"title": "Fix the ritual", "priority": 1},
+    ).json()
+
+    next_focus = client.get("/next-focus")
+    assert next_focus.status_code == 200
+    assert next_focus.json()["task"]["id"] == urgent_task["id"]
+    assert next_focus.json()["goal"]["title"] == "Build Flowlist"
+
+    client.patch(f"/tasks/{urgent_task['id']}", json={"completed": True})
+    assert client.get("/next-focus").json()["task"]["id"] == later_task["id"]

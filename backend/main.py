@@ -108,6 +108,19 @@ def list_tasks(goal_id: int, db: Session = Depends(get_db)):
     ).all()
 
 
+@app.get("/next-focus", response_model=schemas.NextFocus)
+def get_next_focus(db: Session = Depends(get_db)):
+    all_tasks = db.scalars(select(TaskModel)).all()
+    parent_ids = {task.parent_id for task in all_tasks if task.parent_id is not None}
+    candidates = [
+        task for task in all_tasks if not task.completed and task.id not in parent_ids
+    ]
+    if not candidates:
+        raise HTTPException(status_code=404, detail="No unfinished focus task found")
+    next_task = min(candidates, key=lambda task: (task.priority, task.id))
+    return {"task": next_task, "goal": next_task.goal}
+
+
 @app.post("/tasks/{parent_id}/subtasks", response_model=schemas.Task)
 def create_subtask(
     parent_id: int, task: schemas.TaskCreate, db: Session = Depends(get_db)

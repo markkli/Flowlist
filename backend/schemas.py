@@ -45,11 +45,13 @@ class Goal(GoalCreate):
 
 class TaskCreate(TitledPayload):
     estimated_minutes: int = Field(default=25, ge=5, le=480)
+    priority: int = Field(default=2, ge=1, le=3)
 
 
 class TaskUpdate(OptionalTitleUpdate):
     completed: bool | None = None
     estimated_minutes: int | None = Field(default=None, ge=5, le=480)
+    priority: int | None = Field(default=None, ge=1, le=3)
 
 
 class Task(TaskCreate):
@@ -85,3 +87,10 @@ class Stats(BaseModel):
     current_streak: int
     total_sessions: int
     total_minutes: int
+
+
+class NextFocus(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    task: Task
+    goal: Goal
