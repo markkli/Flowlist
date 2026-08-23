@@ -106,3 +106,34 @@ def test_next_focus_prefers_priority_then_age():
 
     client.patch(f"/tasks/{urgent_task['id']}", json={"completed": True})
     assert client.get("/next-focus").json()["task"]["id"] == later_task["id"]
+
+
+def test_can_edit_goal_and_task_fields():
+    client = TestClient(app)
+    goal = client.post(
+        "/goals", json={"title": "Learn APIs", "description": "First draft"}
+    ).json()
+    task = client.post(
+        f"/goals/{goal['id']}/tasks",
+        json={"title": "Read docs", "estimated_minutes": 25},
+    ).json()
+
+    updated_goal = client.patch(
+        f"/goals/{goal['id']}",
+        json={"title": "Learn FastAPI", "description": "Build carefully"},
+    )
+    updated_task = client.patch(
+        f"/tasks/{task['id']}",
+        json={"title": "Read the routing docs", "estimated_minutes": 40, "priority": 1},
+    )
+
+    assert updated_goal.status_code == 200
+    assert updated_goal.json()["title"] == "Learn FastAPI"
+    assert updated_goal.json()["description"] == "Build carefully"
+    assert updated_task.status_code == 200
+    assert updated_task.json()["title"] == "Read the routing docs"
+    assert updated_task.json()["estimated_minutes"] == 40
+    assert updated_task.json()["priority"] == 1
+
+    invalid_update = client.patch(f"/tasks/{task['id']}", json={"title": "   "})
+    assert invalid_update.status_code == 422
