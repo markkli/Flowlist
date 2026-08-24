@@ -16,6 +16,8 @@ function greetingForNow() { const h = new Date().getHours(); return h < 12 ? "Go
 function leafTasks(tasks) { return tasks.filter((task) => !tasks.some((other) => other.parent_id === task.id)).sort((a, b) => a.id - b.id); }
 function dateKey(d) { return d.toISOString().slice(0, 10); }
 function escapeHtml(value) { const el = document.createElement("div"); el.textContent = value; return el.innerHTML; }
+let toastTimer = null;
+function showToast(message, isError = false) { const toast = document.getElementById("app-toast"); toast.textContent = message; toast.classList.toggle("error", isError); toast.classList.add("visible"); clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove("visible"), 2800); }
 
 function setDateCopy() {
   const today = new Date();
@@ -44,10 +46,11 @@ async function loadGoals() {
   for (const goal of goals) {
     const node = goalTemplate.content.cloneNode(true); const section = node.querySelector("article"); section.dataset.goalId = goal.id;
     node.querySelector(".goal-title").textContent = goal.title;
+    node.querySelector(".goal-description").textContent = goal.description || "";
     const goalEdit = node.querySelector(".goal-edit-form"); goalEdit.querySelector(".goal-edit-title").value = goal.title; goalEdit.querySelector(".goal-edit-description").value = goal.description || "";
     node.querySelector(".edit-goal").addEventListener("click", () => { goalEdit.style.display = goalEdit.style.display === "none" ? "grid" : "none"; });
     goalEdit.querySelector(".goal-edit-cancel").addEventListener("click", () => { goalEdit.style.display = "none"; });
-    goalEdit.addEventListener("submit", async (event) => { event.preventDefault(); const title = goalEdit.querySelector(".goal-edit-title").value.trim(); if (!title) return; await api(`/goals/${goal.id}`, { method: "PATCH", body: JSON.stringify({ title, description: goalEdit.querySelector(".goal-edit-description").value.trim() || null }) }); loadGoals(); });
+    goalEdit.addEventListener("submit", async (event) => { event.preventDefault(); const title = goalEdit.querySelector(".goal-edit-title").value.trim(); if (!title) return; try { await api(`/goals/${goal.id}`, { method: "PATCH", body: JSON.stringify({ title, description: goalEdit.querySelector(".goal-edit-description").value.trim() || null }) }); loadGoals(); showToast("Goal updated"); } catch (error) { showToast("Could not update this goal.", true); } });
     node.querySelector(".delete-goal").addEventListener("click", async () => { await api(`/goals/${goal.id}`, { method: "DELETE" }); loadGoals(); });
     node.querySelector(".task-form").addEventListener("submit", async (event) => { event.preventDefault(); const input = event.target.querySelector('input[type="text"]'); const minutes = event.target.querySelector(".task-minutes"); if (!input.value.trim()) return; await api(`/goals/${goal.id}/tasks`, { method: "POST", body: JSON.stringify({ title: input.value.trim(), estimated_minutes: Number(minutes.value) || 25 }) }); input.value = ""; loadGoals(); });
     goalsContainer.appendChild(node); loadTasks(goal.id);
@@ -70,7 +73,7 @@ function renderTask(task, allTasks, container) {
   title.textContent = task.title;
   edit.addEventListener("click", () => { editForm.style.display = editForm.style.display === "none" ? "grid" : "none"; }); editForm.querySelector(".task-edit-cancel").addEventListener("click", () => { editForm.style.display = "none"; });
   editForm.querySelector(".task-edit-title").value = task.title; editForm.querySelector(".task-edit-minutes").value = task.estimated_minutes; editForm.querySelector(".task-edit-priority").value = String(task.priority || 2);
-  editForm.addEventListener("submit", async (event) => { event.preventDefault(); const editedTitle = editForm.querySelector(".task-edit-title").value.trim(); if (!editedTitle) return; await api(`/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({ title: editedTitle, estimated_minutes: Number(editForm.querySelector(".task-edit-minutes").value), priority: Number(editForm.querySelector(".task-edit-priority").value) }) }); loadTasks(task.goal_id); });
+  editForm.addEventListener("submit", async (event) => { event.preventDefault(); const editedTitle = editForm.querySelector(".task-edit-title").value.trim(); if (!editedTitle) return; try { await api(`/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({ title: editedTitle, estimated_minutes: Number(editForm.querySelector(".task-edit-minutes").value), priority: Number(editForm.querySelector(".task-edit-priority").value) }) }); loadTasks(task.goal_id); showToast("Task updated"); } catch (error) { showToast("Could not update this task.", true); } });
   if (isLeaf) { checkbox.checked = task.completed; minutes.textContent = `${task.estimated_minutes} min`; priority.value = String(task.priority || 2); if (task.completed) title.style.textDecoration = "line-through"; checkbox.addEventListener("change", async () => { await api(`/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({ completed: checkbox.checked }) }); loadTasks(task.goal_id); }); priority.addEventListener("change", async () => { await api(`/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({ priority: Number(priority.value) }) }); loadTasks(task.goal_id); }); focus.addEventListener("click", () => startFocus(task)); }
   else { checkbox.remove(); minutes.remove(); priority.remove(); focus.remove(); progress.textContent = `${children.filter((child) => child.completed).length}/${children.length}`; }
   node.querySelector(".delete-task").addEventListener("click", async () => { await api(`/tasks/${task.id}`, { method: "DELETE" }); loadTasks(task.goal_id); });
@@ -96,7 +99,7 @@ function renderActivityHeatmap(sessions) {
   const counts = new Map();
   sessions.forEach((session) => { const key = session.created_at.slice(0, 10); counts.set(key, (counts.get(key) || 0) + 1); });
   const grid = document.getElementById("activity-heatmap"); const months = document.getElementById("heatmap-months"); grid.innerHTML = ""; months.innerHTML = "";
-  const today = new Date(); const end = new Date(today); end.setDate(today.getDate() - today.getDay() + 6);
+  const today = new Date(); const end = new Date(today);
   const start = new Date(end); start.setDate(end.getDate() - 111);
   let previousMonth = -1;
   for (let week = 0; week < 16; week++) {
