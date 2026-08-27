@@ -137,3 +137,21 @@ def test_can_edit_goal_and_task_fields():
 
     invalid_update = client.patch(f"/tasks/{task['id']}", json={"title": "   "})
     assert invalid_update.status_code == 422
+
+
+def test_ended_early_session_records_elapsed_minutes():
+    client = TestClient(app)
+    goal = client.post("/goals", json={"title": "Practice focus"}).json()
+    task = client.post(
+        f"/goals/{goal['id']}/tasks",
+        json={"title": "Begin a quiet block", "estimated_minutes": 25},
+    ).json()
+
+    session = client.post(
+        f"/tasks/{task['id']}/sessions",
+        json={"actual_minutes": 0, "completed": False},
+    )
+
+    assert session.status_code == 200
+    assert session.json()["actual_minutes"] == 0
+    assert session.json()["completed"] is False
