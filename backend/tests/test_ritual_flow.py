@@ -167,3 +167,11 @@ def test_task_creation_accepts_priority():
 
     assert task.status_code == 200
     assert task.json()["priority"] == 1
+
+
+def test_next_focus_is_empty_when_no_unfinished_leaf_exists():
+    client = TestClient(app)
+    response = client.get("/next-focus")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "No unfinished focus task found"

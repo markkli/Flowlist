@@ -8,6 +8,8 @@ venv/
 .env
 .env.*
 !.env.example
+backend/flowlist.local.db
+backend/local-development.env
 
 # OS
 .DS_Store
