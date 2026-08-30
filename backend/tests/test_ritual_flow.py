@@ -155,3 +155,15 @@ def test_ended_early_session_records_elapsed_minutes():
     assert session.status_code == 200
     assert session.json()["actual_minutes"] == 0
     assert session.json()["completed"] is False
+
+
+def test_task_creation_accepts_priority():
+    client = TestClient(app)
+    goal = client.post("/goals", json={"title": "Prioritize work"}).json()
+    task = client.post(
+        f"/goals/{goal['id']}/tasks",
+        json={"title": "Start with the important thing", "priority": 1},
+    )
+
+    assert task.status_code == 200
+    assert task.json()["priority"] == 1

@@ -52,14 +52,14 @@ async function loadGoals() {
     goalEdit.querySelector(".goal-edit-cancel").addEventListener("click", () => { goalEdit.style.display = "none"; });
     goalEdit.addEventListener("submit", async (event) => { event.preventDefault(); const title = goalEdit.querySelector(".goal-edit-title").value.trim(); if (!title) return; try { await api(`/goals/${goal.id}`, { method: "PATCH", body: JSON.stringify({ title, description: goalEdit.querySelector(".goal-edit-description").value.trim() || null }) }); loadGoals(); showToast("Goal updated"); } catch (error) { showToast("Could not update this goal.", true); } });
     node.querySelector(".delete-goal").addEventListener("click", async () => { await api(`/goals/${goal.id}`, { method: "DELETE" }); loadGoals(); });
-    node.querySelector(".task-form").addEventListener("submit", async (event) => { event.preventDefault(); const input = event.target.querySelector('input[type="text"]'); const minutes = event.target.querySelector(".task-minutes"); if (!input.value.trim()) return; await api(`/goals/${goal.id}/tasks`, { method: "POST", body: JSON.stringify({ title: input.value.trim(), estimated_minutes: Number(minutes.value) || 25 }) }); input.value = ""; loadGoals(); });
+    node.querySelector(".task-form").addEventListener("submit", async (event) => { event.preventDefault(); const input = event.target.querySelector('input[type="text"]'); const minutes = event.target.querySelector(".task-minutes"); const priority = event.target.querySelector(".new-task-priority"); if (!input.value.trim()) return; await api(`/goals/${goal.id}/tasks`, { method: "POST", body: JSON.stringify({ title: input.value.trim(), estimated_minutes: Number(minutes.value) || 25, priority: Number(priority.value) }) }); input.value = ""; loadGoals(); });
     goalsContainer.appendChild(node); loadTasks(goal.id);
   }
 }
 
 async function loadTasks(goalId) {
   const tasks = await api(`/goals/${goalId}/tasks`); const section = document.querySelector(`article[data-goal-id="${goalId}"]`); if (!section) return;
-  const list = section.querySelector(".task-list"); list.innerHTML = ""; tasks.filter((task) => task.parent_id === null).forEach((task) => renderTask(task, tasks, list));
+  const list = section.querySelector(".task-list"); list.innerHTML = ""; tasks.filter((task) => task.parent_id === null).sort((a, b) => (a.priority - b.priority) || (a.id - b.id)).forEach((task) => renderTask(task, tasks, list));
   const leaves = leafTasks(tasks); section.querySelector(".goal-progress-copy").textContent = leaves.length ? `${leaves.filter((task) => task.completed).length} of ${leaves.length} steps complete` : "Add the first meaningful step.";
   checkGoalComplete(goalId, tasks);
 }
@@ -68,7 +68,7 @@ function checkGoalComplete(goalId, tasks) { const leaves = leafTasks(tasks); con
 document.getElementById("celebration-dismiss").addEventListener("click", () => document.getElementById("celebration-overlay").classList.add("hidden"));
 
 function renderTask(task, allTasks, container) {
-  const children = allTasks.filter((item) => item.parent_id === task.id); const isLeaf = children.length === 0; const node = taskTemplate.content.cloneNode(true);
+  const children = allTasks.filter((item) => item.parent_id === task.id).sort((a, b) => (a.priority - b.priority) || (a.id - b.id)); const isLeaf = children.length === 0; const node = taskTemplate.content.cloneNode(true);
   const checkbox = node.querySelector(".task-completed"), title = node.querySelector(".task-title"), progress = node.querySelector(".task-progress"), minutes = node.querySelector(".task-minutes-label"), priority = node.querySelector(".task-priority"), edit = node.querySelector(".edit-task"), editForm = node.querySelector(".task-edit-form"), focus = node.querySelector(".start-focus"), add = node.querySelector(".add-subtask"), breakdown = node.querySelector(".break-down"), subtaskForm = node.querySelector(".subtask-form"), subtaskList = node.querySelector(".subtask-list"), suggestions = node.querySelector(".suggestion-list");
   title.textContent = task.title;
   edit.addEventListener("click", () => { editForm.style.display = editForm.style.display === "none" ? "grid" : "none"; }); editForm.querySelector(".task-edit-cancel").addEventListener("click", () => { editForm.style.display = "none"; });
@@ -79,7 +79,7 @@ function renderTask(task, allTasks, container) {
   node.querySelector(".delete-task").addEventListener("click", async () => { await api(`/tasks/${task.id}`, { method: "DELETE" }); loadTasks(task.goal_id); });
   if (task.depth >= MAX_DEPTH) { add.remove(); breakdown.remove(); subtaskForm.remove(); } else {
     add.addEventListener("click", () => { subtaskForm.style.display = subtaskForm.style.display === "none" ? "grid" : "none"; });
-    subtaskForm.addEventListener("submit", async (event) => { event.preventDefault(); const input = subtaskForm.querySelector('input[type="text"]'); const estimate = subtaskForm.querySelector(".subtask-minutes"); if (!input.value.trim()) return; await api(`/tasks/${task.id}/subtasks`, { method: "POST", body: JSON.stringify({ title: input.value.trim(), estimated_minutes: Number(estimate.value) || 25 }) }); loadTasks(task.goal_id); });
+    subtaskForm.addEventListener("submit", async (event) => { event.preventDefault(); const input = subtaskForm.querySelector('input[type="text"]'); const estimate = subtaskForm.querySelector(".subtask-minutes"); const subtaskPriority = subtaskForm.querySelector(".subtask-priority"); if (!input.value.trim()) return; await api(`/tasks/${task.id}/subtasks`, { method: "POST", body: JSON.stringify({ title: input.value.trim(), estimated_minutes: Number(estimate.value) || 25, priority: Number(subtaskPriority.value) }) }); loadTasks(task.goal_id); });
     breakdown.addEventListener("click", async () => { breakdown.textContent = "Thinking…"; breakdown.disabled = true; try { const proposed = await api(`/tasks/${task.id}/breakdown`, { method: "POST" }); suggestions.innerHTML = ""; proposed.forEach((suggestion) => { const item = suggestionTemplate.content.cloneNode(true); item.querySelector(".suggestion-title").textContent = suggestion.title; item.querySelector(".suggestion-minutes").textContent = `${suggestion.estimated_minutes} min`; item.querySelector(".suggestion-add").addEventListener("click", async () => { await api(`/tasks/${task.id}/subtasks`, { method: "POST", body: JSON.stringify(suggestion) }); loadTasks(task.goal_id); }); suggestions.appendChild(item); }); } finally { breakdown.textContent = "Break down"; breakdown.disabled = false; } });
   }
   container.appendChild(node); children.forEach((child) => renderTask(child, allTasks, subtaskList));
