@@ -114,3 +114,11 @@ cd backend
 
 The test uses a disposable SQLite database and never touches your real
 PostgreSQL data.
+
+## Focus timer behavior
+
+While a focus block is running, the frontend stores a small recovery record in
+browser storage. It contains the task and an end timestamp—not private notes or
+credentials. If the window is refreshed, Flowlist calculates the remaining time
+from that timestamp and continues the block. Ending or completing the block
+clears the recovery record after logging the session once.
