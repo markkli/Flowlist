@@ -175,3 +175,22 @@ def test_next_focus_is_empty_when_no_unfinished_leaf_exists():
 
     assert response.status_code == 404
     assert response.json()["detail"] == "No unfinished focus task found"
+
+
+def test_goal_breakdown_returns_first_level_tasks(monkeypatch):
+    client = TestClient(app)
+    goal = client.post(
+        "/goals", json={"title": "Launch a portfolio", "description": "A calm, polished site"}
+    ).json()
+
+    monkeypatch.setattr(
+        "main.suggest_goal_tasks",
+        lambda title, description: [
+            {"title": "Choose the visual direction", "estimated_minutes": 30},
+            {"title": "Write the project summaries", "estimated_minutes": 45},
+        ],
+    )
+    response = client.post(f"/goals/{goal['id']}/breakdown")
+
+    assert response.status_code == 200
+    assert response.json()[0]["title"] == "Choose the visual direction"

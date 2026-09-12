@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 import schemas
-from ai import AIConfigurationError, suggest_subtasks
+from ai import AIConfigurationError, suggest_goal_tasks, suggest_subtasks
 from database import get_db
 from models import FocusSessionModel, GoalModel, TaskModel
 
@@ -106,6 +106,15 @@ def list_tasks(goal_id: int, db: Session = Depends(get_db)):
     return db.scalars(
         select(TaskModel).where(TaskModel.goal_id == goal_id)
     ).all()
+
+
+@app.post("/goals/{goal_id}/breakdown", response_model=list[schemas.SuggestedSubtask])
+def breakdown_goal(goal_id: int, db: Session = Depends(get_db)):
+    goal = find_goal(db, goal_id)
+    try:
+        return suggest_goal_tasks(goal.title, goal.description)
+    except AIConfigurationError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
 
 
 @app.get("/next-focus", response_model=schemas.NextFocus)

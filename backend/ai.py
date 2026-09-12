@@ -48,3 +48,25 @@ def suggest_subtasks(goal_title: str, task_title: str) -> list[SuggestedSubtask]
         text_format=Breakdown,
     )
     return result.output_parsed.subtasks
+
+
+def suggest_goal_tasks(goal_title: str, description: str | None) -> list[SuggestedSubtask]:
+    result = get_client().responses.parse(
+        model=model,
+        input=[
+            {
+                "role": "system",
+                "content": (
+                    "Break a project into 3-6 concrete first-level tasks. "
+                    "Each task should be a meaningful outcome that can later be broken into smaller steps. "
+                    "Give a realistic estimated_minutes (5-90) for each."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"Project: {goal_title}\nDescription: {description or 'No description provided.'}",
+            },
+        ],
+        text_format=Breakdown,
+    )
+    return result.output_parsed.subtasks
