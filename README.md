@@ -26,20 +26,27 @@ PostgreSQL (Docker)
 This is the easiest way to run Flowlist on your Mac while developing. It uses
 SQLite, a small local database file, instead of PostgreSQL.
 
-In one terminal:
+First, install the local environment once:
 
 ```bash
-cp backend/local-development.env.example backend/local-development.env
-cd backend
-set -a; source local-development.env; set +a
-.venv/bin/alembic upgrade head
-.venv/bin/uvicorn main:app --reload --port 8000
+python3 -m venv backend/.venv
+backend/.venv/bin/pip install -r backend/requirements.txt -r backend/requirements-dev.txt
 ```
+
+Then start both servers with one command:
+
+```bash
+./scripts/run-local.sh
+```
+
+The script creates `backend/local-development.env` on first run, applies all
+database migrations, starts FastAPI and the frontend, and prints the connected
+URL. Open `http://127.0.0.1:5500`. Press `Ctrl+C` to stop both servers.
 
 The database is stored in `backend/flowlist.local.db`, which is local-only and
 can be deleted when you want a fresh development database.
 
-In another terminal, serve the frontend:
+If you prefer to run the frontend separately:
 
 ```bash
 python3 -m http.server 5500 -d frontend

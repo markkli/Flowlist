@@ -10,6 +10,8 @@ venv/
 !.env.example
 backend/flowlist.local.db
 backend/local-development.env
+.flowlist-backend.log
+.flowlist-frontend.log
 
 # OS
 .DS_Store
