@@ -169,6 +169,18 @@ def test_task_creation_accepts_priority():
     assert task.json()["priority"] == 1
 
 
+def test_learning_goal_preserves_its_type():
+    client = TestClient(app)
+    created = client.post(
+        "/goals", json={"title": "AI engineering", "goal_type": "learning"}
+    )
+
+    assert created.status_code == 200
+    assert created.json()["goal_type"] == "learning"
+    listed = client.get("/goals")
+    assert listed.json()[0]["goal_type"] == "learning"
+
+
 def test_next_focus_is_empty_when_no_unfinished_leaf_exists():
     client = TestClient(app)
     response = client.get("/next-focus")
@@ -177,20 +189,37 @@ def test_next_focus_is_empty_when_no_unfinished_leaf_exists():
     assert response.json()["detail"] == "No unfinished focus task found"
 
 
-def test_goal_breakdown_returns_first_level_tasks(monkeypatch):
+def test_learning_breakdown_asks_questions_then_returns_learning_path(monkeypatch):
     client = TestClient(app)
     goal = client.post(
-        "/goals", json={"title": "Launch a portfolio", "description": "A calm, polished site"}
+        "/goals", json={"title": "AI engineering", "goal_type": "learning"}
     ).json()
 
     monkeypatch.setattr(
-        "main.suggest_goal_tasks",
-        lambda title, description: [
-            {"title": "Choose the visual direction", "estimated_minutes": 30},
-            {"title": "Write the project summaries", "estimated_minutes": 45},
+        "main.suggest_learning_questions",
+        lambda title, description: [{"id": "level", "question": "What is your current level?"}],
+    )
+    questions = client.post(f"/goals/{goal['id']}/breakdown/questions")
+    assert questions.status_code == 200
+    assert questions.json()[0]["id"] == "level"
+
+    monkeypatch.setattr(
+        "main.suggest_learning_tasks",
+        lambda title, description, answers: [
+            {"title": "Build a small model", "estimated_minutes": 45},
         ],
     )
-    response = client.post(f"/goals/{goal['id']}/breakdown")
+    response = client.post(
+        f"/goals/{goal['id']}/breakdown",
+        json={"answers": [{"id": "level", "answer": "Comfortable with Python"}]},
+    )
 
     assert response.status_code == 200
-    assert response.json()[0]["title"] == "Choose the visual direction"
+    assert response.json()[0]["title"] == "Build a small model"
+
+
+def test_project_cannot_use_learning_breakdown():
+    client = TestClient(app)
+    goal = client.post("/goals", json={"title": "Launch a portfolio"}).json()
+    response = client.post(f"/goals/{goal['id']}/breakdown/questions")
+    assert response.status_code == 400

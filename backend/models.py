@@ -12,6 +12,7 @@ class GoalModel(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str]
     description: Mapped[str | None]
+    goal_type: Mapped[str] = mapped_column(default="project", server_default="project")
 
     tasks: Mapped[list["TaskModel"]] = relationship(
         back_populates="goal", cascade="all, delete-orphan"

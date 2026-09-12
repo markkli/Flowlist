@@ -46,14 +46,41 @@ async function loadGoals() {
   const goals = await api("/goals"); goalsContainer.innerHTML = "";
   for (const goal of goals) {
     const node = goalTemplate.content.cloneNode(true); const section = node.querySelector("article"); section.dataset.goalId = goal.id;
+    node.querySelector(".goal-type-label").textContent = goal.goal_type === "learning" ? "Learning objective" : "Project";
     node.querySelector(".goal-title").textContent = goal.title;
     node.querySelector(".goal-description").textContent = goal.description || "";
     const goalBreakdown = node.querySelector(".break-down-goal"); const goalSuggestions = node.querySelector(".goal-suggestion-list");
-    goalBreakdown.addEventListener("click", async () => { goalBreakdown.textContent = "Thinking…"; goalBreakdown.disabled = true; try { const proposed = await api(`/goals/${goal.id}/breakdown`, { method: "POST" }); goalSuggestions.innerHTML = ""; goalSuggestions.style.display = proposed.length ? "grid" : "none"; proposed.forEach((suggestion) => { const item = document.createElement("li"); item.className = "task-row"; item.innerHTML = `<span></span><span class="task-title">${escapeHtml(suggestion.title)}</span><span class="task-minutes-label task-meta">${suggestion.estimated_minutes} min</span><div class="task-actions"><button class="suggestion-add">Use this</button></div>`; item.querySelector(".suggestion-add").addEventListener("click", async () => { await api(`/goals/${goal.id}/tasks`, { method: "POST", body: JSON.stringify(suggestion) }); item.remove(); loadTasks(goal.id); }); goalSuggestions.appendChild(item); }); } catch (error) { showToast(error.status === 503 ? "AI breakdown needs an OPENAI_API_KEY." : "Could not break down this project.", true); } finally { goalBreakdown.textContent = "Break down project"; goalBreakdown.disabled = false; } });
-    const goalEdit = node.querySelector(".goal-edit-form"); goalEdit.querySelector(".goal-edit-title").value = goal.title; goalEdit.querySelector(".goal-edit-description").value = goal.description || "";
+    if (goal.goal_type !== "learning") goalBreakdown.remove();
+    else {
+      const clarificationPanel = node.querySelector(".learning-clarification-panel");
+      const clarificationForm = node.querySelector(".learning-clarification-form");
+      goalBreakdown.addEventListener("click", async () => {
+        goalBreakdown.textContent = "Preparing questions…"; goalBreakdown.disabled = true;
+        try {
+          const questions = await api(`/goals/${goal.id}/breakdown/questions`, { method: "POST" });
+          clarificationForm.innerHTML = questions.map((item) => `<label class="subtitle">${escapeHtml(item.question)}<input class="field learning-answer" data-question-id="${escapeHtml(item.id)}" required></label>`).join("") + '<button class="secondary-btn" type="submit">Build learning path</button>';
+          clarificationPanel.hidden = false;
+        } catch (error) { showToast(error.status === 503 ? "AI breakdown needs an OPENAI_API_KEY." : "Could not prepare learning questions.", true); }
+        finally { goalBreakdown.textContent = "Break down learning path"; goalBreakdown.disabled = false; }
+      });
+      clarificationForm.addEventListener("submit", async (event) => {
+        event.preventDefault(); goalBreakdown.disabled = true;
+        const answers = [...clarificationForm.querySelectorAll(".learning-answer")].map((input) => ({ id: input.dataset.questionId, answer: input.value.trim() })).filter((item) => item.answer);
+        try {
+          const proposed = await api(`/goals/${goal.id}/breakdown`, { method: "POST", body: JSON.stringify({ answers }) });
+          goalSuggestions.innerHTML = proposed.length ? '<li class="suggestion-toolbar"><span>Select the milestones that belong in this roadmap.</span><button class="secondary-btn suggestion-add-selected" type="button">Add selected</button></li>' : "";
+          goalSuggestions.style.display = proposed.length ? "grid" : "none";
+          proposed.forEach((suggestion, index) => { const item = document.createElement("li"); item.className = "task-row suggestion-row"; item.innerHTML = `<input type="checkbox" class="suggestion-select" data-index="${index}" aria-label="Select ${escapeHtml(suggestion.title)}"><span class="task-title">${escapeHtml(suggestion.title)}</span><span class="task-minutes-label task-meta">${suggestion.estimated_minutes} min</span>`; goalSuggestions.appendChild(item); });
+          goalSuggestions.querySelector(".suggestion-add-selected")?.addEventListener("click", async () => { const selected = [...goalSuggestions.querySelectorAll(".suggestion-select:checked")].map((input) => proposed[Number(input.dataset.index)]); if (!selected.length) { showToast("Select at least one milestone first.", true); return; } const addButton = goalSuggestions.querySelector(".suggestion-add-selected"); addButton.disabled = true; await Promise.all(selected.map((suggestion) => api(`/goals/${goal.id}/tasks`, { method: "POST", body: JSON.stringify(suggestion) }))); goalSuggestions.style.display = "none"; loadTasks(goal.id); showToast(`${selected.length} milestone${selected.length === 1 ? "" : "s"} added to the roadmap.`); });
+          clarificationPanel.hidden = true;
+        } catch (error) { showToast(error.status === 503 ? "AI breakdown needs an OPENAI_API_KEY." : "Could not build this learning path.", true); }
+        finally { goalBreakdown.disabled = false; }
+      });
+    }
+    const goalEdit = node.querySelector(".goal-edit-form"); goalEdit.querySelector(".goal-edit-title").value = goal.title; goalEdit.querySelector(".goal-edit-description").value = goal.description || ""; goalEdit.querySelector(".goal-edit-type").value = goal.goal_type || "project";
     node.querySelector(".edit-goal").addEventListener("click", () => { goalEdit.style.display = goalEdit.style.display === "none" ? "grid" : "none"; });
     goalEdit.querySelector(".goal-edit-cancel").addEventListener("click", () => { goalEdit.style.display = "none"; });
-    goalEdit.addEventListener("submit", async (event) => { event.preventDefault(); const title = goalEdit.querySelector(".goal-edit-title").value.trim(); if (!title) return; try { await api(`/goals/${goal.id}`, { method: "PATCH", body: JSON.stringify({ title, description: goalEdit.querySelector(".goal-edit-description").value.trim() || null }) }); loadGoals(); showToast("Goal updated"); } catch (error) { showToast("Could not update this goal.", true); } });
+    goalEdit.addEventListener("submit", async (event) => { event.preventDefault(); const title = goalEdit.querySelector(".goal-edit-title").value.trim(); if (!title) return; try { await api(`/goals/${goal.id}`, { method: "PATCH", body: JSON.stringify({ title, description: goalEdit.querySelector(".goal-edit-description").value.trim() || null, goal_type: goalEdit.querySelector(".goal-edit-type").value }) }); loadGoals(); showToast("Goal updated"); } catch (error) { showToast("Could not update this goal.", true); } });
     node.querySelector(".delete-goal").addEventListener("click", async () => { await api(`/goals/${goal.id}`, { method: "DELETE" }); loadGoals(); });
     node.querySelector(".task-form").addEventListener("submit", async (event) => { event.preventDefault(); const input = event.target.querySelector('input[type="text"]'); const minutes = event.target.querySelector(".task-minutes"); const priority = event.target.querySelector(".new-task-priority"); if (!input.value.trim()) return; await api(`/goals/${goal.id}/tasks`, { method: "POST", body: JSON.stringify({ title: input.value.trim(), estimated_minutes: Number(minutes.value) || 25, priority: Number(priority.value) }) }); input.value = ""; loadGoals(); });
     goalsContainer.appendChild(node); loadTasks(goal.id);
@@ -62,7 +89,7 @@ async function loadGoals() {
 
 async function loadTasks(goalId) {
   const tasks = await api(`/goals/${goalId}/tasks`); const section = document.querySelector(`article[data-goal-id="${goalId}"]`); if (!section) return;
-  const list = section.querySelector(".task-list"); list.innerHTML = ""; tasks.filter((task) => task.parent_id === null).sort((a, b) => (a.priority - b.priority) || (a.id - b.id)).forEach((task) => renderTask(task, tasks, list));
+  const list = section.querySelector(".goal-task-list"); list.innerHTML = ""; tasks.filter((task) => task.parent_id === null).sort((a, b) => (a.priority - b.priority) || (a.id - b.id)).forEach((task) => renderTask(task, tasks, list));
   const leaves = leafTasks(tasks); section.querySelector(".goal-progress-copy").textContent = leaves.length ? `${leaves.filter((task) => task.completed).length} of ${leaves.length} steps complete` : "Add the first meaningful step.";
   checkGoalComplete(goalId, tasks);
 }
@@ -88,7 +115,7 @@ function renderTask(task, allTasks, container) {
   container.appendChild(node); children.forEach((child) => renderTask(child, allTasks, subtaskList));
 }
 
-document.getElementById("goal-form").addEventListener("submit", async (event) => { event.preventDefault(); const input = document.getElementById("goal-title"); if (!input.value.trim()) return; await api("/goals", { method: "POST", body: JSON.stringify({ title: input.value.trim() }) }); input.value = ""; loadGoals(); });
+document.getElementById("goal-form").addEventListener("submit", async (event) => { event.preventDefault(); const input = document.getElementById("goal-title"); if (!input.value.trim()) return; await api("/goals", { method: "POST", body: JSON.stringify({ title: input.value.trim(), goal_type: document.getElementById("goal-type").value }) }); input.value = ""; loadGoals(); });
 
 const overlay = document.getElementById("focus-overlay"), focusPhaseLabel = document.getElementById("focus-phase-label"), focusTaskTitle = document.getElementById("focus-task-title"), focusGoalTitle = document.getElementById("focus-goal-title"), focusTime = document.getElementById("focus-time"), focusStop = document.getElementById("focus-stop");
 function clearSavedFocus() { localStorage.removeItem(ACTIVE_FOCUS_KEY); }

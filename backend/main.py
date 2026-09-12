@@ -7,7 +7,12 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 import schemas
-from ai import AIConfigurationError, suggest_goal_tasks, suggest_subtasks
+from ai import (
+    AIConfigurationError,
+    suggest_learning_questions,
+    suggest_learning_tasks,
+    suggest_subtasks,
+)
 from database import get_db
 from models import FocusSessionModel, GoalModel, TaskModel
 
@@ -108,11 +113,28 @@ def list_tasks(goal_id: int, db: Session = Depends(get_db)):
     ).all()
 
 
-@app.post("/goals/{goal_id}/breakdown", response_model=list[schemas.SuggestedSubtask])
-def breakdown_goal(goal_id: int, db: Session = Depends(get_db)):
+@app.post("/goals/{goal_id}/breakdown/questions", response_model=list[schemas.ClarificationQuestion])
+def learning_breakdown_questions(goal_id: int, db: Session = Depends(get_db)):
     goal = find_goal(db, goal_id)
+    if goal.goal_type != "learning":
+        raise HTTPException(status_code=400, detail="Only learning goals can be broken down.")
     try:
-        return suggest_goal_tasks(goal.title, goal.description)
+        return suggest_learning_questions(goal.title, goal.description)
+    except AIConfigurationError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+
+
+@app.post("/goals/{goal_id}/breakdown", response_model=list[schemas.SuggestedSubtask])
+def breakdown_learning_goal(
+    goal_id: int, request: schemas.LearningBreakdownRequest, db: Session = Depends(get_db)
+):
+    goal = find_goal(db, goal_id)
+    if goal.goal_type != "learning":
+        raise HTTPException(status_code=400, detail="Only learning goals can be broken down.")
+    try:
+        return suggest_learning_tasks(
+            goal.title, goal.description, [answer.model_dump() for answer in request.answers]
+        )
     except AIConfigurationError as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
 

@@ -1,6 +1,10 @@
 from datetime import datetime
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+GoalType = Literal["project", "learning"]
 
 
 class TitledPayload(BaseModel):
@@ -31,10 +35,12 @@ class OptionalTitleUpdate(BaseModel):
 
 class GoalCreate(TitledPayload):
     description: str | None = None
+    goal_type: GoalType = "project"
 
 
 class GoalUpdate(OptionalTitleUpdate):
     description: str | None = None
+    goal_type: GoalType | None = None
 
 
 class Goal(GoalCreate):
@@ -66,6 +72,28 @@ class Task(TaskCreate):
 
 class SuggestedSubtask(TitledPayload):
     estimated_minutes: int = Field(ge=5, le=480)
+
+
+class ClarificationQuestion(BaseModel):
+    id: str = Field(min_length=1, max_length=40)
+    question: str = Field(min_length=1, max_length=500)
+
+
+class LearningAnswer(BaseModel):
+    id: str = Field(min_length=1, max_length=40)
+    answer: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("answer")
+    @classmethod
+    def normalize_answer(cls, value: str) -> str:
+        answer = value.strip()
+        if not answer:
+            raise ValueError("Answer must not be blank")
+        return answer
+
+
+class LearningBreakdownRequest(BaseModel):
+    answers: list[LearningAnswer] = Field(min_length=1, max_length=6)
 
 
 class FocusSessionCreate(BaseModel):

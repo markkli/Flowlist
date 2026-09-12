@@ -43,6 +43,10 @@ The script creates `backend/local-development.env` on first run, applies all
 database migrations, starts FastAPI and the frontend, and prints the connected
 URL. Open `http://127.0.0.1:5500`. Press `Ctrl+C` to stop both servers.
 
+If `backend/local-development.env` leaves `OPENAI_API_KEY` blank, the launcher
+reuses the key from `backend/.env` when one is already present. It never prints
+the key or writes it into the repository.
+
 The database is stored in `backend/flowlist.local.db`, which is local-only and
 can be deleted when you want a fresh development database.
 

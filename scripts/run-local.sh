@@ -21,6 +21,13 @@ set -a
 source local-development.env
 set +a
 
+# Keep SQLite for quick mode, but reuse an existing key from backend/.env when
+# the quick-local file leaves AI disabled. The secret stays in the environment.
+if [[ -z "${OPENAI_API_KEY:-}" && -f "$BACKEND_DIR/.env" ]]; then
+  OPENAI_API_KEY="$(sed -n 's/^OPENAI_API_KEY=//p' "$BACKEND_DIR/.env")"
+  export OPENAI_API_KEY
+fi
+
 "$BACKEND_DIR/.venv/bin/alembic" upgrade head
 "$BACKEND_DIR/.venv/bin/uvicorn" main:app --port 8000 > "$ROOT_DIR/.flowlist-backend.log" 2>&1 &
 BACKEND_PID=$!
