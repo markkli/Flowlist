@@ -106,7 +106,7 @@ Open `http://127.0.0.1:5500` in the browser. Do not open `index.html` using a
 The end-to-end test proves the most important product loop:
 
 ```text
-create goal → add task → complete task → log focus session → update stats
+create goal → add task → run Pomodoro → attribute session → optionally complete task → update stats
 ```
 
 Create the local development environment once:
@@ -128,8 +128,18 @@ PostgreSQL data.
 
 ## Focus timer behavior
 
-While a focus block is running, the frontend stores a small recovery record in
-browser storage. It contains the task and an end timestamp—not private notes or
-credentials. If the window is refreshed, Flowlist calculates the remaining time
-from that timestamp and continues the block. Ending or completing the block
-clears the recovery record after logging the session once.
+The Pomodoro is intentionally independent from the roadmap: start a focus block
+without choosing a task, then attribute the time when the block ends. Flowlist
+suggests unfinished tasks in roadmap order, with recently focused work first.
+You can link the session to one task, save it as general focus, and optionally
+check the selected task off at the same time.
+
+The default cycle is 25 minutes of focus and 5 minutes of rest. Both values can
+be changed from the small settings control on the timer card. Flowlist does not
+prescribe durations for individual tasks; the session records the time actually
+spent instead.
+
+While a block is running, the frontend stores its phase and end timestamp in
+browser storage—not private notes or credentials. If the window is refreshed,
+Flowlist calculates the remaining time and continues the block. The recovery
+record is cleared when the focus or break interval ends.

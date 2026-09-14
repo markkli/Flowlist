@@ -1,4 +1,4 @@
-"""End-to-end proof of Flowlist's core goal → focus → progress loop."""
+"""End-to-end proof of Flowlist's roadmap → Pomodoro → attribution loop."""
 
 import os
 import sys
@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 
 # This must be set before importing Flowlist's database module. It ensures the
-# test never reads from or writes to the developer's PostgreSQL database.
+# test never reads from or writes to the developer's real database.
 TEST_DATABASE = Path(tempfile.gettempdir()) / "flowlist-ritual-test.sqlite3"
 TEST_DATABASE.unlink(missing_ok=True)
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DATABASE}"
@@ -30,143 +30,119 @@ def clean_test_database():
     Base.metadata.drop_all(bind=engine)
 
 
-def test_focus_ritual_updates_stats():
-    client = TestClient(app)
-
-    goal = client.post("/goals", json={"title": "Write thesis"})
-    assert goal.status_code == 200
-
+def create_goal_and_task(client: TestClient, goal_title="Write thesis", task_title="Outline chapter"):
+    goal = client.post("/goals", json={"title": goal_title}).json()
     task = client.post(
-        f"/goals/{goal.json()['id']}/tasks",
-        json={"title": "Outline chapter", "estimated_minutes": 25},
-    )
-    assert task.status_code == 200
+        f"/goals/{goal['id']}/tasks",
+        json={"title": task_title},
+    ).json()
+    return goal, task
 
-    completed_task = client.patch(
-        f"/tasks/{task.json()['id']}", json={"completed": True}
-    )
-    assert completed_task.json()["completed"] is True
+
+def test_pomodoro_attribution_updates_task_and_stats():
+    client = TestClient(app)
+    goal, task = create_goal_and_task(client)
 
     session = client.post(
-        f"/tasks/{task.json()['id']}/sessions",
-        json={"actual_minutes": 25, "completed": True},
+        "/sessions",
+        json={
+            "task_id": task["id"],
+            "planned_minutes": 25,
+            "actual_minutes": 25,
+            "completed": True,
+            "complete_task": True,
+        },
     )
-    assert session.status_code == 200
 
-    stats = client.get("/stats")
-    assert stats.status_code == 200
-    assert stats.json() == {
+    assert session.status_code == 200
+    assert session.json()["task_title"] == "Outline chapter"
+    listed_task = client.get(f"/goals/{goal['id']}/tasks").json()[0]
+    assert listed_task["completed"] is True
+    assert client.get("/stats").json() == {
         "current_streak": 1,
         "total_sessions": 1,
         "total_minutes": 25,
     }
 
 
-def test_rejects_blank_titles_and_invalid_durations():
+def test_rejects_blank_titles_and_invalid_session_durations():
     client = TestClient(app)
 
-    blank_goal = client.post("/goals", json={"title": "   "})
-    assert blank_goal.status_code == 422
-
-    goal = client.post("/goals", json={"title": "Study FastAPI"})
-    too_short_task = client.post(
-        f"/goals/{goal.json()['id']}/tasks",
-        json={"title": "Read routing", "estimated_minutes": 4},
+    assert client.post("/goals", json={"title": "   "}).status_code == 422
+    goal = client.post("/goals", json={"title": "Study FastAPI"}).json()
+    blank_task = client.post(
+        f"/goals/{goal['id']}/tasks",
+        json={"title": "   "},
     )
-    assert too_short_task.status_code == 422
-
-    task = client.post(
-        f"/goals/{goal.json()['id']}/tasks",
-        json={"title": "Read routing", "estimated_minutes": 25},
+    assert blank_task.status_code == 422
+    invalid_session = client.post(
+        "/sessions",
+        json={
+            "planned_minutes": 0,
+            "actual_minutes": 481,
+            "completed": False,
+        },
     )
-    too_long_session = client.post(
-        f"/tasks/{task.json()['id']}/sessions",
-        json={"actual_minutes": 481, "completed": True},
-    )
-    assert too_long_session.status_code == 422
+    assert invalid_session.status_code == 422
 
 
-def test_next_focus_prefers_priority_then_age():
+def test_next_focus_follows_roadmap_order():
     client = TestClient(app)
     goal = client.post("/goals", json={"title": "Build Flowlist"}).json()
-
-    later_task = client.post(
-        f"/goals/{goal['id']}/tasks",
-        json={"title": "Polish copy", "priority": 3},
+    first_task = client.post(
+        f"/goals/{goal['id']}/tasks", json={"title": "Polish copy"}
     ).json()
-    urgent_task = client.post(
-        f"/goals/{goal['id']}/tasks",
-        json={"title": "Fix the ritual", "priority": 1},
+    second_task = client.post(
+        f"/goals/{goal['id']}/tasks", json={"title": "Fix the ritual"}
     ).json()
 
-    next_focus = client.get("/next-focus")
-    assert next_focus.status_code == 200
-    assert next_focus.json()["task"]["id"] == urgent_task["id"]
-    assert next_focus.json()["goal"]["title"] == "Build Flowlist"
-
-    client.patch(f"/tasks/{urgent_task['id']}", json={"completed": True})
-    assert client.get("/next-focus").json()["task"]["id"] == later_task["id"]
+    assert client.get("/next-focus").json()["task"]["id"] == first_task["id"]
+    client.patch(f"/tasks/{first_task['id']}", json={"completed": True})
+    assert client.get("/next-focus").json()["task"]["id"] == second_task["id"]
 
 
-def test_can_edit_goal_and_task_fields():
+def test_can_edit_goal_and_task_titles():
     client = TestClient(app)
-    goal = client.post(
-        "/goals", json={"title": "Learn APIs", "description": "First draft"}
-    ).json()
-    task = client.post(
-        f"/goals/{goal['id']}/tasks",
-        json={"title": "Read docs", "estimated_minutes": 25},
-    ).json()
+    goal, task = create_goal_and_task(
+        client, goal_title="Learn APIs", task_title="Read docs"
+    )
 
     updated_goal = client.patch(
         f"/goals/{goal['id']}",
         json={"title": "Learn FastAPI", "description": "Build carefully"},
     )
     updated_task = client.patch(
-        f"/tasks/{task['id']}",
-        json={"title": "Read the routing docs", "estimated_minutes": 40, "priority": 1},
+        f"/tasks/{task['id']}", json={"title": "Read the routing docs"}
     )
 
-    assert updated_goal.status_code == 200
     assert updated_goal.json()["title"] == "Learn FastAPI"
-    assert updated_goal.json()["description"] == "Build carefully"
-    assert updated_task.status_code == 200
     assert updated_task.json()["title"] == "Read the routing docs"
-    assert updated_task.json()["estimated_minutes"] == 40
-    assert updated_task.json()["priority"] == 1
-
-    invalid_update = client.patch(f"/tasks/{task['id']}", json={"title": "   "})
-    assert invalid_update.status_code == 422
+    assert client.patch(f"/tasks/{task['id']}", json={"title": "   "}).status_code == 422
 
 
-def test_ended_early_session_records_elapsed_minutes():
+def test_ended_early_session_can_be_saved_without_a_task():
     client = TestClient(app)
-    goal = client.post("/goals", json={"title": "Practice focus"}).json()
-    task = client.post(
-        f"/goals/{goal['id']}/tasks",
-        json={"title": "Begin a quiet block", "estimated_minutes": 25},
-    ).json()
-
     session = client.post(
-        f"/tasks/{task['id']}/sessions",
-        json={"actual_minutes": 0, "completed": False},
+        "/sessions",
+        json={
+            "task_id": None,
+            "planned_minutes": 25,
+            "actual_minutes": 8,
+            "completed": False,
+        },
     )
 
     assert session.status_code == 200
-    assert session.json()["actual_minutes"] == 0
-    assert session.json()["completed"] is False
+    assert session.json()["task_id"] is None
+    assert session.json()["task_title"] == "General focus"
+    assert session.json()["actual_minutes"] == 8
 
 
-def test_task_creation_accepts_priority():
+def test_task_creation_has_no_prescribed_duration():
     client = TestClient(app)
-    goal = client.post("/goals", json={"title": "Prioritize work"}).json()
-    task = client.post(
-        f"/goals/{goal['id']}/tasks",
-        json={"title": "Start with the important thing", "priority": 1},
-    )
+    _, task = create_goal_and_task(client)
 
-    assert task.status_code == 200
-    assert task.json()["priority"] == 1
+    assert "estimated_minutes" not in task
 
 
 def test_learning_goal_preserves_its_type():
@@ -177,14 +153,13 @@ def test_learning_goal_preserves_its_type():
 
     assert created.status_code == 200
     assert created.json()["goal_type"] == "learning"
-    listed = client.get("/goals")
-    assert listed.json()[0]["goal_type"] == "learning"
+    assert client.get("/goals").json()[0]["goal_type"] == "learning"
 
 
 def test_next_focus_is_empty_when_no_unfinished_leaf_exists():
     client = TestClient(app)
-    response = client.get("/next-focus")
 
+    response = client.get("/next-focus")
     assert response.status_code == 404
     assert response.json()["detail"] == "No unfinished focus task found"
 
@@ -194,20 +169,18 @@ def test_learning_breakdown_asks_questions_then_returns_learning_path(monkeypatc
     goal = client.post(
         "/goals", json={"title": "AI engineering", "goal_type": "learning"}
     ).json()
-
     monkeypatch.setattr(
         "main.suggest_learning_questions",
-        lambda title, description: [{"id": "level", "question": "What is your current level?"}],
+        lambda title, description: [
+            {"id": "level", "question": "What is your current level?"}
+        ],
     )
+
     questions = client.post(f"/goals/{goal['id']}/breakdown/questions")
     assert questions.status_code == 200
-    assert questions.json()[0]["id"] == "level"
-
     monkeypatch.setattr(
         "main.suggest_learning_tasks",
-        lambda title, description, answers: [
-            {"title": "Build a small model", "estimated_minutes": 45},
-        ],
+        lambda title, description, answers: [{"title": "Build a small model"}],
     )
     response = client.post(
         f"/goals/{goal['id']}/breakdown",
@@ -215,11 +188,56 @@ def test_learning_breakdown_asks_questions_then_returns_learning_path(monkeypatc
     )
 
     assert response.status_code == 200
-    assert response.json()[0]["title"] == "Build a small model"
+    assert response.json() == [{"title": "Build a small model"}]
 
 
 def test_project_cannot_use_learning_breakdown():
     client = TestClient(app)
     goal = client.post("/goals", json={"title": "Launch a portfolio"}).json()
+
     response = client.post(f"/goals/{goal['id']}/breakdown/questions")
     assert response.status_code == 400
+
+
+def test_focus_options_prefer_recent_unfinished_work():
+    client = TestClient(app)
+    goal = client.post("/goals", json={"title": "Build Flowlist"}).json()
+    first = client.post(
+        f"/goals/{goal['id']}/tasks", json={"title": "First in roadmap"}
+    ).json()
+    recent = client.post(
+        f"/goals/{goal['id']}/tasks", json={"title": "Recently focused"}
+    ).json()
+    client.post(
+        "/sessions",
+        json={
+            "task_id": recent["id"],
+            "planned_minutes": 25,
+            "actual_minutes": 25,
+            "completed": True,
+        },
+    )
+
+    options = client.get("/focus-options").json()
+    assert [option["id"] for option in options] == [recent["id"], first["id"]]
+    assert options[0]["last_focused_at"] is not None
+
+
+def test_session_history_survives_task_deletion():
+    client = TestClient(app)
+    _, task = create_goal_and_task(client)
+    session = client.post(
+        "/sessions",
+        json={
+            "task_id": task["id"],
+            "planned_minutes": 25,
+            "actual_minutes": 12,
+            "completed": False,
+        },
+    ).json()
+
+    client.delete(f"/tasks/{task['id']}")
+    listed = client.get("/sessions").json()
+    assert listed[0]["id"] == session["id"]
+    assert listed[0]["task_id"] is None
+    assert listed[0]["task_title"] == "General focus"

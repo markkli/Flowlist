@@ -1,227 +1,101 @@
-# Design System Master File
+# Flowlist Design System
 
-> **LOGIC:** When building a specific page, first check `design-system/pages/[page-name].md`.
-> If that file exists, its rules **override** this Master file.
-> If not, strictly follow the rules below.
+**Direction:** Native Mac forest utility
 
----
+**Updated:** 2026-09-13
 
-**Project:** Flowlist
-**Generated:** 2026-09-12 14:58:03
-**Category:** Productivity Tool
-**Design Dials:** Variance 5/10 (Balanced / Modern) | Motion 4/10 (Standard) | Density 6/10 (Standard)
+**Character:** Quiet, capable, natural, precise
 
----
+## Product Principles
 
-## Global Rules
+- Flowlist should feel like a focused desktop instrument, not a generic SaaS dashboard.
+- Use one visual surface per concept. Do not place bordered cards inside bordered cards.
+- Show hierarchy with order, indentation, dividers, and a subtle guide line.
+- Roadmap order is the plan. Do not add P1/P2/P3 labels to learning steps or tasks.
+- Nature imagery is a quiet atmospheric anchor, not decoration on every panel.
+- Keep language plain and direct. Avoid motivational filler and poetic UI copy.
+- Light and dark modes are equal products, not color inversions of one another.
 
-### Color Palette
+## Color
 
-| Role | Hex | CSS Variable |
-|------|-----|--------------|
-| Primary | `#0D9488` | `--color-primary` |
-| On Primary | `#FFFFFF` | `--color-on-primary` |
-| Secondary | `#14B8A6` | `--color-secondary` |
-| Accent/CTA | `#EA580C` | `--color-accent` |
-| Background | `#F0FDFA` | `--color-background` |
-| Foreground | `#134E4A` | `--color-foreground` |
-| Muted | `#E8F1F4` | `--color-muted` |
-| Border | `#99F6E4` | `--color-border` |
-| Destructive | `#DC2626` | `--color-destructive` |
-| Ring | `#0D9488` | `--color-ring` |
+The supplied five-color palette is the visual foundation.
 
-**Color Notes:** Teal focus + action orange [Accent adjusted from #F97316 for WCAG 3:1]
+| Role | Light | Dark |
+|---|---|---|
+| Canvas | `#e8e5dd` | `#0c0a08` |
+| Primary surface | `#f4f1ea` | `#171914` |
+| Raised surface | `#fcfaf5` | `#1d211a` |
+| Ink | `#0c0a08` | `#e8e5dd` |
+| Forest action | `#2a3723` | `#b9bba8` |
+| Sage support | `#b9bba8` | `#2a3723` |
+| Warm accent | `#dcbc98` | `#dcbc98` |
+| Destructive | `#9a4439` | `#e29787` |
 
-### Typography
+Use warm accent sparingly. Forest is the main action and progress color. Borders should be translucent and quiet; never use dark outlines around every nested element.
 
-- **Heading Font:** Inter
-- **Body Font:** Inter
-- **Mood:** dark, cinematic, technical, precision, clean, premium, developer, professional, high-end utility
-- **Google Fonts:** [Inter + Inter](https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap)
+## Typography
 
-**CSS Import:**
-```css
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-```
+- Use the native system stack: `-apple-system`, `BlinkMacSystemFont`, `SF Pro Text`, `Helvetica Neue`, sans-serif.
+- Headings are compact and semibold, with slightly tightened letter spacing.
+- Small uppercase kickers may identify sections, but never substitute for clear headings.
+- Use tabular numerals for timers and statistics.
 
-### Spacing Variables
+## Layout and Density
 
-*Density: 6/10 — Standard*
+- Desktop: 232px sidebar, 57px translucent toolbar, flexible content workspace.
+- Mobile: sidebar becomes a compact top navigation; no horizontal scrolling at 375px.
+- Base spacing rhythm: 4, 8, 12, 16, 24, 32px.
+- Default content radius: 12px; large feature surface: 18px; compact controls: 7px.
+- Use balanced density: concise rows and generous section spacing.
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--space-xs` | `4px` / `0.25rem` | Tight gaps |
-| `--space-sm` | `8px` / `0.5rem` | Icon gaps, inline spacing |
-| `--space-md` | `16px` / `1rem` | Standard padding |
-| `--space-lg` | `24px` / `1.5rem` | Section padding |
-| `--space-xl` | `32px` / `2rem` | Large gaps |
-| `--space-2xl` | `48px` / `3rem` | Section margins |
-| `--space-3xl` | `64px` / `4rem` | Hero padding |
+## Core Components
 
-### Shadow Depths
+### Roadmap
 
-| Level | Value | Usage |
-|-------|-------|-------|
-| `--shadow-sm` | `0 1px 2px rgba(0,0,0,0.05)` | Subtle lift |
-| `--shadow-md` | `0 4px 6px rgba(0,0,0,0.1)` | Cards, buttons |
-| `--shadow-lg` | `0 10px 15px rgba(0,0,0,0.1)` | Modals, dropdowns |
-| `--shadow-xl` | `0 20px 25px rgba(0,0,0,0.15)` | Hero images, featured cards |
+- A goal is one panel containing its heading, controls, outline, and quick-add form.
+- Each task is a 48px minimum row separated by a one-pixel divider.
+- Child steps are indented 22px and connected by a subtle vertical guide.
+- Leaf steps show completion and a single contextual menu for secondary actions.
+- Parent steps show progress as completed children over total children.
+- Priority controls are forbidden. Sequence communicates what comes first.
+- Do not prescribe a duration for an individual task. Focus time is observed by the Pomodoro, then attributed to work afterward.
+- AI-generated milestones and nested steps are proposals: display them as a multi-select list with one explicit “Add selected” action.
 
----
+### Learning Path Questions
 
-## Component Specs
+- Clarification uses a centered modal with a 40–60% scrim and background blur.
+- Ask exactly one question at a time with a visible question count and progress track.
+- Keep Back, Close, and keyboard Escape available throughout the flow.
+- Place validation next to the answer field and preserve earlier answers when navigating backward.
+- Show a clear loading state while preparing questions and generating the path.
 
-### Buttons
+### Dashboard
 
-```css
-/* Primary Button */
-.btn-primary {
-  background: #EA580C;
-  color: white;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 200ms ease;
-  cursor: pointer;
-}
+- The Pomodoro card is the strongest surface and may contain the forest horizon artwork.
+- Starting the clock never requires choosing a task first. Default to 25 minutes of focus and 5 minutes of rest, with settings available from a quiet secondary control.
+- When focus stops, show a centered attribution dialog over a blurred background. Suggest unfinished leaf tasks in useful order, allow general unassigned focus, and offer task completion as an optional secondary action.
+- The task queue contains only completion, title, and parent-goal context. Long task names wrap naturally and never compete with duration labels or per-row focus buttons.
+- Supporting panels remain quieter and use minimal shadows.
+- Activity heatmap always renders its empty cells so the record is visible before data exists.
 
-.btn-primary:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
+### Controls
 
-/* Secondary Button */
-.btn-secondary {
-  background: transparent;
-  color: #0D9488;
-  border: 2px solid #0D9488;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 200ms ease;
-  cursor: pointer;
-}
-```
-
-### Cards
-
-```css
-.card {
-  background: #F0FDFA;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: var(--shadow-md);
-  transition: all 200ms ease;
-  cursor: pointer;
-}
-
-.card:hover {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-2px);
-}
-```
-
-### Inputs
-
-```css
-.input {
-  padding: 12px 16px;
-  border: 1px solid #E2E8F0;
-  border-radius: 8px;
-  font-size: 16px;
-  transition: border-color 200ms ease;
-}
-
-.input:focus {
-  border-color: #0D9488;
-  outline: none;
-  box-shadow: 0 0 0 3px #0D948820;
-}
-```
-
-### Modals
-
-```css
-.modal-overlay {
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-}
-
-.modal {
-  background: white;
-  border-radius: 16px;
-  padding: 32px;
-  box-shadow: var(--shadow-xl);
-  max-width: 500px;
-  width: 90%;
-}
-```
-
----
-
-## Style Guidelines
-
-**Style:** Soft UI Evolution
-
-**Keywords:** Evolved soft UI, better contrast, modern aesthetics, subtle depth, accessibility-focused, improved shadows, hybrid
-
-**Best For:** Modern enterprise apps, SaaS platforms, health/wellness, modern business tools, professional, hybrid
-
-**Key Effects:** Improved shadows (softer than flat, clearer than neumorphism), modern (200-300ms), focus visible, WCAG AA/AAA
-
-### Page Pattern
-
-**Pattern Name:** Minimal Single Column
-
-- **Conversion Strategy:** Single CTA focus. Large typography. Lots of whitespace. No nav clutter. Mobile-first.
-- **CTA Placement:** Center, large CTA button
-- **Section Order:** 1. Hero headline, 2. Short description, 3. Benefit bullets (3 max), 4. CTA, 5. Footer
-
----
+- Buttons and fields need visible keyboard focus using the theme focus-ring token.
+- Desktop controls may be compact; touch layouts use a minimum 44px target.
+- At narrow widths, keep primary controls and overflow menus at least 44px tall without inventing extra per-task actions.
+- Hover must not move surrounding layout.
+- Destructive actions use restrained red text rather than oversized red surfaces.
 
 ## Motion
 
-**Stagger List** (Standard) — Trigger: load or scroll | Duration: 300-450ms | Easing: `back.out(1.4)`
+- Interaction transitions: 150–220ms ease.
+- Timer changes should feel smooth and stable; avoid bouncing, overshoot, and entrance cascades.
+- Respect `prefers-reduced-motion` and disable nonessential animation when requested.
 
-```js
-gsap.from('.grid-item', { opacity: 0, scale: 0.92, y: 16, duration: 0.4, stagger: { each: 0.06, from: 'start', grid: 'auto' }, ease: 'back.out(1.4)' });
-```
+## Accessibility and QA
 
-**Framework notes:** grid: 'auto' lets GSAP infer rows/columns from a CSS grid layout for a natural wave stagger
-
-- ✅ Combine with from: 'center' for a bento-grid layout to draw the eye inward first
-- ❌ Don't use back.out on dense data tables; the overshoot reads as sloppy on informational UI
-- ⚡ Group DOM writes; avoid interleaving layout reads (getBoundingClientRect) between staggered tweens
-
----
-
-## Anti-Patterns (Do NOT Use)
-
-- ❌ Complex onboarding
-- ❌ Slow performance
-
-### Additional Forbidden Patterns
-
-- ❌ **Emojis as icons** — Use SVG icons (Heroicons, Lucide, Simple Icons)
-- ❌ **Missing cursor:pointer** — All clickable elements must have cursor:pointer
-- ❌ **Layout-shifting hovers** — Avoid scale transforms that shift layout
-- ❌ **Low contrast text** — Maintain 4.5:1 minimum contrast ratio
-- ❌ **Instant state changes** — Always use transitions (150-300ms)
-- ❌ **Invisible focus states** — Focus states must be visible for a11y
-
----
-
-## Pre-Delivery Checklist
-
-Before delivering any UI code, verify:
-
-- [ ] No emojis used as icons (use SVG instead)
-- [ ] All icons from consistent icon set (Heroicons/Lucide)
-- [ ] `cursor-pointer` on all clickable elements
-- [ ] Hover states with smooth transitions (150-300ms)
-- [ ] Light mode: text contrast 4.5:1 minimum
-- [ ] Focus states visible for keyboard navigation
-- [ ] `prefers-reduced-motion` respected
-- [ ] Responsive: 375px, 768px, 1024px, 1440px
-- [ ] No content hidden behind fixed navbars
-- [ ] No horizontal scroll on mobile
+- Text contrast: WCAG AA or better.
+- Every icon-only control has an accessible label.
+- Use consistent inline SVG icons; no emoji icons.
+- Verify light and dark modes at 375, 768, 1024, and 1440px.
+- Verify keyboard focus, empty states, long task names, three hierarchy levels, and no horizontal overflow.

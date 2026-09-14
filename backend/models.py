@@ -30,12 +30,10 @@ class TaskModel(Base):
     depth: Mapped[int] = mapped_column(default=1)
     title: Mapped[str]
     completed: Mapped[bool] = mapped_column(default=False)
-    estimated_minutes: Mapped[int] = mapped_column(default=25)
-    priority: Mapped[int] = mapped_column(default=2)
 
     goal: Mapped["GoalModel"] = relationship(back_populates="tasks")
     sessions: Mapped[list["FocusSessionModel"]] = relationship(
-        back_populates="task", cascade="all, delete-orphan"
+        back_populates="task", passive_deletes=True
     )
 
 
@@ -43,14 +41,16 @@ class FocusSessionModel(Base):
     __tablename__ = "focus_sessions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"))
+    task_id: Mapped[int | None] = mapped_column(
+        ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True
+    )
     planned_minutes: Mapped[int]
     actual_minutes: Mapped[int]
     completed: Mapped[bool]
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
-    task: Mapped["TaskModel"] = relationship(back_populates="sessions")
+    task: Mapped["TaskModel | None"] = relationship(back_populates="sessions")
 
     @property
     def task_title(self) -> str:
-        return self.task.title
+        return self.task.title if self.task is not None else "General focus"

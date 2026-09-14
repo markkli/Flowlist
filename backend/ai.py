@@ -8,7 +8,6 @@ model = os.environ.get("OPENAI_SUBTASK_MODEL", "gpt-5.4-mini")
 
 class SuggestedSubtask(BaseModel):
     title: str
-    estimated_minutes: int
 
 
 class Breakdown(BaseModel):
@@ -45,8 +44,8 @@ def suggest_subtasks(goal_title: str, task_title: str) -> list[SuggestedSubtask]
                 "role": "system",
                 "content": (
                     "Break a task into 3-6 concrete, non-overlapping subtasks. "
-                    "Each subtask should be doable in one focused sitting. "
-                    "Give a realistic estimated_minutes (5-90) for each."
+                    "Each subtask should be a clear action or outcome and small enough "
+                    "to make meaningful progress in one or more focus sessions."
                 ),
             },
             {
@@ -92,8 +91,8 @@ def suggest_learning_tasks(
                 "role": "system",
                 "content": (
                     "Turn a learning objective into 3-6 staged learning milestones. "
-                    "Each milestone should be a meaningful, practice-oriented outcome that can later be broken into smaller steps. "
-                    "Give a realistic estimated_minutes (5-90) for each."
+                    "Each milestone should be a meaningful, practice-oriented outcome "
+                    "that can later be broken into smaller steps."
                 ),
             },
             {

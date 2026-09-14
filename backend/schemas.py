@@ -50,14 +50,11 @@ class Goal(GoalCreate):
 
 
 class TaskCreate(TitledPayload):
-    estimated_minutes: int = Field(default=25, ge=5, le=480)
-    priority: int = Field(default=2, ge=1, le=3)
+    pass
 
 
 class TaskUpdate(OptionalTitleUpdate):
     completed: bool | None = None
-    estimated_minutes: int | None = Field(default=None, ge=5, le=480)
-    priority: int | None = Field(default=None, ge=1, le=3)
 
 
 class Task(TaskCreate):
@@ -71,7 +68,7 @@ class Task(TaskCreate):
 
 
 class SuggestedSubtask(TitledPayload):
-    estimated_minutes: int = Field(ge=5, le=480)
+    pass
 
 
 class ClarificationQuestion(BaseModel):
@@ -97,18 +94,31 @@ class LearningBreakdownRequest(BaseModel):
 
 
 class FocusSessionCreate(BaseModel):
+    task_id: int | None = None
+    planned_minutes: int = Field(ge=1, le=480)
     actual_minutes: int = Field(ge=0, le=480)
     completed: bool
+    complete_task: bool = False
 
 
-class FocusSession(FocusSessionCreate):
+class FocusSession(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    task_id: int
+    task_id: int | None
     task_title: str
     planned_minutes: int
+    actual_minutes: int
+    completed: bool
     created_at: datetime
+
+
+class FocusTaskOption(BaseModel):
+    id: int
+    title: str
+    goal_id: int
+    goal_title: str
+    last_focused_at: datetime | None = None
 
 
 class Stats(BaseModel):

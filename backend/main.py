@@ -148,8 +148,46 @@ def get_next_focus(db: Session = Depends(get_db)):
     ]
     if not candidates:
         raise HTTPException(status_code=404, detail="No unfinished focus task found")
-    next_task = min(candidates, key=lambda task: (task.priority, task.id))
+    # Roadmap order is the plan: the oldest unfinished leaf is the next focus.
+    # Nested steps do not carry a separate, competing priority system.
+    next_task = min(candidates, key=lambda task: task.id)
     return {"task": next_task, "goal": next_task.goal}
+
+
+@app.get("/focus-options", response_model=list[schemas.FocusTaskOption])
+def list_focus_options(db: Session = Depends(get_db)):
+    """Return unfinished leaf tasks in a useful post-session attribution order."""
+    all_tasks = db.scalars(select(TaskModel)).all()
+    parent_ids = {task.parent_id for task in all_tasks if task.parent_id is not None}
+    candidates = [
+        task for task in all_tasks if not task.completed and task.id not in parent_ids
+    ]
+    recent_rows = db.execute(
+        select(
+            FocusSessionModel.task_id,
+            func.max(FocusSessionModel.created_at),
+        )
+        .where(FocusSessionModel.task_id.is_not(None))
+        .group_by(FocusSessionModel.task_id)
+    ).all()
+    last_focused = {task_id: created_at for task_id, created_at in recent_rows}
+    candidates.sort(
+        key=lambda task: (
+            0 if task.id in last_focused else 1,
+            -last_focused[task.id].timestamp() if task.id in last_focused else 0,
+            task.id,
+        )
+    )
+    return [
+        schemas.FocusTaskOption(
+            id=task.id,
+            title=task.title,
+            goal_id=task.goal_id,
+            goal_title=task.goal.title,
+            last_focused_at=last_focused.get(task.id),
+        )
+        for task in candidates
+    ]
 
 
 @app.post("/tasks/{parent_id}/subtasks", response_model=schemas.Task)
@@ -209,15 +247,21 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
     return {"deleted": True}
 
 
-@app.post("/tasks/{task_id}/sessions", response_model=schemas.FocusSession)
-def log_session(
-    task_id: int, session: schemas.FocusSessionCreate, db: Session = Depends(get_db)
-):
-    task = find_task(db, task_id)
+@app.post("/sessions", response_model=schemas.FocusSession)
+def log_session(session: schemas.FocusSessionCreate, db: Session = Depends(get_db)):
+    task = find_task(db, session.task_id) if session.task_id is not None else None
+    if session.complete_task and task is None:
+        raise HTTPException(
+            status_code=400,
+            detail="A task must be selected before it can be marked complete.",
+        )
+    if task is not None and session.complete_task:
+        task.completed = True
     new_session = FocusSessionModel(
-        task_id=task_id,
-        planned_minutes=task.estimated_minutes,
-        **session.model_dump(),
+        task_id=session.task_id,
+        planned_minutes=session.planned_minutes,
+        actual_minutes=session.actual_minutes,
+        completed=session.completed,
     )
     db.add(new_session)
     db.commit()
