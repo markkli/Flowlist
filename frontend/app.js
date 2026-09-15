@@ -2,7 +2,8 @@ const API_BASE = "http://127.0.0.1:8000";
 const MAX_DEPTH = 3;
 const ACTIVE_TIMER_KEY = "flowlist-active-focus";
 const TIMER_SETTINGS_KEY = "flowlist-timer-settings";
-const DEFAULT_TIMER_SETTINGS = { focus: 25, break: 5 };
+const CYCLE_STATE_KEY = "flowlist-pomodoro-cycle";
+const DEFAULT_TIMER_SETTINGS = { focus: 25, break: 5, rounds: 4, longBreak: 15 };
 
 const celebratedGoals = new Set();
 let timerHandle = null;
@@ -39,8 +40,17 @@ function leafTasks(tasks) {
     .sort((a, b) => a.id - b.id);
 }
 
-function dateKey(date) {
-  return date.toISOString().slice(0, 10);
+function localDateKey(date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function parseApiDate(value) {
+  const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value);
+  return new Date(hasTimezone ? value : `${value}Z`);
 }
 
 function escapeHtml(value) {
@@ -106,11 +116,15 @@ const goalsContainer = document.getElementById("goals");
 const goalTemplate = document.getElementById("goal-template");
 const taskTemplate = document.getElementById("task-template");
 
-const timerSettingsWrap = document.querySelector(".timer-settings-wrap");
 const timerSettingsToggle = document.getElementById("timer-settings-toggle");
+const timerSettingsOverlay = document.getElementById("timer-settings-overlay");
+const timerSettingsModal = timerSettingsOverlay.querySelector(".settings-modal");
 const timerSettingsForm = document.getElementById("timer-settings-form");
 const focusMinutesSetting = document.getElementById("focus-minutes-setting");
 const breakMinutesSetting = document.getElementById("break-minutes-setting");
+const roundsSetting = document.getElementById("rounds-setting");
+const longBreakMinutesSetting = document.getElementById("long-break-minutes-setting");
+const timerSettingsError = document.getElementById("timer-settings-error");
 const heroTime = document.getElementById("hero-time");
 
 function loadTimerSettings() {
@@ -118,8 +132,15 @@ function loadTimerSettings() {
     const saved = JSON.parse(localStorage.getItem(TIMER_SETTINGS_KEY));
     const focus = Number(saved?.focus);
     const rest = Number(saved?.break);
-    if (focus >= 5 && focus <= 120 && rest >= 1 && rest <= 60) {
-      return { focus, break: rest };
+    const rounds = Number(saved?.rounds ?? DEFAULT_TIMER_SETTINGS.rounds);
+    const longBreak = Number(saved?.longBreak ?? DEFAULT_TIMER_SETTINGS.longBreak);
+    if (
+      focus >= 5 && focus <= 120
+      && rest >= 1 && rest <= 60
+      && rounds >= 2 && rounds <= 8
+      && longBreak >= 5 && longBreak <= 90
+    ) {
+      return { focus, break: rest, rounds, longBreak };
     }
   } catch (error) {
     localStorage.removeItem(TIMER_SETTINGS_KEY);
@@ -129,44 +150,91 @@ function loadTimerSettings() {
 
 let timerSettings = loadTimerSettings();
 
+function loadCycleState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CYCLE_STATE_KEY));
+    const completedRounds = Number(saved?.completedRounds);
+    if (Number.isInteger(completedRounds) && completedRounds >= 0) {
+      return { completedRounds: Math.min(completedRounds, timerSettings.rounds - 1) };
+    }
+  } catch (error) {
+    localStorage.removeItem(CYCLE_STATE_KEY);
+  }
+  return { completedRounds: 0 };
+}
+
+let cycleState = loadCycleState();
+
+function saveCycleState() {
+  localStorage.setItem(CYCLE_STATE_KEY, JSON.stringify(cycleState));
+}
+
+function renderCycleState() {
+  const currentRound = Math.min(cycleState.completedRounds + 1, timerSettings.rounds);
+  document.getElementById("pomodoro-round-copy").textContent = `Round ${currentRound} of ${timerSettings.rounds}`;
+  document.getElementById("pomodoro-cycle-dots").innerHTML = Array.from(
+    { length: timerSettings.rounds },
+    (_, index) => `<i class="${index < cycleState.completedRounds ? "complete" : index === currentRound - 1 ? "current" : ""}"></i>`
+  ).join("");
+}
+
 function renderTimerSettings() {
   focusMinutesSetting.value = timerSettings.focus;
   breakMinutesSetting.value = timerSettings.break;
-  document.getElementById("timer-settings-label").textContent = `${timerSettings.focus} / ${timerSettings.break}`;
-  document.getElementById("timer-summary").textContent = `${timerSettings.focus} min focus · ${timerSettings.break} min break`;
-  heroTime.innerHTML = `${String(timerSettings.focus).padStart(2, "0")}:00<span>Focus</span>`;
+  roundsSetting.value = timerSettings.rounds;
+  longBreakMinutesSetting.value = timerSettings.longBreak;
+  document.getElementById("timer-settings-label").textContent = `${timerSettings.focus} / ${timerSettings.break} · ${timerSettings.rounds} rounds`;
+  document.getElementById("timer-summary").textContent = `${timerSettings.focus} focus · ${timerSettings.break} short break · ${timerSettings.longBreak} long break`;
+  document.getElementById("long-break-copy").textContent = `Long break after round ${timerSettings.rounds}`;
+  heroTime.innerHTML = `${String(timerSettings.focus).padStart(2, "0")}:00<span>Start focus</span>`;
   document.getElementById("pomodoro-heading").textContent = `Protect the next ${timerSettings.focus} minutes.`;
+  document.getElementById("start-pomodoro").setAttribute(
+    "aria-label",
+    `Start round ${cycleState.completedRounds + 1} of ${timerSettings.rounds}, ${timerSettings.focus} minutes`
+  );
+  renderCycleState();
 }
 
 function setTimerSettingsOpen(open) {
-  timerSettingsForm.classList.toggle("hidden", !open);
+  timerSettingsOverlay.classList.toggle("hidden", !open);
   timerSettingsToggle.setAttribute("aria-expanded", String(open));
-  if (open) requestAnimationFrame(() => focusMinutesSetting.focus());
+  document.body.classList.toggle("modal-open", open);
+  timerSettingsError.textContent = "";
+  if (open) {
+    renderTimerSettings();
+    requestAnimationFrame(() => timerSettingsModal.focus());
+  } else {
+    timerSettingsToggle.focus();
+  }
 }
 
-timerSettingsToggle.addEventListener("click", () => {
-  setTimerSettingsOpen(timerSettingsForm.classList.contains("hidden"));
-});
+timerSettingsToggle.addEventListener("click", () => setTimerSettingsOpen(true));
+document.getElementById("timer-settings-close").addEventListener("click", () => setTimerSettingsOpen(false));
 document.getElementById("timer-settings-cancel").addEventListener("click", () => {
-  renderTimerSettings();
   setTimerSettingsOpen(false);
 });
 timerSettingsForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const focus = Number(focusMinutesSetting.value);
   const rest = Number(breakMinutesSetting.value);
-  if (focus < 5 || focus > 120 || rest < 1 || rest > 60) {
-    showToast("Use 5–120 focus minutes and 1–60 break minutes.", true);
+  const rounds = Number(roundsSetting.value);
+  const longBreak = Number(longBreakMinutesSetting.value);
+  if (
+    focus < 5 || focus > 120
+    || rest < 1 || rest > 60
+    || rounds < 2 || rounds > 8
+    || longBreak < 5 || longBreak > 90
+  ) {
+    timerSettingsError.textContent = "Use 5–120 focus minutes, 1–60 short-break minutes, 2–8 rounds, and a 5–90 minute long break.";
     return;
   }
-  timerSettings = { focus, break: rest };
+  timerSettings = { focus, break: rest, rounds, longBreak };
+  if (cycleState.completedRounds >= rounds) cycleState.completedRounds = 0;
   localStorage.setItem(TIMER_SETTINGS_KEY, JSON.stringify(timerSettings));
+  saveCycleState();
   renderTimerSettings();
   setTimerSettingsOpen(false);
   showToast("Pomodoro settings saved.");
-});
-document.addEventListener("click", (event) => {
-  if (!timerSettingsWrap.contains(event.target)) setTimerSettingsOpen(false);
 });
 renderTimerSettings();
 
@@ -459,9 +527,11 @@ async function loadTasks(goalId) {
     .sort((a, b) => a.id - b.id)
     .forEach((task) => renderTask(task, tasks, list));
   const leaves = leafTasks(tasks);
+  const completed = leaves.filter((task) => task.completed).length;
   section.querySelector(".goal-progress-copy").textContent = leaves.length
-    ? `${leaves.filter((task) => task.completed).length} of ${leaves.length} steps complete`
+    ? `${completed} of ${leaves.length} steps complete`
     : "No steps yet";
+  section.querySelector(".goal-progress-value").style.width = `${leaves.length ? (completed / leaves.length) * 100 : 0}%`;
   checkGoalComplete(goalId, tasks);
 }
 
@@ -486,6 +556,8 @@ function renderTask(task, allTasks, container) {
     .sort((a, b) => a.id - b.id);
   const isLeaf = children.length === 0;
   const node = taskTemplate.content.cloneNode(true);
+  const taskNode = node.querySelector(".task-node");
+  const taskRow = node.querySelector(".task-row");
   const checkbox = node.querySelector(".task-completed");
   const title = node.querySelector(".task-title");
   const progress = node.querySelector(".task-progress");
@@ -498,6 +570,8 @@ function renderTask(task, allTasks, container) {
   const subtaskList = node.querySelector(".subtask-list");
   const suggestions = node.querySelector(".suggestion-list");
 
+  taskNode.dataset.depth = task.depth;
+  taskRow.classList.add(isLeaf ? "leaf-task-row" : "parent-task-row");
   title.textContent = task.title;
   editForm.querySelector(".task-edit-title").value = task.title;
   edit.addEventListener("click", () => {
@@ -525,7 +599,8 @@ function renderTask(task, allTasks, container) {
 
   if (isLeaf) {
     checkbox.checked = task.completed;
-    if (task.completed) title.style.textDecoration = "line-through";
+    checkbox.setAttribute("aria-label", `${task.completed ? "Reopen" : "Complete"} ${task.title}`);
+    taskRow.classList.toggle("task-is-complete", task.completed);
     checkbox.addEventListener("change", async () => {
       await api(`/tasks/${task.id}`, {
         method: "PATCH",
@@ -535,7 +610,11 @@ function renderTask(task, allTasks, container) {
     });
   } else {
     checkbox.remove();
-    progress.textContent = `${children.filter((child) => child.completed).length}/${children.length}`;
+    const branchMarker = document.createElement("span");
+    branchMarker.className = "task-branch-marker";
+    branchMarker.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4v12m0-6h8m-3-3 3 3-3 3"/></svg>';
+    taskRow.insertBefore(branchMarker, title);
+    progress.textContent = `${children.filter((child) => child.completed).length}/${children.length} complete`;
   }
 
   node.querySelector(".delete-task").addEventListener("click", async () => {
@@ -638,17 +717,21 @@ function startFocus(restored = null) {
   const plannedMinutes = restored?.planned_minutes || timerSettings.focus;
   const plannedSeconds = restored?.planned_seconds || plannedMinutes * 60;
   const deadline = restored?.deadline || Date.now() + plannedSeconds * 1000;
+  const roundNumber = restored?.round_number || cycleState.completedRounds + 1;
+  const roundGoal = restored?.round_goal || timerSettings.rounds;
   activeTimer = {
     phase: "focus",
     planned_minutes: plannedMinutes,
     planned_seconds: plannedSeconds,
+    round_number: roundNumber,
+    round_goal: roundGoal,
     deadline,
     remaining_seconds: Math.max(0, Math.ceil((deadline - Date.now()) / 1000)),
   };
   saveActiveTimer(activeTimer);
   focusPhaseLabel.innerHTML = "<i></i>Focus";
-  focusTaskTitle.textContent = "Focus session";
-  focusGoalTitle.textContent = "Stay with the work. You can assign it afterward.";
+  focusTaskTitle.textContent = `Round ${roundNumber} of ${roundGoal}`;
+  focusGoalTitle.textContent = "Stay with the work. You can name it afterward.";
   focusCycleCopy.textContent = `${plannedMinutes} minute interval`;
   focusStop.textContent = "End session";
   focusOverlay.classList.remove("hidden");
@@ -666,23 +749,29 @@ function startFocus(restored = null) {
   if (activeTimer?.phase === "focus") timerHandle = setInterval(tick, 1000);
 }
 
-function startBreak(restored = null) {
+function startBreak(kind = "short", restored = null) {
   clearInterval(timerHandle);
-  const plannedMinutes = restored?.planned_minutes || timerSettings.break;
+  const breakKind = restored?.break_kind || kind;
+  const plannedMinutes = restored?.planned_minutes
+    || (breakKind === "long" ? timerSettings.longBreak : timerSettings.break);
   const plannedSeconds = restored?.planned_seconds || plannedMinutes * 60;
   const deadline = restored?.deadline || Date.now() + plannedSeconds * 1000;
   activeTimer = {
     phase: "break",
+    break_kind: breakKind,
     planned_minutes: plannedMinutes,
     planned_seconds: plannedSeconds,
     deadline,
     remaining_seconds: Math.max(0, Math.ceil((deadline - Date.now()) / 1000)),
   };
   saveActiveTimer(activeTimer);
-  focusPhaseLabel.innerHTML = "<i></i>Break";
-  focusTaskTitle.textContent = "Take a real break.";
-  focusGoalTitle.textContent = "Stand up, look away, and let your attention reset.";
-  focusCycleCopy.textContent = `${plannedMinutes} minute interval`;
+  const isLong = breakKind === "long";
+  focusPhaseLabel.innerHTML = `<i></i>${isLong ? "Long break" : "Short break"}`;
+  focusTaskTitle.textContent = isLong ? "The cycle is complete." : "Step away for a moment.";
+  focusGoalTitle.textContent = isLong
+    ? "Take the longer reset before beginning a new cycle."
+    : "Stand up, look away, and let your attention reset.";
+  focusCycleCopy.textContent = `${plannedMinutes} minute break`;
   focusStop.textContent = "Skip break";
   focusOverlay.classList.remove("hidden");
   document.body.classList.add("modal-open");
@@ -703,14 +792,24 @@ function finishFocusSession(completed) {
   if (!activeTimer || activeTimer.phase !== "focus") return;
   clearInterval(timerHandle);
   timerHandle = null;
-  const elapsedSeconds = activeTimer.planned_seconds - activeTimer.remaining_seconds;
+  const finishedTimer = activeTimer;
+  const elapsedSeconds = finishedTimer.planned_seconds - finishedTimer.remaining_seconds;
   const actualMinutes = completed
-    ? activeTimer.planned_minutes
-    : Math.max(0, Math.min(activeTimer.planned_minutes, Math.round(elapsedSeconds / 60)));
+    ? finishedTimer.planned_minutes
+    : Math.max(0, Math.min(finishedTimer.planned_minutes, Math.ceil(elapsedSeconds / 60)));
+  const nextBreak = completed
+    ? (finishedTimer.round_number >= finishedTimer.round_goal ? "long" : "short")
+    : null;
+  if (completed) {
+    cycleState.completedRounds = nextBreak === "long" ? 0 : finishedTimer.round_number;
+    saveCycleState();
+    renderTimerSettings();
+  }
   pendingSession = {
-    planned_minutes: activeTimer.planned_minutes,
+    planned_minutes: finishedTimer.planned_minutes,
     actual_minutes: actualMinutes,
     completed,
+    next_break: nextBreak,
   };
   activeTimer = null;
   clearActiveTimer();
@@ -725,7 +824,7 @@ function restoreSavedTimer() {
     const saved = JSON.parse(localStorage.getItem(ACTIVE_TIMER_KEY));
     if (!saved?.phase || !saved?.deadline) return;
     if (saved.phase === "focus") startFocus(saved);
-    else if (saved.phase === "break") startBreak(saved);
+    else if (saved.phase === "break") startBreak(saved.break_kind || "short", saved);
   } catch (error) {
     clearActiveTimer();
   }
@@ -734,24 +833,21 @@ function restoreSavedTimer() {
 const attributionOverlay = document.getElementById("session-attribution-overlay");
 const attributionModal = attributionOverlay.querySelector(".attribution-modal");
 const attributionOptions = document.getElementById("attribution-options");
-const completeAttributedTask = document.getElementById("complete-attributed-task");
 const attributionError = document.getElementById("attribution-error");
 const saveSessionButton = document.getElementById("save-session");
 
 function renderAttributionOptions(options) {
   attributionOptions.innerHTML = "";
   options.forEach((option, index) => {
-    const label = document.createElement("label");
-    label.className = "attribution-option";
-    label.innerHTML = `<input type="radio" name="attribution-task" value="${option.id}" ${index === 0 ? "checked" : ""}><span><strong>${escapeHtml(option.title)}</strong><small>${escapeHtml(option.goal_title)}</small></span>${index === 0 ? `<em>${option.last_focused_at ? "Recent" : "Next"}</em>` : ""}`;
-    attributionOptions.appendChild(label);
+    const row = document.createElement("div");
+    row.className = "attribution-task-row";
+    row.dataset.taskId = option.id;
+    row.innerHTML = `<div class="attribution-task-copy"><strong>${escapeHtml(option.title)}</strong><small>${escapeHtml(option.goal_title)}</small>${index === 0 ? `<em>${option.last_focused_at ? "Recent" : "Next"}</em>` : ""}</div><label class="attribution-toggle attribution-worked"><input class="attribution-worked-input" type="checkbox"><span class="toggle-box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8.5 2.5 2.5L12 5.5"/></svg></span><span class="sr-only">Worked on ${escapeHtml(option.title)}</span></label><label class="attribution-toggle attribution-finished"><input class="attribution-finished-input" type="checkbox"><span class="toggle-box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8.5 2.5 2.5L12 5.5"/></svg></span><span class="sr-only">Finished ${escapeHtml(option.title)}</span></label>`;
+    attributionOptions.appendChild(row);
   });
-  const general = document.createElement("label");
-  general.className = "attribution-option general-option";
-  general.innerHTML = `<input type="radio" name="attribution-task" value="" ${options.length ? "" : "checked"}><span><strong>General focus</strong><small>Save without linking a task</small></span>`;
-  attributionOptions.appendChild(general);
-  completeAttributedTask.disabled = !options.length;
-  completeAttributedTask.checked = false;
+  if (!options.length) {
+    attributionOptions.innerHTML = '<p class="attribution-empty">No unfinished tasks are available. This session will be saved as General focus.</p>';
+  }
 }
 
 async function openAttributionModal() {
@@ -762,8 +858,6 @@ async function openAttributionModal() {
   document.getElementById("attribution-minutes").textContent = `${pendingSession.actual_minutes} ${pendingSession.actual_minutes === 1 ? "minute" : "minutes"}`;
   saveSessionButton.textContent = pendingSession.completed ? "Save & start break" : "Save session";
   saveSessionButton.disabled = true;
-  completeAttributedTask.disabled = true;
-  completeAttributedTask.checked = false;
   attributionError.textContent = "";
   attributionOptions.innerHTML = '<div class="attribution-loading"><span class="loading-ring" aria-hidden="true"></span><span>Finding your tasks…</span></div>';
   attributionOverlay.classList.remove("hidden");
@@ -782,23 +876,27 @@ async function openAttributionModal() {
   }
 }
 
-attributionOptions.addEventListener("change", () => {
-  const selected = attributionOptions.querySelector('input[name="attribution-task"]:checked');
-  const hasTask = Boolean(selected?.value);
-  completeAttributedTask.disabled = !hasTask;
-  if (!hasTask) completeAttributedTask.checked = false;
+attributionOptions.addEventListener("change", (event) => {
+  const row = event.target.closest(".attribution-task-row");
+  if (!row) return;
+  const worked = row.querySelector(".attribution-worked-input");
+  const finished = row.querySelector(".attribution-finished-input");
+  if (event.target === finished && finished.checked) worked.checked = true;
+  if (event.target === worked && !worked.checked) finished.checked = false;
+  row.classList.toggle("selected", worked.checked);
+  row.classList.toggle("finished", finished.checked);
 });
 
 document.getElementById("session-attribution-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!pendingSession) return;
-  const selected = attributionOptions.querySelector('input[name="attribution-task"]:checked');
-  if (!selected) {
-    attributionError.textContent = "Choose a task or General focus.";
-    return;
-  }
   const session = pendingSession;
-  const taskId = selected.value ? Number(selected.value) : null;
+  const tasks = [...attributionOptions.querySelectorAll(".attribution-task-row")]
+    .filter((row) => row.querySelector(".attribution-worked-input").checked)
+    .map((row) => ({
+      task_id: Number(row.dataset.taskId),
+      completed: row.querySelector(".attribution-finished-input").checked,
+    }));
   saveSessionButton.disabled = true;
   saveSessionButton.textContent = "Saving…";
   attributionError.textContent = "";
@@ -806,9 +904,10 @@ document.getElementById("session-attribution-form").addEventListener("submit", a
     await api("/sessions", {
       method: "POST",
       body: JSON.stringify({
-        ...session,
-        task_id: taskId,
-        complete_task: taskId ? completeAttributedTask.checked : false,
+        planned_minutes: session.planned_minutes,
+        actual_minutes: session.actual_minutes,
+        completed: session.completed,
+        tasks,
       }),
     });
     pendingSession = null;
@@ -816,7 +915,7 @@ document.getElementById("session-attribution-form").addEventListener("submit", a
     document.body.classList.remove("modal-open");
     loadDashboard();
     showToast("Focus session saved.");
-    if (session.completed) startBreak();
+    if (session.next_break) startBreak(session.next_break);
   } catch (error) {
     saveSessionButton.disabled = false;
     saveSessionButton.textContent = session.completed ? "Save & start break" : "Save session";
@@ -825,11 +924,11 @@ document.getElementById("session-attribution-form").addEventListener("submit", a
 });
 
 document.getElementById("discard-session").addEventListener("click", () => {
-  const shouldBreak = pendingSession?.completed;
+  const nextBreak = pendingSession?.next_break;
   pendingSession = null;
   attributionOverlay.classList.add("hidden");
   document.body.classList.remove("modal-open");
-  if (shouldBreak) startBreak();
+  if (nextBreak) startBreak(nextBreak);
 });
 
 async function loadHistory() {
@@ -839,10 +938,37 @@ async function loadHistory() {
   sessions.forEach((session) => {
     const node = document.getElementById("session-template").content.cloneNode(true);
     node.querySelector(".session-title").textContent = session.task_title;
-    node.querySelector(".session-meta").textContent = `${session.actual_minutes} of ${session.planned_minutes} minutes · ${new Date(session.created_at).toLocaleString()}`;
+    const attributionSummary = node.querySelector(".session-attributions");
+    if (session.attributions.length) {
+      session.attributions.forEach((item) => {
+        const label = document.createElement("span");
+        label.textContent = `${item.completed ? "Finished" : "Worked on"}: ${item.task_title}`;
+        attributionSummary.appendChild(label);
+      });
+    } else {
+      const label = document.createElement("span");
+      label.textContent = "General focus";
+      attributionSummary.appendChild(label);
+    }
     const status = node.querySelector(".session-status");
     status.textContent = session.completed ? "Completed" : "Ended early";
     status.classList.add(session.completed ? "pill-success" : "pill-warning");
+    const deleteButton = node.querySelector(".session-delete");
+    const sessionDate = parseApiDate(session.created_at);
+    node.querySelector(".session-meta").textContent = `${session.actual_minutes} of ${session.planned_minutes} minutes · ${sessionDate.toLocaleString()}`;
+    deleteButton.setAttribute("aria-label", `Delete focus record from ${sessionDate.toLocaleDateString()}`);
+    deleteButton.addEventListener("click", async () => {
+      deleteButton.disabled = true;
+      try {
+        await api(`/sessions/${session.id}`, { method: "DELETE" });
+        await loadHistory();
+        await renderMomentum(await api("/stats"));
+        showToast("Focus record deleted.");
+      } catch (error) {
+        deleteButton.disabled = false;
+        showToast("Could not delete this focus record.", true);
+      }
+    });
     history.appendChild(node);
   });
 }
@@ -853,11 +979,10 @@ function renderAgenda(goalsWithTasks) {
     .sort((a, b) => (a.task.completed - b.task.completed) || (a.task.id - b.task.id));
   const list = document.getElementById("today-agenda");
   list.innerHTML = "";
-  const display = all.slice(0, 5);
-  display.forEach(({ task, goal }) => {
+  all.forEach(({ task, goal }) => {
     const row = document.createElement("div");
     row.className = `agenda-item${task.completed ? " done" : ""}`;
-    row.innerHTML = `<button class="task-check" aria-label="Mark ${escapeHtml(task.title)} complete"></button><div><span class="agenda-title">${escapeHtml(task.title)}</span><span class="agenda-goal">${escapeHtml(goal.title)}</span></div>`;
+    row.innerHTML = `<button class="task-check" aria-label="${task.completed ? "Reopen" : "Complete"} ${escapeHtml(task.title)}" aria-pressed="${task.completed}"></button><div><span class="agenda-title">${escapeHtml(task.title)}</span><span class="agenda-goal">${escapeHtml(goal.title)}</span></div>`;
     row.querySelector(".task-check").addEventListener("click", async () => {
       await api(`/tasks/${task.id}`, {
         method: "PATCH",
@@ -867,7 +992,7 @@ function renderAgenda(goalsWithTasks) {
     });
     list.appendChild(row);
   });
-  if (!display.length) {
+  if (!all.length) {
     list.innerHTML = '<p class="page-description">Nothing queued. Add a step from Roadmap.</p>';
   }
   const done = all.filter((item) => item.task.completed).length;
@@ -898,7 +1023,7 @@ function renderGoalsSummary(goalsWithTasks) {
 function renderActivityHeatmap(sessions) {
   const counts = new Map();
   sessions.forEach((session) => {
-    const key = session.created_at.slice(0, 10);
+    const key = localDateKey(parseApiDate(session.created_at));
     counts.set(key, (counts.get(key) || 0) + 1);
   });
   const grid = document.getElementById("activity-heatmap");
@@ -921,7 +1046,7 @@ function renderActivityHeatmap(sessions) {
     for (let day = 0; day < 7; day += 1) {
       const current = new Date(weekStart);
       current.setDate(weekStart.getDate() + day);
-      const key = dateKey(current);
+      const key = localDateKey(current);
       const count = counts.get(key) || 0;
       const level = count === 0 ? 0 : count === 1 ? 1 : count === 2 ? 2 : count === 3 ? 3 : 4;
       const cell = document.createElement("span");
@@ -986,6 +1111,15 @@ document.addEventListener("click", (event) => {
   });
 });
 document.addEventListener("keydown", (event) => {
+  if (!timerSettingsOverlay.classList.contains("hidden")) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setTimerSettingsOpen(false);
+      return;
+    }
+    trapFocus(event, timerSettingsModal);
+    return;
+  }
   if (!learningOverlay.classList.contains("hidden")) {
     if (event.key === "Escape") {
       event.preventDefault();

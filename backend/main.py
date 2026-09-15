@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 import schemas
 from ai import (
@@ -14,7 +14,7 @@ from ai import (
     suggest_subtasks,
 )
 from database import get_db
-from models import FocusSessionModel, GoalModel, TaskModel
+from models import FocusSessionModel, FocusSessionTaskModel, GoalModel, TaskModel
 
 MAX_DEPTH = 3
 
@@ -164,17 +164,27 @@ def list_focus_options(db: Session = Depends(get_db)):
     ]
     recent_rows = db.execute(
         select(
-            FocusSessionModel.task_id,
+            FocusSessionTaskModel.task_id,
             func.max(FocusSessionModel.created_at),
+            func.max(FocusSessionModel.id),
         )
-        .where(FocusSessionModel.task_id.is_not(None))
-        .group_by(FocusSessionModel.task_id)
+        .join(
+            FocusSessionModel,
+            FocusSessionModel.id == FocusSessionTaskModel.session_id,
+        )
+        .where(FocusSessionTaskModel.task_id.is_not(None))
+        .group_by(FocusSessionTaskModel.task_id)
     ).all()
-    last_focused = {task_id: created_at for task_id, created_at in recent_rows}
+    last_focused = {
+        task_id: created_at for task_id, created_at, _session_id in recent_rows
+    }
+    last_session_ids = {
+        task_id: session_id for task_id, _created_at, session_id in recent_rows
+    }
     candidates.sort(
         key=lambda task: (
-            0 if task.id in last_focused else 1,
-            -last_focused[task.id].timestamp() if task.id in last_focused else 0,
+            0 if task.id in last_session_ids else 1,
+            -last_session_ids.get(task.id, 0),
             task.id,
         )
     )
@@ -249,21 +259,36 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
 
 @app.post("/sessions", response_model=schemas.FocusSession)
 def log_session(session: schemas.FocusSessionCreate, db: Session = Depends(get_db)):
-    task = find_task(db, session.task_id) if session.task_id is not None else None
-    if session.complete_task and task is None:
-        raise HTTPException(
-            status_code=400,
-            detail="A task must be selected before it can be marked complete.",
-        )
-    if task is not None and session.complete_task:
-        task.completed = True
+    selections_by_task_id = {selection.task_id: selection for selection in session.tasks}
+    tasks_by_id = {
+        task.id: task
+        for task in db.scalars(
+            select(TaskModel).where(TaskModel.id.in_(selections_by_task_id))
+        ).all()
+    }
+    missing_task_ids = selections_by_task_id.keys() - tasks_by_id.keys()
+    if missing_task_ids:
+        raise HTTPException(status_code=404, detail="Task not found")
+
     new_session = FocusSessionModel(
-        task_id=session.task_id,
         planned_minutes=session.planned_minutes,
         actual_minutes=session.actual_minutes,
         completed=session.completed,
     )
     db.add(new_session)
+    db.flush()
+    for selection in session.tasks:
+        task = tasks_by_id[selection.task_id]
+        if selection.completed:
+            task.completed = True
+        new_session.attributions.append(
+            FocusSessionTaskModel(
+                task_id=task.id,
+                task_title=task.title,
+                goal_title=task.goal.title,
+                completed=selection.completed,
+            )
+        )
     db.commit()
     db.refresh(new_session)
     return new_session
@@ -272,8 +297,20 @@ def log_session(session: schemas.FocusSessionCreate, db: Session = Depends(get_d
 @app.get("/sessions", response_model=list[schemas.FocusSession])
 def list_sessions(db: Session = Depends(get_db)):
     return db.scalars(
-        select(FocusSessionModel).order_by(FocusSessionModel.created_at.desc())
+        select(FocusSessionModel)
+        .options(selectinload(FocusSessionModel.attributions))
+        .order_by(FocusSessionModel.created_at.desc(), FocusSessionModel.id.desc())
     ).all()
+
+
+@app.delete("/sessions/{session_id}")
+def delete_session(session_id: int, db: Session = Depends(get_db)):
+    session = db.get(FocusSessionModel, session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Focus session not found")
+    db.delete(session)
+    db.commit()
+    return {"deleted": True}
 
 
 @app.get("/stats", response_model=schemas.Stats)

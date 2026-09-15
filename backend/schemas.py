@@ -94,23 +94,46 @@ class LearningBreakdownRequest(BaseModel):
 
 
 class FocusSessionCreate(BaseModel):
-    task_id: int | None = None
     planned_minutes: int = Field(ge=1, le=480)
     actual_minutes: int = Field(ge=0, le=480)
     completed: bool
-    complete_task: bool = False
+    tasks: list["FocusSessionTaskCreate"] = Field(default_factory=list, max_length=30)
+
+    @field_validator("tasks")
+    @classmethod
+    def task_ids_must_be_unique(
+        cls, value: list["FocusSessionTaskCreate"]
+    ) -> list["FocusSessionTaskCreate"]:
+        task_ids = [task.task_id for task in value]
+        if len(task_ids) != len(set(task_ids)):
+            raise ValueError("A task can only be attributed once per session")
+        return value
+
+
+class FocusSessionTaskCreate(BaseModel):
+    task_id: int
+    completed: bool = False
+
+
+class FocusSessionTask(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    task_id: int | None
+    task_title: str
+    goal_title: str | None
+    completed: bool
 
 
 class FocusSession(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    task_id: int | None
     task_title: str
     planned_minutes: int
     actual_minutes: int
     completed: bool
     created_at: datetime
+    attributions: list[FocusSessionTask]
 
 
 class FocusTaskOption(BaseModel):

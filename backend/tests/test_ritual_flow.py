@@ -46,16 +46,23 @@ def test_pomodoro_attribution_updates_task_and_stats():
     session = client.post(
         "/sessions",
         json={
-            "task_id": task["id"],
             "planned_minutes": 25,
             "actual_minutes": 25,
             "completed": True,
-            "complete_task": True,
+            "tasks": [{"task_id": task["id"], "completed": True}],
         },
     )
 
     assert session.status_code == 200
     assert session.json()["task_title"] == "Outline chapter"
+    assert session.json()["attributions"] == [
+        {
+            "task_id": task["id"],
+            "task_title": "Outline chapter",
+            "goal_title": "Write thesis",
+            "completed": True,
+        }
+    ]
     listed_task = client.get(f"/goals/{goal['id']}/tasks").json()[0]
     assert listed_task["completed"] is True
     assert client.get("/stats").json() == {
@@ -125,7 +132,6 @@ def test_ended_early_session_can_be_saved_without_a_task():
     session = client.post(
         "/sessions",
         json={
-            "task_id": None,
             "planned_minutes": 25,
             "actual_minutes": 8,
             "completed": False,
@@ -133,8 +139,8 @@ def test_ended_early_session_can_be_saved_without_a_task():
     )
 
     assert session.status_code == 200
-    assert session.json()["task_id"] is None
     assert session.json()["task_title"] == "General focus"
+    assert session.json()["attributions"] == []
     assert session.json()["actual_minutes"] == 8
 
 
@@ -211,10 +217,10 @@ def test_focus_options_prefer_recent_unfinished_work():
     client.post(
         "/sessions",
         json={
-            "task_id": recent["id"],
             "planned_minutes": 25,
             "actual_minutes": 25,
             "completed": True,
+            "tasks": [{"task_id": recent["id"]}],
         },
     )
 
@@ -223,21 +229,171 @@ def test_focus_options_prefer_recent_unfinished_work():
     assert options[0]["last_focused_at"] is not None
 
 
+def test_focus_options_break_same_second_ties_by_latest_session():
+    client = TestClient(app)
+    goal = client.post("/goals", json={"title": "Build Flowlist"}).json()
+    first = client.post(
+        f"/goals/{goal['id']}/tasks", json={"title": "Focused first"}
+    ).json()
+    latest = client.post(
+        f"/goals/{goal['id']}/tasks", json={"title": "Focused latest"}
+    ).json()
+    for task in (first, latest):
+        response = client.post(
+            "/sessions",
+            json={
+                "planned_minutes": 25,
+                "actual_minutes": 25,
+                "completed": True,
+                "tasks": [{"task_id": task["id"]}],
+            },
+        )
+        assert response.status_code == 200
+
+    options = client.get("/focus-options").json()
+
+    assert [option["id"] for option in options] == [latest["id"], first["id"]]
+
+
 def test_session_history_survives_task_deletion():
     client = TestClient(app)
     _, task = create_goal_and_task(client)
     session = client.post(
         "/sessions",
         json={
-            "task_id": task["id"],
             "planned_minutes": 25,
             "actual_minutes": 12,
             "completed": False,
+            "tasks": [{"task_id": task["id"]}],
         },
     ).json()
 
     client.delete(f"/tasks/{task['id']}")
     listed = client.get("/sessions").json()
     assert listed[0]["id"] == session["id"]
-    assert listed[0]["task_id"] is None
-    assert listed[0]["task_title"] == "General focus"
+    assert listed[0]["task_title"] == "Outline chapter"
+    assert listed[0]["attributions"][0]["task_id"] is None
+    assert listed[0]["attributions"][0]["task_title"] == "Outline chapter"
+
+
+def test_one_session_can_cover_multiple_tasks_and_finish_selected_ones():
+    client = TestClient(app)
+    goal = client.post("/goals", json={"title": "Ship release"}).json()
+    first = client.post(
+        f"/goals/{goal['id']}/tasks", json={"title": "Write notes"}
+    ).json()
+    second = client.post(
+        f"/goals/{goal['id']}/tasks", json={"title": "Publish build"}
+    ).json()
+
+    response = client.post(
+        "/sessions",
+        json={
+            "planned_minutes": 25,
+            "actual_minutes": 25,
+            "completed": True,
+            "tasks": [
+                {"task_id": first["id"], "completed": False},
+                {"task_id": second["id"], "completed": True},
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    assert [item["task_id"] for item in response.json()["attributions"]] == [
+        first["id"],
+        second["id"],
+    ]
+    tasks = client.get(f"/goals/{goal['id']}/tasks").json()
+    assert [task["completed"] for task in tasks] == [False, True]
+    assert client.get("/stats").json()["total_sessions"] == 1
+
+
+def test_history_record_can_be_deleted_without_changing_tasks():
+    client = TestClient(app)
+    goal, task = create_goal_and_task(client)
+    session = client.post(
+        "/sessions",
+        json={
+            "planned_minutes": 25,
+            "actual_minutes": 10,
+            "completed": False,
+            "tasks": [{"task_id": task["id"]}],
+        },
+    ).json()
+
+    response = client.delete(f"/sessions/{session['id']}")
+
+    assert response.status_code == 200
+    assert client.get("/sessions").json() == []
+    assert client.get(f"/goals/{goal['id']}/tasks").json()[0]["completed"] is False
+    assert client.delete(f"/sessions/{session['id']}").status_code == 404
+
+
+def test_missing_task_rejects_entire_multi_task_session_atomically():
+    client = TestClient(app)
+    goal, task = create_goal_and_task(client)
+
+    response = client.post(
+        "/sessions",
+        json={
+            "planned_minutes": 25,
+            "actual_minutes": 25,
+            "completed": True,
+            "tasks": [
+                {"task_id": task["id"], "completed": True},
+                {"task_id": 999_999, "completed": False},
+            ],
+        },
+    )
+
+    assert response.status_code == 404
+    assert client.get("/sessions").json() == []
+    assert client.get(f"/goals/{goal['id']}/tasks").json()[0]["completed"] is False
+
+
+def test_duplicate_task_attribution_is_rejected_by_the_request_schema():
+    client = TestClient(app)
+    _, task = create_goal_and_task(client)
+
+    response = client.post(
+        "/sessions",
+        json={
+            "planned_minutes": 25,
+            "actual_minutes": 25,
+            "completed": True,
+            "tasks": [
+                {"task_id": task["id"]},
+                {"task_id": task["id"], "completed": True},
+            ],
+        },
+    )
+
+    assert response.status_code == 422
+    assert client.get("/sessions").json() == []
+
+
+def test_goal_deletion_preserves_attribution_snapshot():
+    client = TestClient(app)
+    goal, task = create_goal_and_task(client)
+    session = client.post(
+        "/sessions",
+        json={
+            "planned_minutes": 25,
+            "actual_minutes": 18,
+            "completed": False,
+            "tasks": [{"task_id": task["id"]}],
+        },
+    ).json()
+
+    assert client.delete(f"/goals/{goal['id']}").status_code == 200
+
+    history = client.get("/sessions").json()
+    assert history[0]["id"] == session["id"]
+    assert history[0]["task_title"] == "Outline chapter"
+    assert history[0]["attributions"][0] == {
+        "task_id": None,
+        "task_title": "Outline chapter",
+        "goal_title": "Write thesis",
+        "completed": False,
+    }

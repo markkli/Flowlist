@@ -134,10 +134,19 @@ suggests unfinished tasks in roadmap order, with recently focused work first.
 You can link the session to one task, save it as general focus, and optionally
 check the selected task off at the same time.
 
-The default cycle is 25 minutes of focus and 5 minutes of rest. Both values can
-be changed from the small settings control on the timer card. Flowlist does not
+The default cycle is four rounds of 25 minutes of focus and 5 minutes of rest,
+followed by a 15-minute long break. Focus length, short break, rounds, and long
+break can all be changed from the timer settings dialog. Flowlist does not
 prescribe durations for individual tasks; the session records the time actually
 spent instead.
+
+A session can be attributed to several tasks. Each task can be marked as
+“worked on” and, independently, “finished”; finishing a task also counts it as
+worked on. The focus duration is counted once regardless of how many tasks are
+selected. Leaving all tasks unchecked saves the record as General focus.
+
+Individual records can be removed from History. Removing a record updates the
+activity totals but does not reopen tasks that were completed during it.
 
 While a block is running, the frontend stores its phase and end timestamp in
 browser storage—not private notes or credentials. If the window is refreshed,

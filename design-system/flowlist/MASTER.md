@@ -60,6 +60,8 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 - Priority controls are forbidden. Sequence communicates what comes first.
 - Do not prescribe a duration for an individual task. Focus time is observed by the Pomodoro, then attributed to work afterward.
 - AI-generated milestones and nested steps are proposals: display them as a multi-select list with one explicit “Add selected” action.
+- Treat the roadmap as a compact outline, not a stack of nested cards. Parent rows use a branch marker and progress copy; leaf rows use a restrained circular completion control.
+- Keep roadmap content to a readable desktop measure rather than stretching each task across the entire window.
 
 ### Learning Path Questions
 
@@ -72,11 +74,22 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 ### Dashboard
 
 - The Pomodoro card is the strongest surface and may contain the forest horizon artwork.
-- Starting the clock never requires choosing a task first. Default to 25 minutes of focus and 5 minutes of rest, with settings available from a quiet secondary control.
-- When focus stops, show a centered attribution dialog over a blurred background. Suggest unfinished leaf tasks in useful order, allow general unassigned focus, and offer task completion as an optional secondary action.
+- The timer dial itself is the primary Start control. Use a subtle play affordance on hover/focus; do not add a competing rectangular Start button below it.
+- Starting the clock never requires choosing a task first. Default to 25 minutes of focus, 5 minutes of rest, and a 15-minute long break after four rounds.
+- Expose focus length, short break, rounds per cycle, and long break in a dedicated modal. Never put interactive number fields inside the atmospheric timer card.
+- Exhibit the current round with text and a small dot sequence on the timer card.
+- When focus stops, show a centered attribution dialog over a blurred background. Suggest unfinished leaf tasks in useful order and allow multiple selections.
+- Every attribution row has separate “Worked on” and “Finished” controls. Finishing implies worked-on; the session duration is still counted only once. No selected tasks means General focus.
 - The task queue contains only completion, title, and parent-goal context. Long task names wrap naturally and never compete with duration labels or per-row focus buttons.
+- The Pomodoro and queue panels maintain the same intentional height on desktop. The queue scrolls internally when it contains more rows.
 - Supporting panels remain quieter and use minimal shadows.
 - Activity heatmap always renders its empty cells so the record is visible before data exists.
+
+### History
+
+- Each focus session is one record even when it was attributed to several tasks.
+- Show which tasks were worked on and which were finished.
+- Provide a compact, explicitly labelled delete control on every record; deletion updates statistics but never reopens completed tasks.
 
 ### Controls
 
