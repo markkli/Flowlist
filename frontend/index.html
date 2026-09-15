@@ -5,13 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>Flowlist</title>
-  <link rel="stylesheet" href="styles.css?v=forest-10">
+  <link rel="stylesheet" href="styles.css?v=forest-13">
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
   <div class="app-shell">
     <aside class="sidebar">
-      <div class="window-dots" aria-hidden="true"><i></i><i></i><i></i></div>
       <a class="brand" href="#" aria-label="Flowlist home">
         <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 27V9m0 5-6-5m6 10 7-6M10 27h12"/><path d="M16 8c-1.5-3.1-4.2-4.3-7-3.6.1 3.8 2.7 6 7 6.1M16 11c1.1-3.4 3.9-5.1 7.5-4.7-.1 3.7-2.5 6.1-7.5 6.5"/></svg>
         <span><strong>Flowlist</strong><small>Focus &amp; progress</small></span>
@@ -35,9 +34,9 @@
           <header class="page-heading"><div><p class="kicker">Today</p><h1 id="dashboard-greeting">Good morning.</h1><p class="page-description">Protect the time first. Name the work when the session ends.</p></div><span class="date-stamp" id="today-date-stamp"></span></header>
           <div class="today-grid">
             <article class="focus-card">
-              <img class="forest-horizon" src="images/forest-horizon.svg" alt="" aria-hidden="true">
+              <img class="focus-atmosphere" src="images/focus-grove.webp" width="1600" height="800" alt="" aria-hidden="true">
               <div class="focus-top"><span class="status"><i></i>Pomodoro</span><button class="focus-settings" id="timer-settings-toggle" type="button" aria-haspopup="dialog" aria-controls="timer-settings-overlay" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10m4 0h2M4 17h2m4 0h10M14 4v6M7 14v6"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg><span id="timer-settings-label">25 · 5 · 15</span></button></div>
-              <div class="focus-content"><button class="timer-orbit timer-launch" id="start-pomodoro" type="button" aria-label="Start a 25 minute Pomodoro"><span class="timer-time" id="hero-time">25:00<span>Start focus</span></span><svg class="timer-play-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7 8 5-8 5Z"/></svg></button><div class="focus-copy"><p class="kicker">A protected interval</p><h2 id="pomodoro-heading">Protect the next 25 minutes.</h2><p>Press the dial to begin. Choose what the time was for when the session ends.</p><div class="cycle-readout"><span id="pomodoro-round-copy">Round 1 of 4</span><div class="cycle-dots" id="pomodoro-cycle-dots" aria-hidden="true"></div></div></div></div>
+              <div class="focus-content"><button class="timer-orbit timer-launch" id="start-pomodoro" type="button" aria-label="Start a 25 minute Pomodoro"><span class="timer-time" id="hero-time">25:00<span>Start focus</span></span><svg class="timer-play-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7 8 5-8 5Z"/></svg></button><div class="focus-copy"><p class="kicker">A protected interval</p><h2 id="pomodoro-heading">Protect the next 25 minutes.</h2><p>Press the dial to begin. Choose what the time was for when the full ritual ends.</p><div class="cycle-readout"><span id="pomodoro-round-copy">Round 1 of 4</span><div class="cycle-dots" id="pomodoro-cycle-dots" aria-hidden="true"></div></div></div></div>
               <footer class="focus-footer"><span class="focus-summary" id="timer-summary">25 focus · 5 short break · 15 long break</span><span id="long-break-copy">Long break after round 4</span></footer>
             </article>
             <article class="panel agenda-panel">
@@ -59,15 +58,15 @@
         </section>
 
         <section id="view-goals" class="view hidden">
-          <header class="page-heading"><div><p class="kicker">Plan</p><h1>Roadmap</h1><p class="page-description">Projects, learning goals, and the steps that move them forward.</p></div></header>
+          <header class="page-heading"><div><p class="kicker">Plan</p><h1>Roadmap</h1><p class="page-description">Projects, learning objectives, and standalone tasks.</p></div></header>
           <div class="roadmap-layout">
-            <aside class="new-goal panel"><div><p class="kicker">New goal</p><h2>Add a direction</h2></div><form id="goal-form" class="new-goal-form"><label><span>Name</span><input id="goal-title" class="field" type="text" placeholder="e.g. Build portfolio" required></label><label><span>Type</span><select id="goal-type" class="field"><option value="project">Project</option><option value="learning">Learning objective</option></select></label><button class="primary-btn">Add goal</button></form></aside>
+            <aside class="new-goal panel"><div><p class="kicker">New item</p><h2>Add a direction</h2></div><form id="goal-form" class="new-goal-form"><label><span>Name</span><input id="goal-title" class="field" type="text" placeholder="e.g. Build portfolio" required></label><label><span>Type</span><select id="goal-type" class="field"><option value="project">Project</option><option value="learning">Learning objective</option><option value="standalone">Standalone task</option></select></label><button class="primary-btn">Add</button></form></aside>
             <div id="goals" class="goal-stack"></div>
           </div>
         </section>
 
         <section id="view-history" class="view hidden">
-          <header class="page-heading"><div><p class="kicker">Record</p><h1>History</h1><p class="page-description">Every focus session, completed or interrupted.</p></div></header>
+          <header class="page-heading"><div><p class="kicker">Record</p><h1>History</h1><p class="page-description">The focus time saved at the end of each ritual.</p></div></header>
           <div id="history-view" class="archive-list"></div>
         </section>
       </main>
@@ -77,7 +76,7 @@
   <template id="goal-template">
     <article class="goal-card panel">
       <div class="goal-card-head"><div class="goal-card-copy"><p class="kicker goal-type-label"></p><h2 class="goal-title"></h2><p class="goal-description"></p><div class="goal-progress-summary"><div class="progress-track"><div class="progress-value goal-progress-value"></div></div><p class="goal-progress-copy"></p></div></div><div class="goal-actions"><button class="goal-generate break-down-goal">Generate learning path</button><details class="context-menu goal-menu"><summary aria-label="More goal actions"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1.4"/><circle cx="10" cy="10" r="1.4"/><circle cx="16" cy="10" r="1.4"/></svg></summary><div class="context-menu-popover"><button class="edit-goal">Edit goal</button><button class="danger delete-goal">Remove goal</button></div></details></div></div>
-      <form class="goal-edit-form edit-form" style="display:none"><label><span>Name</span><input class="field goal-edit-title" type="text"></label><label><span>Description</span><input class="field goal-edit-description" type="text" placeholder="Optional"></label><label><span>Type</span><select class="field goal-edit-type"><option value="project">Project</option><option value="learning">Learning objective</option></select></label><button class="secondary-btn goal-edit-save">Save</button><button class="text-btn goal-edit-cancel" type="button">Cancel</button></form>
+      <form class="goal-edit-form edit-form" style="display:none"><label><span>Name</span><input class="field goal-edit-title" type="text"></label><label><span>Description</span><input class="field goal-edit-description" type="text" placeholder="Optional"></label><label><span>Type</span><select class="field goal-edit-type"><option value="project">Project</option><option value="learning">Learning objective</option><option value="standalone">Standalone tasks</option></select></label><button class="secondary-btn goal-edit-save">Save</button><button class="text-btn goal-edit-cancel" type="button">Cancel</button></form>
       <ul class="goal-suggestion-list task-list suggestions" style="display:none"></ul>
       <ul class="goal-task-list task-list"></ul>
       <form class="task-form quick-add"><input class="field" type="text" placeholder="Add a step" aria-label="New task"><button class="secondary-btn">Add</button></form>
@@ -89,7 +88,7 @@
   </template>
 
   <template id="session-template"><article class="session-row panel"><div class="session-copy"><div class="session-title"></div><div class="session-attributions"></div><div class="session-meta"></div></div><div class="session-actions"><span class="session-status pill"></span><button class="session-delete icon-btn" type="button" aria-label="Delete focus record"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg></button></div></article></template>
-  <div id="focus-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Pomodoro timer"><div class="timer-modal pomodoro-modal"><div class="pomodoro-modal-top"><span id="focus-phase-label" class="status"><i></i>Focus</span><span id="focus-cycle-copy">25 minute interval</span></div><h2 id="focus-task-title">Focus session</h2><p id="focus-goal-title">Stay with the work. You can assign it afterward.</p><div class="timer-orbit" id="focus-orbit"><div id="focus-time" class="timer-time">25:00<span>Remaining</span></div></div><div class="focus-actions"><button id="focus-stop" class="secondary-btn">End session</button></div></div></div>
+  <div id="focus-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Pomodoro timer"><div class="timer-modal pomodoro-modal"><div class="pomodoro-modal-top"><span id="focus-phase-label" class="status"><i></i>Focus</span><span id="focus-cycle-copy">25 minute interval</span></div><h2 id="focus-task-title">Focus session</h2><p id="focus-goal-title">Stay with the work. You can assign it afterward.</p><div class="timer-orbit" id="focus-orbit"><div id="focus-time" class="timer-time">25:00<span>Remaining</span></div></div><div class="focus-actions"><button id="focus-exit" class="text-btn timer-exit" type="button">End ritual</button><button id="focus-skip" class="secondary-btn timer-skip" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 6 9 6-9 6V6Zm12 0v12"/></svg><span id="focus-skip-label">Skip to break</span></button></div></div></div>
   <div id="session-attribution-overlay" class="overlay attribution-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="attribution-title"><section class="attribution-modal" tabindex="-1"><div class="attribution-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5 10.5 15 16 9"/></svg></div><p class="kicker" id="attribution-status">Focus complete</p><h2 id="attribution-title">Where did this focus go?</h2><p class="attribution-summary"><strong id="attribution-minutes">25 minutes</strong> will be added once. Select every task you touched; mark only the ones you finished.</p><form id="session-attribution-form"><fieldset><legend>Session work</legend><div class="attribution-column-head" aria-hidden="true"><span>Task</span><span>Worked on</span><span>Finished</span></div><div class="attribution-options" id="attribution-options"></div><p class="attribution-general-note">Leave every task unchecked to save this as General focus.</p></fieldset><p class="field-error" id="attribution-error" role="alert"></p><footer class="attribution-actions"><button class="text-btn danger" id="discard-session" type="button">Discard</button><button class="primary-btn" id="save-session" type="submit">Save session</button></footer></form></section></div>
   <div id="timer-settings-overlay" class="overlay settings-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="timer-settings-title"><section class="settings-modal" tabindex="-1"><header class="settings-modal-header"><div><p class="kicker">Pomodoro cycle</p><h2 id="timer-settings-title">Timer settings</h2></div><button class="icon-btn" id="timer-settings-close" type="button" aria-label="Close timer settings"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg></button></header><p class="settings-intro">A long break begins after the final focus round.</p><form id="timer-settings-form"><div class="settings-grid"><label><span>Focus</span><div class="number-field"><input class="field" id="focus-minutes-setting" type="number" min="5" max="120" value="25"><small>min</small></div></label><label><span>Short break</span><div class="number-field"><input class="field" id="break-minutes-setting" type="number" min="1" max="60" value="5"><small>min</small></div></label><label><span>Rounds</span><div class="number-field"><input class="field" id="rounds-setting" type="number" min="2" max="8" value="4"><small>rounds</small></div></label><label><span>Long break</span><div class="number-field"><input class="field" id="long-break-minutes-setting" type="number" min="5" max="90" value="15"><small>min</small></div></label></div><p class="field-error" id="timer-settings-error" role="alert"></p><footer class="settings-actions"><button class="text-btn" id="timer-settings-cancel" type="button">Cancel</button><button class="primary-btn" type="submit">Save cycle</button></footer></form></section></div>
   <div id="learning-path-overlay" class="overlay learning-overlay hidden" role="dialog" aria-modal="true" aria-label="Generate learning path">
@@ -109,6 +108,6 @@
   </div>
   <div id="celebration-overlay" class="overlay hidden"><div class="timer-modal celebration"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 40V15m0 7-9-8m9 15 10-9M15 40h18"/><path d="M24 15c-2-6-7-9-13-7 1 7 5 10 13 10m0 2c2-7 7-10 14-9-1 7-5 11-14 12"/></svg><span class="status"><i></i>Goal complete</span><h2 id="celebration-goal-title">Goal complete</h2><p>Nice work. Take a moment before choosing what comes next.</p><div class="focus-actions"><button id="celebration-dismiss" class="primary-btn">Continue</button></div></div></div>
   <div id="app-toast" class="app-toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=forest-10"></script>
+  <script src="app.js?v=forest-13"></script>
 </body>
 </html>

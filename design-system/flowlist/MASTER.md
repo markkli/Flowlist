@@ -73,14 +73,16 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 
 ### Dashboard
 
-- The Pomodoro card is the strongest surface and may contain the forest horizon artwork.
+- The Pomodoro card is the strongest surface and uses the full-bleed `focus-grove.webp` woodland artwork under a legibility gradient. Atmospheric art must touch every card edge without exposed background gaps.
 - The timer dial itself is the primary Start control. Use a subtle play affordance on hover/focus; do not add a competing rectangular Start button below it.
 - Starting the clock never requires choosing a task first. Default to 25 minutes of focus, 5 minutes of rest, and a 15-minute long break after four rounds.
 - Expose focus length, short break, rounds per cycle, and long break in a dedicated modal. Never put interactive number fields inside the atmospheric timer card.
 - Exhibit the current round with text and a small dot sequence on the timer card.
-- When focus stops, show a centered attribution dialog over a blurred background. Suggest unfinished leaf tasks in useful order and allow multiple selections.
+- Every running focus, short-break, and long-break block exposes “Skip to next.” Skipping focus advances the round but records only fully elapsed focus minutes; skipping a break begins the next focus block. Keep “End ritual” available as the exit route.
+- Continue from focus to break and into later cycles without interrupting the ritual. Show the centered attribution dialog only when the user chooses “End ritual,” and save the accumulated focus time as one record without presenting a target-time ratio.
 - Every attribution row has separate “Worked on” and “Finished” controls. Finishing implies worked-on; the session duration is still counted only once. No selected tasks means General focus.
-- The task queue contains only completion, title, and parent-goal context. Long task names wrap naturally and never compete with duration labels or per-row focus buttons.
+- The task queue contains only completion, title, and parent context. Keep each title and its project, learning objective, or “Standalone task” label to one line with an ellipsis and native title tooltip for the full text.
+- Standalone tasks cover simple personal or administrative work that needs no roadmap hierarchy. Collect them in one lightweight list and do not offer AI breakdown or nested-step controls.
 - The Pomodoro and queue panels maintain the same intentional height on desktop. The queue scrolls internally when it contains more rows.
 - Supporting panels remain quieter and use minimal shadows.
 - Activity heatmap always renders its empty cells so the record is visible before data exists.

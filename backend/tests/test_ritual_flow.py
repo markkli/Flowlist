@@ -108,6 +108,26 @@ def test_next_focus_follows_roadmap_order():
     assert client.get("/next-focus").json()["task"]["id"] == second_task["id"]
 
 
+def test_standalone_tasks_share_a_simple_task_list():
+    client = TestClient(app)
+
+    first = client.post("/standalone-tasks", json={"title": "Pay electricity bill"})
+    second = client.post("/standalone-tasks", json={"title": "Read The Dispossessed"})
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    standalone_goals = [
+        goal for goal in client.get("/goals").json()
+        if goal["goal_type"] == "standalone"
+    ]
+    assert len(standalone_goals) == 1
+    tasks = client.get(f"/goals/{standalone_goals[0]['id']}/tasks").json()
+    assert [task["title"] for task in tasks] == [
+        "Pay electricity bill",
+        "Read The Dispossessed",
+    ]
+
+
 def test_can_edit_goal_and_task_titles():
     client = TestClient(app)
     goal, task = create_goal_and_task(

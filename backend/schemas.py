@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-GoalType = Literal["project", "learning"]
+GoalType = Literal["project", "learning", "standalone"]
 
 
 class TitledPayload(BaseModel):

@@ -3,6 +3,10 @@
 Flowlist is a focus ritual app: turn a goal into concrete tasks, protect a
 focus block, and see that work accumulate in your activity ledger.
 
+Roadmap items can be projects, learning objectives, or standalone tasks.
+Standalone tasks share one simple list for work such as paying a bill or
+reading a book; they do not expose nested steps or AI breakdown controls.
+
 ## How the app fits together
 
 ```text
@@ -128,17 +132,22 @@ PostgreSQL data.
 
 ## Focus timer behavior
 
-The Pomodoro is intentionally independent from the roadmap: start a focus block
-without choosing a task, then attribute the time when the block ends. Flowlist
-suggests unfinished tasks in roadmap order, with recently focused work first.
-You can link the session to one task, save it as general focus, and optionally
-check the selected task off at the same time.
+The Pomodoro is intentionally independent from the roadmap: start a focus ritual
+without choosing a task, then attribute the accumulated focus time only when the
+ritual ends. Flowlist suggests unfinished tasks in roadmap order, with recently
+focused work first.
 
 The default cycle is four rounds of 25 minutes of focus and 5 minutes of rest,
 followed by a 15-minute long break. Focus length, short break, rounds, and long
 break can all be changed from the timer settings dialog. Flowlist does not
 prescribe durations for individual tasks; the session records the time actually
 spent instead.
+
+Each running block has a visible “Skip to next” control. Skipping focus advances
+directly to its break and only adds time that actually elapsed; skipped time is
+never credited. Skipping or naturally completing a break begins the next focus
+round. Cycles continue until “End ritual” is selected. Only then does Flowlist
+show the task-attribution checklist and save one record for the entire ritual.
 
 A session can be attributed to several tasks. Each task can be marked as
 “worked on” and, independently, “finished”; finishing a task also counts it as

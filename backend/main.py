@@ -105,6 +105,27 @@ def create_task(
     return new_task
 
 
+@app.post("/standalone-tasks", response_model=schemas.Task)
+def create_standalone_task(
+    task: schemas.TaskCreate, db: Session = Depends(get_db)
+):
+    """Add a simple task to the shared standalone list."""
+    goal = db.scalar(
+        select(GoalModel)
+        .where(GoalModel.goal_type == "standalone")
+        .order_by(GoalModel.id)
+    )
+    if goal is None:
+        goal = GoalModel(title="Standalone tasks", goal_type="standalone")
+        db.add(goal)
+        db.flush()
+    new_task = TaskModel(goal_id=goal.id, **task.model_dump())
+    db.add(new_task)
+    db.commit()
+    db.refresh(new_task)
+    return new_task
+
+
 @app.get("/goals/{goal_id}/tasks", response_model=list[schemas.Task])
 def list_tasks(goal_id: int, db: Session = Depends(get_db)):
     find_goal(db, goal_id)

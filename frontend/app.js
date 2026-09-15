@@ -3,6 +3,7 @@ const MAX_DEPTH = 3;
 const ACTIVE_TIMER_KEY = "flowlist-active-focus";
 const TIMER_SETTINGS_KEY = "flowlist-timer-settings";
 const CYCLE_STATE_KEY = "flowlist-pomodoro-cycle";
+const RITUAL_STATE_KEY = "flowlist-focus-ritual";
 const DEFAULT_TIMER_SETTINGS = { focus: 25, break: 5, rounds: 4, longBreak: 15 };
 
 const celebratedGoals = new Set();
@@ -11,6 +12,32 @@ let toastTimer = null;
 let activeTimer = null;
 let pendingSession = null;
 let learningWizardState = null;
+
+function loadRitualState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(RITUAL_STATE_KEY));
+    const elapsedSeconds = Number(saved?.elapsed_seconds);
+    const focusBlocks = Number(saved?.focus_blocks);
+    if (elapsedSeconds >= 0 && Number.isInteger(focusBlocks) && focusBlocks >= 0) {
+      return { elapsed_seconds: elapsedSeconds, focus_blocks: focusBlocks };
+    }
+  } catch (error) {
+    localStorage.removeItem(RITUAL_STATE_KEY);
+  }
+  return null;
+}
+
+let ritualState = loadRitualState();
+
+function ensureRitualState() {
+  if (!ritualState) ritualState = { elapsed_seconds: 0, focus_blocks: 0 };
+  localStorage.setItem(RITUAL_STATE_KEY, JSON.stringify(ritualState));
+}
+
+function clearRitualState() {
+  ritualState = null;
+  localStorage.removeItem(RITUAL_STATE_KEY);
+}
 
 async function api(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -452,7 +479,9 @@ async function loadGoals() {
     section.dataset.goalType = goal.goal_type || "project";
     node.querySelector(".goal-type-label").textContent = goal.goal_type === "learning"
       ? "Learning objective"
-      : "Project";
+      : goal.goal_type === "standalone"
+        ? "Standalone tasks"
+        : "Project";
     node.querySelector(".goal-title").textContent = goal.title;
     node.querySelector(".goal-description").textContent = goal.description || "";
 
@@ -511,6 +540,9 @@ async function loadGoals() {
       input.value = "";
       loadGoals();
     });
+    if (goal.goal_type === "standalone") {
+      node.querySelector(".task-form input").placeholder = "Add a standalone task";
+    }
     goalsContainer.appendChild(node);
     loadTasks(goal.id);
   }
@@ -525,11 +557,12 @@ async function loadTasks(goalId) {
   tasks
     .filter((task) => task.parent_id === null)
     .sort((a, b) => a.id - b.id)
-    .forEach((task) => renderTask(task, tasks, list));
+    .forEach((task) => renderTask(task, tasks, list, section.dataset.goalType));
   const leaves = leafTasks(tasks);
   const completed = leaves.filter((task) => task.completed).length;
+  const itemNoun = section.dataset.goalType === "standalone" ? "tasks" : "steps";
   section.querySelector(".goal-progress-copy").textContent = leaves.length
-    ? `${completed} of ${leaves.length} steps complete`
+    ? `${completed} of ${leaves.length} ${itemNoun} complete`
     : "No steps yet";
   section.querySelector(".goal-progress-value").style.width = `${leaves.length ? (completed / leaves.length) * 100 : 0}%`;
   checkGoalComplete(goalId, tasks);
@@ -550,7 +583,7 @@ document.getElementById("celebration-dismiss").addEventListener("click", () => {
   document.getElementById("celebration-overlay").classList.add("hidden");
 });
 
-function renderTask(task, allTasks, container) {
+function renderTask(task, allTasks, container, goalType = "project") {
   const children = allTasks
     .filter((item) => item.parent_id === task.id)
     .sort((a, b) => a.id - b.id);
@@ -622,7 +655,7 @@ function renderTask(task, allTasks, container) {
     loadTasks(task.goal_id);
   });
 
-  if (task.depth >= MAX_DEPTH) {
+  if (task.depth >= MAX_DEPTH || goalType === "standalone") {
     add.remove();
     breakdown.remove();
     subtaskForm.remove();
@@ -663,22 +696,36 @@ function renderTask(task, allTasks, container) {
   }
 
   container.appendChild(node);
-  children.forEach((child) => renderTask(child, allTasks, subtaskList));
+  children.forEach((child) => renderTask(child, allTasks, subtaskList, goalType));
 }
 
 document.getElementById("goal-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const input = document.getElementById("goal-title");
   if (!input.value.trim()) return;
-  await api("/goals", {
-    method: "POST",
-    body: JSON.stringify({
-      title: input.value.trim(),
-      goal_type: document.getElementById("goal-type").value,
-    }),
-  });
-  input.value = "";
-  loadGoals();
+  const type = document.getElementById("goal-type").value;
+  const submit = event.submitter;
+  submit.disabled = true;
+  try {
+    if (type === "standalone") {
+      await api("/standalone-tasks", {
+        method: "POST",
+        body: JSON.stringify({ title: input.value.trim() }),
+      });
+    } else {
+      await api("/goals", {
+        method: "POST",
+        body: JSON.stringify({ title: input.value.trim(), goal_type: type }),
+      });
+    }
+    input.value = "";
+    await loadGoals();
+    showToast(type === "standalone" ? "Standalone task added." : "Goal added.");
+  } catch (error) {
+    showToast("Could not add this item.", true);
+  } finally {
+    submit.disabled = false;
+  }
 });
 
 const focusOverlay = document.getElementById("focus-overlay");
@@ -688,7 +735,9 @@ const focusGoalTitle = document.getElementById("focus-goal-title");
 const focusCycleCopy = document.getElementById("focus-cycle-copy");
 const focusTime = document.getElementById("focus-time");
 const focusOrbit = document.getElementById("focus-orbit");
-const focusStop = document.getElementById("focus-stop");
+const focusExit = document.getElementById("focus-exit");
+const focusSkip = document.getElementById("focus-skip");
+const focusSkipLabel = document.getElementById("focus-skip-label");
 
 function setOrbitProgress(orbit, remainingSeconds, plannedSeconds) {
   const progress = plannedSeconds ? Math.max(0, Math.min(1, remainingSeconds / plannedSeconds)) : 0;
@@ -712,8 +761,15 @@ function closeTimerOverlay() {
   document.body.classList.remove("modal-open");
 }
 
+function advanceFromBreak() {
+  if (!activeTimer || activeTimer.phase !== "break") return;
+  closeTimerOverlay();
+  startFocus();
+}
+
 function startFocus(restored = null) {
   clearInterval(timerHandle);
+  ensureRitualState();
   const plannedMinutes = restored?.planned_minutes || timerSettings.focus;
   const plannedSeconds = restored?.planned_seconds || plannedMinutes * 60;
   const deadline = restored?.deadline || Date.now() + plannedSeconds * 1000;
@@ -733,17 +789,19 @@ function startFocus(restored = null) {
   focusTaskTitle.textContent = `Round ${roundNumber} of ${roundGoal}`;
   focusGoalTitle.textContent = "Stay with the work. You can name it afterward.";
   focusCycleCopy.textContent = `${plannedMinutes} minute interval`;
-  focusStop.textContent = "End session";
+  focusExit.textContent = "End ritual";
+  focusSkipLabel.textContent = "Skip to break";
   focusOverlay.classList.remove("hidden");
   document.body.classList.add("modal-open");
-  focusStop.onclick = () => finishFocusSession(false);
+  focusExit.onclick = () => finishFocusBlock(false, false);
+  focusSkip.onclick = () => finishFocusBlock(false, true);
 
   const tick = () => {
     if (!activeTimer || activeTimer.phase !== "focus") return;
     activeTimer.remaining_seconds = Math.max(0, Math.ceil((activeTimer.deadline - Date.now()) / 1000));
     focusTime.innerHTML = `${formatTime(activeTimer.remaining_seconds)}<span>Remaining</span>`;
     setOrbitProgress(focusOrbit, activeTimer.remaining_seconds, activeTimer.planned_seconds);
-    if (activeTimer.remaining_seconds <= 0) finishFocusSession(true);
+    if (activeTimer.remaining_seconds <= 0) finishFocusBlock(true, true);
   };
   tick();
   if (activeTimer?.phase === "focus") timerHandle = setInterval(tick, 1000);
@@ -751,6 +809,7 @@ function startFocus(restored = null) {
 
 function startBreak(kind = "short", restored = null) {
   clearInterval(timerHandle);
+  ensureRitualState();
   const breakKind = restored?.break_kind || kind;
   const plannedMinutes = restored?.planned_minutes
     || (breakKind === "long" ? timerSettings.longBreak : timerSettings.break);
@@ -771,49 +830,71 @@ function startBreak(kind = "short", restored = null) {
   focusGoalTitle.textContent = isLong
     ? "Take the longer reset before beginning a new cycle."
     : "Stand up, look away, and let your attention reset.";
-  focusCycleCopy.textContent = `${plannedMinutes} minute break`;
-  focusStop.textContent = "Skip break";
+  focusCycleCopy.textContent = `${plannedMinutes} minute break · Next: round ${cycleState.completedRounds + 1}`;
+  focusExit.textContent = "End ritual";
+  focusSkipLabel.textContent = isLong ? "Skip to new cycle" : "Skip to focus";
   focusOverlay.classList.remove("hidden");
   document.body.classList.add("modal-open");
-  focusStop.onclick = closeTimerOverlay;
+  focusExit.onclick = endRitual;
+  focusSkip.onclick = advanceFromBreak;
 
   const tick = () => {
     if (!activeTimer || activeTimer.phase !== "break") return;
     activeTimer.remaining_seconds = Math.max(0, Math.ceil((activeTimer.deadline - Date.now()) / 1000));
     focusTime.innerHTML = `${formatTime(activeTimer.remaining_seconds)}<span>Remaining</span>`;
     setOrbitProgress(focusOrbit, activeTimer.remaining_seconds, activeTimer.planned_seconds);
-    if (activeTimer.remaining_seconds <= 0) closeTimerOverlay();
+    if (activeTimer.remaining_seconds <= 0) advanceFromBreak();
   };
   tick();
   if (activeTimer?.phase === "break") timerHandle = setInterval(tick, 1000);
 }
 
-function finishFocusSession(completed) {
+function addFocusBlockToRitual(finishedTimer, completed) {
+  ensureRitualState();
+  const remainingSeconds = Math.max(0, Math.ceil((finishedTimer.deadline - Date.now()) / 1000));
+  const elapsedSeconds = completed
+    ? finishedTimer.planned_seconds
+    : Math.max(0, finishedTimer.planned_seconds - remainingSeconds);
+  ritualState.elapsed_seconds += elapsedSeconds;
+  ritualState.focus_blocks += 1;
+  localStorage.setItem(RITUAL_STATE_KEY, JSON.stringify(ritualState));
+}
+
+function finishFocusBlock(completed, continueRitual) {
   if (!activeTimer || activeTimer.phase !== "focus") return;
   clearInterval(timerHandle);
   timerHandle = null;
   const finishedTimer = activeTimer;
-  const elapsedSeconds = finishedTimer.planned_seconds - finishedTimer.remaining_seconds;
-  const actualMinutes = completed
-    ? finishedTimer.planned_minutes
-    : Math.max(0, Math.min(finishedTimer.planned_minutes, Math.ceil(elapsedSeconds / 60)));
-  const nextBreak = completed
-    ? (finishedTimer.round_number >= finishedTimer.round_goal ? "long" : "short")
-    : null;
-  if (completed) {
-    cycleState.completedRounds = nextBreak === "long" ? 0 : finishedTimer.round_number;
-    saveCycleState();
-    renderTimerSettings();
-  }
-  pendingSession = {
-    planned_minutes: finishedTimer.planned_minutes,
-    actual_minutes: actualMinutes,
-    completed,
-    next_break: nextBreak,
-  };
+  addFocusBlockToRitual(finishedTimer, completed);
   activeTimer = null;
   clearActiveTimer();
   focusOverlay.classList.add("hidden");
+  if (!continueRitual) {
+    endRitual();
+    return;
+  }
+  const nextBreak = finishedTimer.round_number >= finishedTimer.round_goal ? "long" : "short";
+  cycleState.completedRounds = nextBreak === "long" ? 0 : finishedTimer.round_number;
+  saveCycleState();
+  renderTimerSettings();
+  startBreak(nextBreak);
+}
+
+function endRitual() {
+  if (activeTimer?.phase === "focus") {
+    finishFocusBlock(false, false);
+    return;
+  }
+  closeTimerOverlay();
+  const actualMinutes = Math.floor((ritualState?.elapsed_seconds || 0) / 60);
+  pendingSession = {
+    planned_minutes: Math.max(1, actualMinutes),
+    actual_minutes: actualMinutes,
+    completed: true,
+  };
+  cycleState.completedRounds = 0;
+  saveCycleState();
+  renderTimerSettings();
   openAttributionModal();
 }
 
@@ -852,11 +933,9 @@ function renderAttributionOptions(options) {
 
 async function openAttributionModal() {
   if (!pendingSession) return;
-  document.getElementById("attribution-status").textContent = pendingSession.completed
-    ? "Focus complete"
-    : "Session ended";
+  document.getElementById("attribution-status").textContent = "Ritual ended";
   document.getElementById("attribution-minutes").textContent = `${pendingSession.actual_minutes} ${pendingSession.actual_minutes === 1 ? "minute" : "minutes"}`;
-  saveSessionButton.textContent = pendingSession.completed ? "Save & start break" : "Save session";
+  saveSessionButton.textContent = "Save ritual";
   saveSessionButton.disabled = true;
   attributionError.textContent = "";
   attributionOptions.innerHTML = '<div class="attribution-loading"><span class="loading-ring" aria-hidden="true"></span><span>Finding your tasks…</span></div>';
@@ -911,24 +990,23 @@ document.getElementById("session-attribution-form").addEventListener("submit", a
       }),
     });
     pendingSession = null;
+    clearRitualState();
     attributionOverlay.classList.add("hidden");
     document.body.classList.remove("modal-open");
     loadDashboard();
-    showToast("Focus session saved.");
-    if (session.next_break) startBreak(session.next_break);
+    showToast("Focus ritual saved.");
   } catch (error) {
     saveSessionButton.disabled = false;
-    saveSessionButton.textContent = session.completed ? "Save & start break" : "Save session";
+    saveSessionButton.textContent = "Save ritual";
     attributionError.textContent = "Flowlist could not save this session. Try again.";
   }
 });
 
 document.getElementById("discard-session").addEventListener("click", () => {
-  const nextBreak = pendingSession?.next_break;
   pendingSession = null;
+  clearRitualState();
   attributionOverlay.classList.add("hidden");
   document.body.classList.remove("modal-open");
-  if (nextBreak) startBreak(nextBreak);
 });
 
 async function loadHistory() {
@@ -951,11 +1029,11 @@ async function loadHistory() {
       attributionSummary.appendChild(label);
     }
     const status = node.querySelector(".session-status");
-    status.textContent = session.completed ? "Completed" : "Ended early";
-    status.classList.add(session.completed ? "pill-success" : "pill-warning");
+    status.textContent = "Focus ritual";
+    status.classList.add("pill-success");
     const deleteButton = node.querySelector(".session-delete");
     const sessionDate = parseApiDate(session.created_at);
-    node.querySelector(".session-meta").textContent = `${session.actual_minutes} of ${session.planned_minutes} minutes · ${sessionDate.toLocaleString()}`;
+    node.querySelector(".session-meta").textContent = `${session.actual_minutes} ${session.actual_minutes === 1 ? "minute" : "minutes"} focused · ${sessionDate.toLocaleString()}`;
     deleteButton.setAttribute("aria-label", `Delete focus record from ${sessionDate.toLocaleDateString()}`);
     deleteButton.addEventListener("click", async () => {
       deleteButton.disabled = true;
@@ -982,7 +1060,8 @@ function renderAgenda(goalsWithTasks) {
   all.forEach(({ task, goal }) => {
     const row = document.createElement("div");
     row.className = `agenda-item${task.completed ? " done" : ""}`;
-    row.innerHTML = `<button class="task-check" aria-label="${task.completed ? "Reopen" : "Complete"} ${escapeHtml(task.title)}" aria-pressed="${task.completed}"></button><div><span class="agenda-title">${escapeHtml(task.title)}</span><span class="agenda-goal">${escapeHtml(goal.title)}</span></div>`;
+    const context = goal.goal_type === "standalone" ? "Standalone task" : goal.title;
+    row.innerHTML = `<button class="task-check" aria-label="${task.completed ? "Reopen" : "Complete"} ${escapeHtml(task.title)}" aria-pressed="${task.completed}"></button><div class="agenda-copy"><span class="agenda-title" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}</span><span class="agenda-goal" title="${escapeHtml(context)}">${escapeHtml(context)}</span></div>`;
     row.querySelector(".task-check").addEventListener("click", async () => {
       await api(`/tasks/${task.id}`, {
         method: "PATCH",
