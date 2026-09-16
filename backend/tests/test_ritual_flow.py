@@ -121,6 +121,7 @@ def test_standalone_tasks_share_a_simple_task_list():
         if goal["goal_type"] == "standalone"
     ]
     assert len(standalone_goals) == 1
+    assert standalone_goals[0]["title"] == "Tasks"
     tasks = client.get(f"/goals/{standalone_goals[0]['id']}/tasks").json()
     assert [task["title"] for task in tasks] == [
         "Pay electricity bill",

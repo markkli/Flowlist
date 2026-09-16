@@ -3,9 +3,9 @@
 Flowlist is a focus ritual app: turn a goal into concrete tasks, protect a
 focus block, and see that work accumulate in your activity ledger.
 
-Roadmap items can be projects, learning objectives, or standalone tasks.
-Standalone tasks share one simple list for work such as paying a bill or
-reading a book; they do not expose nested steps or AI breakdown controls.
+Roadmap items can be projects, learning objectives, or tasks. Tasks share one
+simple list for work such as paying a bill or reading a book; they do not
+expose nested steps or AI breakdown controls.
 
 ## How the app fits together
 

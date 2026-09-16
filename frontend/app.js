@@ -480,9 +480,9 @@ async function loadGoals() {
     node.querySelector(".goal-type-label").textContent = goal.goal_type === "learning"
       ? "Learning objective"
       : goal.goal_type === "standalone"
-        ? "Standalone tasks"
+        ? "Tasks"
         : "Project";
-    node.querySelector(".goal-title").textContent = goal.title;
+    node.querySelector(".goal-title").textContent = goal.goal_type === "standalone" ? "Tasks" : goal.title;
     node.querySelector(".goal-description").textContent = goal.description || "";
 
     const goalBreakdown = node.querySelector(".break-down-goal");
@@ -541,7 +541,7 @@ async function loadGoals() {
       loadGoals();
     });
     if (goal.goal_type === "standalone") {
-      node.querySelector(".task-form input").placeholder = "Add a standalone task";
+      node.querySelector(".task-form input").placeholder = "Add a task";
     }
     goalsContainer.appendChild(node);
     loadTasks(goal.id);
@@ -563,7 +563,7 @@ async function loadTasks(goalId) {
   const itemNoun = section.dataset.goalType === "standalone" ? "tasks" : "steps";
   section.querySelector(".goal-progress-copy").textContent = leaves.length
     ? `${completed} of ${leaves.length} ${itemNoun} complete`
-    : "No steps yet";
+    : section.dataset.goalType === "standalone" ? "No tasks yet" : "No steps yet";
   section.querySelector(".goal-progress-value").style.width = `${leaves.length ? (completed / leaves.length) * 100 : 0}%`;
   checkGoalComplete(goalId, tasks);
 }
@@ -703,7 +703,7 @@ document.getElementById("goal-form").addEventListener("submit", async (event) =>
   event.preventDefault();
   const input = document.getElementById("goal-title");
   if (!input.value.trim()) return;
-  const type = document.getElementById("goal-type").value;
+  const type = document.querySelector('input[name="goal-type"]:checked').value;
   const submit = event.submitter;
   submit.disabled = true;
   try {
@@ -720,7 +720,7 @@ document.getElementById("goal-form").addEventListener("submit", async (event) =>
     }
     input.value = "";
     await loadGoals();
-    showToast(type === "standalone" ? "Standalone task added." : "Goal added.");
+    showToast(type === "standalone" ? "Task added." : "Goal added.");
   } catch (error) {
     showToast("Could not add this item.", true);
   } finally {
@@ -1060,7 +1060,7 @@ function renderAgenda(goalsWithTasks) {
   all.forEach(({ task, goal }) => {
     const row = document.createElement("div");
     row.className = `agenda-item${task.completed ? " done" : ""}`;
-    const context = goal.goal_type === "standalone" ? "Standalone task" : goal.title;
+    const context = goal.goal_type === "standalone" ? "Task" : goal.title;
     row.innerHTML = `<button class="task-check" aria-label="${task.completed ? "Reopen" : "Complete"} ${escapeHtml(task.title)}" aria-pressed="${task.completed}"></button><div class="agenda-copy"><span class="agenda-title" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}</span><span class="agenda-goal" title="${escapeHtml(context)}">${escapeHtml(context)}</span></div>`;
     row.querySelector(".task-check").addEventListener("click", async () => {
       await api(`/tasks/${task.id}`, {
@@ -1091,7 +1091,12 @@ function renderGoalsSummary(goalsWithTasks) {
     const percent = leaves.length ? (done / leaves.length) * 100 : 0;
     const row = document.createElement("div");
     row.className = "goal-line";
-    row.innerHTML = `<div><div class="goal-name">${escapeHtml(goal.title)}</div><div class="goal-detail">${leaves.length ? `${leaves.length - done} steps remaining` : "No steps yet"}</div></div><div class="mini-progress"><div class="progress-track"><div class="progress-value" style="width:${percent}%"></div></div><small>${done}/${leaves.length}</small></div>`;
+    const isTaskList = goal.goal_type === "standalone";
+    const goalName = isTaskList ? "Tasks" : goal.title;
+    const detail = leaves.length
+      ? `${leaves.length - done} ${isTaskList ? "tasks" : "steps"} remaining`
+      : isTaskList ? "No tasks yet" : "No steps yet";
+    row.innerHTML = `<div><div class="goal-name">${escapeHtml(goalName)}</div><div class="goal-detail">${detail}</div></div><div class="mini-progress"><div class="progress-track"><div class="progress-value" style="width:${percent}%"></div></div><small>${done}/${leaves.length}</small></div>`;
     container.appendChild(row);
   });
   if (!goalsWithTasks.length) {
@@ -1100,10 +1105,13 @@ function renderGoalsSummary(goalsWithTasks) {
 }
 
 function renderActivityHeatmap(sessions) {
-  const counts = new Map();
+  const activity = new Map();
   sessions.forEach((session) => {
     const key = localDateKey(parseApiDate(session.created_at));
-    counts.set(key, (counts.get(key) || 0) + 1);
+    const day = activity.get(key) || { sessions: 0, minutes: 0 };
+    day.sessions += 1;
+    day.minutes += session.actual_minutes;
+    activity.set(key, day);
   });
   const grid = document.getElementById("activity-heatmap");
   const months = document.getElementById("heatmap-months");
@@ -1126,12 +1134,20 @@ function renderActivityHeatmap(sessions) {
       const current = new Date(weekStart);
       current.setDate(weekStart.getDate() + day);
       const key = localDateKey(current);
-      const count = counts.get(key) || 0;
+      const dayActivity = activity.get(key);
+      const count = dayActivity?.sessions || 0;
       const level = count === 0 ? 0 : count === 1 ? 1 : count === 2 ? 2 : count === 3 ? 3 : 4;
       const cell = document.createElement("span");
       cell.className = `heatmap-cell level-${level}`;
-      cell.title = `${current.toLocaleDateString("en", { month: "short", day: "numeric" })}: ${count} ${count === 1 ? "session" : "sessions"}`;
-      cell.setAttribute("aria-label", cell.title);
+      if (dayActivity) {
+        const date = current.toLocaleDateString("en", { month: "short", day: "numeric" });
+        const tooltip = `${date} · ${dayActivity.minutes} min · ${count} ${count === 1 ? "ritual" : "rituals"}`;
+        cell.dataset.tooltip = tooltip;
+        cell.setAttribute("aria-label", tooltip);
+        cell.tabIndex = 0;
+      } else {
+        cell.setAttribute("aria-hidden", "true");
+      }
       grid.appendChild(cell);
     }
   }

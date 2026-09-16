@@ -81,11 +81,11 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 - Every running focus, short-break, and long-break block exposes “Skip to next.” Skipping focus advances the round but records only fully elapsed focus minutes; skipping a break begins the next focus block. Keep “End ritual” available as the exit route.
 - Continue from focus to break and into later cycles without interrupting the ritual. Show the centered attribution dialog only when the user chooses “End ritual,” and save the accumulated focus time as one record without presenting a target-time ratio.
 - Every attribution row has separate “Worked on” and “Finished” controls. Finishing implies worked-on; the session duration is still counted only once. No selected tasks means General focus.
-- The task queue contains only completion, title, and parent context. Keep each title and its project, learning objective, or “Standalone task” label to one line with an ellipsis and native title tooltip for the full text.
-- Standalone tasks cover simple personal or administrative work that needs no roadmap hierarchy. Collect them in one lightweight list and do not offer AI breakdown or nested-step controls.
+- The task queue contains only completion, title, and parent context. Keep each title and its project, learning objective, or “Task” label to one line with an ellipsis and native title tooltip for the full text.
+- “Task” covers simple personal or administrative work that needs no roadmap hierarchy. Collect these items in one lightweight list and do not offer AI breakdown or nested-step controls.
 - The Pomodoro and queue panels maintain the same intentional height on desktop. The queue scrolls internally when it contains more rows.
 - Supporting panels remain quieter and use minimal shadows.
-- Activity heatmap always renders its empty cells so the record is visible before data exists.
+- Activity heatmap always renders its empty cells so the record is visible before data exists. Populated cells expose focused minutes and ritual count on hover and keyboard focus; empty cells have no tooltip.
 
 ### History
 

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>Flowlist</title>
-  <link rel="stylesheet" href="styles.css?v=forest-13">
+  <link rel="stylesheet" href="styles.css?v=forest-14">
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -58,9 +58,9 @@
         </section>
 
         <section id="view-goals" class="view hidden">
-          <header class="page-heading"><div><p class="kicker">Plan</p><h1>Roadmap</h1><p class="page-description">Projects, learning objectives, and standalone tasks.</p></div></header>
+          <header class="page-heading"><div><p class="kicker">Plan</p><h1>Roadmap</h1><p class="page-description">Projects, learning objectives, and simple tasks.</p></div></header>
           <div class="roadmap-layout">
-            <aside class="new-goal panel"><div><p class="kicker">New item</p><h2>Add a direction</h2></div><form id="goal-form" class="new-goal-form"><label><span>Name</span><input id="goal-title" class="field" type="text" placeholder="e.g. Build portfolio" required></label><label><span>Type</span><select id="goal-type" class="field"><option value="project">Project</option><option value="learning">Learning objective</option><option value="standalone">Standalone task</option></select></label><button class="primary-btn">Add</button></form></aside>
+            <aside class="new-goal panel"><div><p class="kicker">New item</p><h2>Add a direction</h2></div><form id="goal-form" class="new-goal-form"><label><span>Name</span><input id="goal-title" class="field" type="text" placeholder="e.g. Build portfolio" required></label><fieldset class="type-picker"><legend>Type</legend><div class="type-segments"><label><input type="radio" name="goal-type" value="project" checked><span>Project</span></label><label><input type="radio" name="goal-type" value="learning"><span>Learning</span></label><label><input type="radio" name="goal-type" value="standalone"><span>Task</span></label></div></fieldset><button class="primary-btn">Add</button></form></aside>
             <div id="goals" class="goal-stack"></div>
           </div>
         </section>
@@ -76,7 +76,7 @@
   <template id="goal-template">
     <article class="goal-card panel">
       <div class="goal-card-head"><div class="goal-card-copy"><p class="kicker goal-type-label"></p><h2 class="goal-title"></h2><p class="goal-description"></p><div class="goal-progress-summary"><div class="progress-track"><div class="progress-value goal-progress-value"></div></div><p class="goal-progress-copy"></p></div></div><div class="goal-actions"><button class="goal-generate break-down-goal">Generate learning path</button><details class="context-menu goal-menu"><summary aria-label="More goal actions"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1.4"/><circle cx="10" cy="10" r="1.4"/><circle cx="16" cy="10" r="1.4"/></svg></summary><div class="context-menu-popover"><button class="edit-goal">Edit goal</button><button class="danger delete-goal">Remove goal</button></div></details></div></div>
-      <form class="goal-edit-form edit-form" style="display:none"><label><span>Name</span><input class="field goal-edit-title" type="text"></label><label><span>Description</span><input class="field goal-edit-description" type="text" placeholder="Optional"></label><label><span>Type</span><select class="field goal-edit-type"><option value="project">Project</option><option value="learning">Learning objective</option><option value="standalone">Standalone tasks</option></select></label><button class="secondary-btn goal-edit-save">Save</button><button class="text-btn goal-edit-cancel" type="button">Cancel</button></form>
+      <form class="goal-edit-form edit-form" style="display:none"><label><span>Name</span><input class="field goal-edit-title" type="text"></label><label><span>Description</span><input class="field goal-edit-description" type="text" placeholder="Optional"></label><label><span>Type</span><select class="field goal-edit-type"><option value="project">Project</option><option value="learning">Learning</option><option value="standalone">Tasks</option></select></label><button class="secondary-btn goal-edit-save">Save</button><button class="text-btn goal-edit-cancel" type="button">Cancel</button></form>
       <ul class="goal-suggestion-list task-list suggestions" style="display:none"></ul>
       <ul class="goal-task-list task-list"></ul>
       <form class="task-form quick-add"><input class="field" type="text" placeholder="Add a step" aria-label="New task"><button class="secondary-btn">Add</button></form>
@@ -108,6 +108,6 @@
   </div>
   <div id="celebration-overlay" class="overlay hidden"><div class="timer-modal celebration"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 40V15m0 7-9-8m9 15 10-9M15 40h18"/><path d="M24 15c-2-6-7-9-13-7 1 7 5 10 13 10m0 2c2-7 7-10 14-9-1 7-5 11-14 12"/></svg><span class="status"><i></i>Goal complete</span><h2 id="celebration-goal-title">Goal complete</h2><p>Nice work. Take a moment before choosing what comes next.</p><div class="focus-actions"><button id="celebration-dismiss" class="primary-btn">Continue</button></div></div></div>
   <div id="app-toast" class="app-toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=forest-13"></script>
+  <script src="app.js?v=forest-14"></script>
 </body>
 </html>

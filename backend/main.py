@@ -109,16 +109,18 @@ def create_task(
 def create_standalone_task(
     task: schemas.TaskCreate, db: Session = Depends(get_db)
 ):
-    """Add a simple task to the shared standalone list."""
+    """Add a simple task to the shared task list."""
     goal = db.scalar(
         select(GoalModel)
         .where(GoalModel.goal_type == "standalone")
         .order_by(GoalModel.id)
     )
     if goal is None:
-        goal = GoalModel(title="Standalone tasks", goal_type="standalone")
+        goal = GoalModel(title="Tasks", goal_type="standalone")
         db.add(goal)
         db.flush()
+    elif goal.title == "Standalone tasks":
+        goal.title = "Tasks"
     new_task = TaskModel(goal_id=goal.id, **task.model_dump())
     db.add(new_task)
     db.commit()
