@@ -75,6 +75,7 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 
 - The Pomodoro card is the strongest surface and uses the full-bleed `focus-grove.webp` woodland artwork under a legibility gradient. Atmospheric art must touch every card edge without exposed background gaps.
 - The timer dial itself is the primary Start control. Use a subtle play affordance on hover/focus; do not add a competing rectangular Start button below it.
+- Theme the primary dial independently: dark mode uses a deep forest center with a warm sand ring, while light mode uses a cream center, dark numerals, and a restrained forest progress ring.
 - Starting the clock never requires choosing a task first. Default to 25 minutes of focus, 5 minutes of rest, and a 15-minute long break after four rounds.
 - Expose focus length, short break, rounds per cycle, and long break in a dedicated modal. Never put interactive number fields inside the atmospheric timer card.
 - Exhibit the current round with text and a small dot sequence on the timer card.
