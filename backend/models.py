@@ -41,6 +41,8 @@ class FocusSessionModel(Base):
     __tablename__ = "focus_sessions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str | None] = mapped_column(nullable=True)
+    summary: Mapped[str | None] = mapped_column(nullable=True)
     planned_minutes: Mapped[int]
     actual_minutes: Mapped[int]
     completed: Mapped[bool]
@@ -54,12 +56,21 @@ class FocusSessionModel(Base):
 
     @property
     def task_title(self) -> str:
+        if self.title:
+            return self.title
         if not self.attributions:
             return "General focus"
         titles = [attribution.task_title for attribution in self.attributions]
-        if len(titles) <= 2:
-            return " · ".join(titles)
-        return f"{titles[0]} · {titles[1]} +{len(titles) - 2} more"
+        if len(titles) == 1:
+            return titles[0]
+        goal_titles = {
+            attribution.goal_title
+            for attribution in self.attributions
+            if attribution.goal_title
+        }
+        if len(goal_titles) == 1:
+            return f"{next(iter(goal_titles))} focus"
+        return "Focused work"
 
 
 class FocusSessionTaskModel(Base):

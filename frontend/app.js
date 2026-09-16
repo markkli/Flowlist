@@ -197,12 +197,7 @@ function saveCycleState() {
 }
 
 function renderCycleState() {
-  const currentRound = Math.min(cycleState.completedRounds + 1, timerSettings.rounds);
-  document.getElementById("pomodoro-round-copy").textContent = `Round ${currentRound} of ${timerSettings.rounds}`;
-  document.getElementById("pomodoro-cycle-dots").innerHTML = Array.from(
-    { length: timerSettings.rounds },
-    (_, index) => `<i class="${index < cycleState.completedRounds ? "complete" : index === currentRound - 1 ? "current" : ""}"></i>`
-  ).join("");
+  document.getElementById("pomodoro-round-copy").textContent = "A fresh ritual always begins at round one";
 }
 
 function renderTimerSettings() {
@@ -212,12 +207,12 @@ function renderTimerSettings() {
   longBreakMinutesSetting.value = timerSettings.longBreak;
   document.getElementById("timer-settings-label").textContent = `${timerSettings.focus} / ${timerSettings.break} · ${timerSettings.rounds} rounds`;
   document.getElementById("timer-summary").textContent = `${timerSettings.focus} focus · ${timerSettings.break} short break · ${timerSettings.longBreak} long break`;
-  document.getElementById("long-break-copy").textContent = `Long break after round ${timerSettings.rounds}`;
+  document.getElementById("long-break-copy").textContent = `Long break every ${timerSettings.rounds} rounds`;
   heroTime.innerHTML = `${String(timerSettings.focus).padStart(2, "0")}:00<span>Start focus</span>`;
   document.getElementById("pomodoro-heading").textContent = `Protect the next ${timerSettings.focus} minutes.`;
   document.getElementById("start-pomodoro").setAttribute(
     "aria-label",
-    `Start round ${cycleState.completedRounds + 1} of ${timerSettings.rounds}, ${timerSettings.focus} minutes`
+    `Start a ${timerSettings.focus}-minute focus ritual at round one`
   );
   renderCycleState();
 }
@@ -282,7 +277,7 @@ const learningWizardClose = document.getElementById("learning-wizard-close");
 
 function renderLearningSuggestions(goal, proposed, goalSuggestions) {
   goalSuggestions.innerHTML = proposed.length
-    ? '<li class="suggestion-toolbar"><span>Select the milestones that belong in this roadmap.</span><button class="secondary-btn suggestion-add-selected" type="button">Add selected</button></li>'
+    ? '<li class="suggestion-toolbar"><span>Select the milestones that belong in this plan.</span><button class="secondary-btn suggestion-add-selected" type="button">Add selected</button></li>'
     : "";
   goalSuggestions.style.display = proposed.length ? "grid" : "none";
   proposed.forEach((suggestion, index) => {
@@ -307,7 +302,7 @@ function renderLearningSuggestions(goal, proposed, goalSuggestions) {
       })));
       goalSuggestions.style.display = "none";
       loadTasks(goal.id);
-      showToast(`${selected.length} milestone${selected.length === 1 ? "" : "s"} added to the roadmap.`);
+      showToast(`${selected.length} milestone${selected.length === 1 ? "" : "s"} added to the plan.`);
     } catch (error) {
       addButton.disabled = false;
       showToast("Could not add the selected milestones. Try again.", true);
@@ -647,7 +642,7 @@ function renderTask(task, allTasks, container, goalType = "project") {
     branchMarker.className = "task-branch-marker";
     branchMarker.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4v12m0-6h8m-3-3 3 3-3 3"/></svg>';
     taskRow.insertBefore(branchMarker, title);
-    progress.textContent = `${children.filter((child) => child.completed).length}/${children.length} complete`;
+    progress.textContent = `${children.filter((child) => child.completed).length} of ${children.length}`;
   }
 
   node.querySelector(".delete-task").addEventListener("click", async () => {
@@ -738,6 +733,7 @@ const focusOrbit = document.getElementById("focus-orbit");
 const focusExit = document.getElementById("focus-exit");
 const focusSkip = document.getElementById("focus-skip");
 const focusSkipLabel = document.getElementById("focus-skip-label");
+const focusAddPlan = document.getElementById("focus-add-plan");
 
 function setOrbitProgress(orbit, remainingSeconds, plannedSeconds) {
   const progress = plannedSeconds ? Math.max(0, Math.min(1, remainingSeconds / plannedSeconds)) : 0;
@@ -898,7 +894,15 @@ function endRitual() {
   openAttributionModal();
 }
 
-document.getElementById("start-pomodoro").addEventListener("click", () => startFocus());
+function startNewRitual() {
+  cycleState.completedRounds = 0;
+  saveCycleState();
+  clearRitualState();
+  renderTimerSettings();
+  startFocus();
+}
+
+document.getElementById("start-pomodoro").addEventListener("click", startNewRitual);
 
 function restoreSavedTimer() {
   try {
@@ -911,25 +915,181 @@ function restoreSavedTimer() {
   }
 }
 
+const planCaptureOverlay = document.getElementById("plan-capture-overlay");
+const planCaptureModal = planCaptureOverlay.querySelector(".quick-plan-modal");
+const planCaptureForm = document.getElementById("plan-capture-form");
+const planCaptureName = document.getElementById("plan-capture-name");
+const planCaptureError = document.getElementById("plan-capture-error");
+
+function setPlanCaptureOpen(open) {
+  planCaptureOverlay.classList.toggle("hidden", !open);
+  focusOverlay.setAttribute("aria-hidden", String(open));
+  planCaptureError.textContent = "";
+  if (open) {
+    document.body.classList.add("modal-open");
+    requestAnimationFrame(() => planCaptureName.focus());
+  } else {
+    planCaptureForm.reset();
+    if (focusOverlay.classList.contains("hidden")) document.body.classList.remove("modal-open");
+    focusAddPlan.focus();
+  }
+}
+
+focusAddPlan.addEventListener("click", () => setPlanCaptureOpen(true));
+document.getElementById("plan-capture-close").addEventListener("click", () => setPlanCaptureOpen(false));
+document.getElementById("plan-capture-cancel").addEventListener("click", () => setPlanCaptureOpen(false));
+planCaptureForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const title = planCaptureName.value.trim();
+  if (!title) {
+    planCaptureError.textContent = "Give this item a name.";
+    planCaptureName.focus();
+    return;
+  }
+  const type = planCaptureForm.querySelector('input[name="capture-type"]:checked').value;
+  const submit = event.submitter;
+  submit.disabled = true;
+  submit.textContent = "Adding…";
+  try {
+    if (type === "standalone") {
+      await api("/standalone-tasks", {
+        method: "POST",
+        body: JSON.stringify({ title }),
+      });
+    } else {
+      await api("/goals", {
+        method: "POST",
+        body: JSON.stringify({ title, goal_type: type }),
+      });
+    }
+    setPlanCaptureOpen(false);
+    showToast(type === "standalone" ? "Task added to your plan." : "Direction added to your plan.");
+  } catch (error) {
+    planCaptureError.textContent = "Flowlist could not add this item. Try again.";
+  } finally {
+    submit.disabled = false;
+    submit.textContent = "Add to plan";
+  }
+});
+
 const attributionOverlay = document.getElementById("session-attribution-overlay");
 const attributionModal = attributionOverlay.querySelector(".attribution-modal");
 const attributionOptions = document.getElementById("attribution-options");
 const attributionError = document.getElementById("attribution-error");
 const saveSessionButton = document.getElementById("save-session");
+const sessionSummary = document.getElementById("session-summary");
+const attributionTaskBuilder = document.getElementById("attribution-task-builder");
+const attributionNewTask = document.getElementById("attribution-new-task");
+const attributionTaskDestination = document.getElementById("attribution-task-destination");
+const attributionNewGroup = document.getElementById("attribution-new-group");
+const attributionNewGroupName = document.getElementById("attribution-new-group-name");
+const attributionTaskError = document.getElementById("attribution-task-error");
+const attributionAddTask = document.getElementById("attribution-add-task");
 
-function renderAttributionOptions(options) {
+function currentAttributionSelections() {
+  return new Map(
+    [...attributionOptions.querySelectorAll(".attribution-task-row")].map((row) => [
+      Number(row.dataset.taskId),
+      {
+        worked: row.querySelector(".attribution-worked-input").checked,
+        finished: row.querySelector(".attribution-finished-input").checked,
+      },
+    ])
+  );
+}
+
+function renderAttributionOptions(options, selections = new Map()) {
   attributionOptions.innerHTML = "";
   options.forEach((option, index) => {
     const row = document.createElement("div");
     row.className = "attribution-task-row";
     row.dataset.taskId = option.id;
     row.innerHTML = `<div class="attribution-task-copy"><strong>${escapeHtml(option.title)}</strong><small>${escapeHtml(option.goal_title)}</small>${index === 0 ? `<em>${option.last_focused_at ? "Recent" : "Next"}</em>` : ""}</div><label class="attribution-toggle attribution-worked"><input class="attribution-worked-input" type="checkbox"><span class="toggle-box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8.5 2.5 2.5L12 5.5"/></svg></span><span class="sr-only">Worked on ${escapeHtml(option.title)}</span></label><label class="attribution-toggle attribution-finished"><input class="attribution-finished-input" type="checkbox"><span class="toggle-box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8.5 2.5 2.5L12 5.5"/></svg></span><span class="sr-only">Finished ${escapeHtml(option.title)}</span></label>`;
+    const selected = selections.get(option.id);
+    if (selected) {
+      row.querySelector(".attribution-worked-input").checked = selected.worked;
+      row.querySelector(".attribution-finished-input").checked = selected.finished;
+      row.classList.toggle("selected", selected.worked);
+      row.classList.toggle("finished", selected.finished);
+    }
     attributionOptions.appendChild(row);
   });
   if (!options.length) {
     attributionOptions.innerHTML = '<p class="attribution-empty">No unfinished tasks are available. This session will be saved as General focus.</p>';
   }
 }
+
+function renderAttributionDestinations(goals) {
+  const regularGoals = goals.filter((goal) => goal.goal_type !== "standalone");
+  attributionTaskDestination.innerHTML = [
+    '<option value="__tasks__">Tasks · simple list</option>',
+    ...regularGoals.map((goal) => `<option value="${goal.id}">${escapeHtml(goal.title)} · ${goal.goal_type === "learning" ? "Learning" : "Project"}</option>`),
+    '<option value="__new__">New project or learning objective…</option>',
+  ].join("");
+  attributionNewGroup.classList.add("hidden");
+}
+
+attributionTaskDestination.addEventListener("change", () => {
+  const creatingGroup = attributionTaskDestination.value === "__new__";
+  attributionNewGroup.classList.toggle("hidden", !creatingGroup);
+  if (creatingGroup) attributionNewGroupName.focus();
+});
+
+attributionAddTask.addEventListener("click", async () => {
+  const title = attributionNewTask.value.trim();
+  if (!title) {
+    attributionTaskError.textContent = "Name the task you want to add.";
+    attributionNewTask.focus();
+    return;
+  }
+  attributionTaskError.textContent = "";
+  attributionAddTask.disabled = true;
+  attributionAddTask.textContent = "Adding…";
+  try {
+    const destination = attributionTaskDestination.value;
+    let createdTask;
+    if (destination === "__tasks__") {
+      createdTask = await api("/standalone-tasks", {
+        method: "POST",
+        body: JSON.stringify({ title }),
+      });
+    } else {
+      let goalId = Number(destination);
+      if (destination === "__new__") {
+        const groupTitle = attributionNewGroupName.value.trim();
+        if (!groupTitle) {
+          attributionTaskError.textContent = "Name the new project or learning objective.";
+          attributionNewGroupName.focus();
+          return;
+        }
+        const groupType = document.querySelector('input[name="attribution-group-type"]:checked').value;
+        const goal = await api("/goals", {
+          method: "POST",
+          body: JSON.stringify({ title: groupTitle, goal_type: groupType }),
+        });
+        goalId = goal.id;
+      }
+      createdTask = await api(`/goals/${goalId}/tasks`, {
+        method: "POST",
+        body: JSON.stringify({ title }),
+      });
+    }
+    const selections = currentAttributionSelections();
+    selections.set(createdTask.id, { worked: true, finished: false });
+    const [options, goals] = await Promise.all([api("/focus-options"), api("/goals")]);
+    renderAttributionOptions(options, selections);
+    renderAttributionDestinations(goals);
+    attributionNewTask.value = "";
+    attributionNewGroupName.value = "";
+    attributionTaskBuilder.removeAttribute("open");
+    showToast("Task added and selected for this ritual.");
+  } catch (error) {
+    attributionTaskError.textContent = "Flowlist could not add that task. Try again.";
+  } finally {
+    attributionAddTask.disabled = false;
+    attributionAddTask.textContent = "Add and select task";
+  }
+});
 
 async function openAttributionModal() {
   if (!pendingSession) return;
@@ -938,17 +1098,24 @@ async function openAttributionModal() {
   saveSessionButton.textContent = "Save ritual";
   saveSessionButton.disabled = true;
   attributionError.textContent = "";
+  attributionTaskError.textContent = "";
+  sessionSummary.value = "";
+  attributionNewTask.value = "";
+  attributionNewGroupName.value = "";
+  attributionTaskBuilder.removeAttribute("open");
   attributionOptions.innerHTML = '<div class="attribution-loading"><span class="loading-ring" aria-hidden="true"></span><span>Finding your tasks…</span></div>';
   attributionOverlay.classList.remove("hidden");
   document.body.classList.add("modal-open");
   attributionModal.focus();
   try {
-    const options = await api("/focus-options");
+    const [options, goals] = await Promise.all([api("/focus-options"), api("/goals")]);
     if (!pendingSession) return;
     renderAttributionOptions(options);
+    renderAttributionDestinations(goals);
   } catch (error) {
     if (!pendingSession) return;
     renderAttributionOptions([]);
+    renderAttributionDestinations([]);
     attributionError.textContent = "Task suggestions are unavailable. You can still save this as general focus.";
   } finally {
     if (pendingSession) saveSessionButton.disabled = false;
@@ -986,6 +1153,7 @@ document.getElementById("session-attribution-form").addEventListener("submit", a
         planned_minutes: session.planned_minutes,
         actual_minutes: session.actual_minutes,
         completed: session.completed,
+        summary: sessionSummary.value.trim() || null,
         tasks,
       }),
     });
@@ -1016,6 +1184,10 @@ async function loadHistory() {
   sessions.forEach((session) => {
     const node = document.getElementById("session-template").content.cloneNode(true);
     node.querySelector(".session-title").textContent = session.task_title;
+    const summaryNote = node.querySelector(".session-summary-note");
+    const showSummary = Boolean(session.summary && session.summary.length > 80);
+    summaryNote.textContent = showSummary ? session.summary : "";
+    summaryNote.hidden = !showSummary;
     const attributionSummary = node.querySelector(".session-attributions");
     if (session.attributions.length) {
       session.attributions.forEach((item) => {
@@ -1072,7 +1244,7 @@ function renderAgenda(goalsWithTasks) {
     list.appendChild(row);
   });
   if (!all.length) {
-    list.innerHTML = '<p class="page-description">Nothing queued. Add a step from Roadmap.</p>';
+    list.innerHTML = '<p class="page-description">Nothing queued. Add a step from Plan.</p>';
   }
   const done = all.filter((item) => item.task.completed).length;
   document.getElementById("daily-progress-copy").textContent = all.length
@@ -1206,6 +1378,15 @@ document.addEventListener("click", (event) => {
   });
 });
 document.addEventListener("keydown", (event) => {
+  if (!planCaptureOverlay.classList.contains("hidden")) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setPlanCaptureOpen(false);
+      return;
+    }
+    trapFocus(event, planCaptureModal);
+    return;
+  }
   if (!timerSettingsOverlay.classList.contains("hidden")) {
     if (event.key === "Escape") {
       event.preventDefault();

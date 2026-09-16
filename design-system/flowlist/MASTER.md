@@ -11,7 +11,7 @@
 - Flowlist should feel like a focused desktop instrument, not a generic SaaS dashboard.
 - Use one visual surface per concept. Do not place bordered cards inside bordered cards.
 - Show hierarchy with order, indentation, dividers, and a subtle guide line.
-- Roadmap order is the plan. Do not add P1/P2/P3 labels to learning steps or tasks.
+- Plan order communicates sequence. Do not add P1/P2/P3 labels to learning steps or tasks.
 - Nature imagery is a quiet atmospheric anchor, not decoration on every panel.
 - Keep language plain and direct. Avoid motivational filler and poetic UI copy.
 - Light and dark modes are equal products, not color inversions of one another.
@@ -50,7 +50,7 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 
 ## Core Components
 
-### Roadmap
+### Plan
 
 - A goal is one panel containing its heading, controls, outline, and quick-add form.
 - Each task is a 48px minimum row separated by a one-pixel divider.
@@ -60,8 +60,8 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 - Priority controls are forbidden. Sequence communicates what comes first.
 - Do not prescribe a duration for an individual task. Focus time is observed by the Pomodoro, then attributed to work afterward.
 - AI-generated milestones and nested steps are proposals: display them as a multi-select list with one explicit “Add selected” action.
-- Treat the roadmap as a compact outline, not a stack of nested cards. Parent rows use a branch marker and progress copy; leaf rows use a restrained circular completion control.
-- Keep roadmap content to a readable desktop measure rather than stretching each task across the entire window.
+- Treat the plan as a compact outline, not a stack of nested cards. Parent rows use a branch marker and progress copy; leaf rows use a restrained circular completion control.
+- Keep plan content to a readable desktop measure rather than stretching each task across the entire window.
 
 ### Learning Path Questions
 
@@ -81,9 +81,13 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 - Exhibit the current round with text and a small dot sequence on the timer card.
 - Every running focus, short-break, and long-break block exposes “Skip to next.” Skipping focus advances the round but records only fully elapsed focus minutes; skipping a break begins the next focus block. Keep “End ritual” available as the exit route.
 - Continue from focus to break and into later cycles without interrupting the ritual. Show the centered attribution dialog only when the user chooses “End ritual,” and save the accumulated focus time as one record without presenting a target-time ratio.
+- Every deliberate Start begins a fresh ritual at round one. A long break follows every configured set of rounds, after which the round count begins again while the ritual continues.
+- Keep “Add to plan” available during focus and breaks in a nested modal that does not pause or dismiss the running timer.
 - Every attribution row has separate “Worked on” and “Finished” controls. Finishing implies worked-on; the session duration is still counted only once. No selected tasks means General focus.
+- The end-of-ritual dialog accepts an optional reflection and can create missing work in Tasks, an existing group, or a new project/learning objective before attribution.
+- Short meaningful reflections become cleaned history titles; longer reflections and selected-task sets use the title agent. Gibberish becomes General focus, and AI failure always falls back locally without blocking the save.
 - The task queue contains only completion, title, and parent context. Keep each title and its project, learning objective, or “Task” label to one line with an ellipsis and native title tooltip for the full text.
-- “Task” covers simple personal or administrative work that needs no roadmap hierarchy. Collect these items in one lightweight list and do not offer AI breakdown or nested-step controls.
+- “Task” covers simple personal or administrative work that needs no plan hierarchy. Collect these items in one lightweight list and do not offer AI breakdown or nested-step controls.
 - The Pomodoro and queue panels maintain the same intentional height on desktop. The queue scrolls internally when it contains more rows.
 - Supporting panels remain quieter and use minimal shadows.
 - Activity heatmap always renders its empty cells so the record is visible before data exists. Populated cells expose focused minutes and ritual count on hover and keyboard focus; empty cells have no tooltip.

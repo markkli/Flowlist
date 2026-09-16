@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -11,12 +12,15 @@ from ai import (
     AIConfigurationError,
     suggest_learning_questions,
     suggest_learning_tasks,
+    suggest_focus_title,
     suggest_subtasks,
 )
 from database import get_db
 from models import FocusSessionModel, FocusSessionTaskModel, GoalModel, TaskModel
 
 MAX_DEPTH = 3
+SHORT_FOCUS_SUMMARY_LENGTH = 80
+SHORT_FOCUS_SUMMARY_WORDS = 12
 
 app = FastAPI(title="Flowlist API")
 
@@ -41,6 +45,68 @@ def find_task(db: Session, task_id: int) -> TaskModel:
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     return task
+
+
+def clean_history_title(value: str, max_length: int = 100) -> str:
+    """Normalize user/AI copy without destroying intentional acronym casing."""
+    title = " ".join(value.split()).strip(" \t\n\r\"'`.,;:!?-–—")
+    if not title:
+        return "General focus"
+    title = title[0].upper() + title[1:]
+    if len(title) <= max_length:
+        return title
+    shortened = title[: max_length - 1].rsplit(" ", 1)[0]
+    return f"{shortened or title[: max_length - 1]}…"
+
+
+def looks_like_gibberish(value: str) -> bool:
+    compact = re.sub(r"\s+", "", value)
+    letters = "".join(character.lower() for character in compact if character.isalpha())
+    if not letters or len(letters) < max(2, len(compact) // 3):
+        return True
+    if len(letters) >= 3 and len(set(letters)) <= 2:
+        return True
+    if len(letters) >= 6 and sum(character in "aeiouy" for character in letters) / len(letters) < 0.18:
+        return True
+    return False
+
+
+def fallback_focus_title(tasks: list[TaskModel]) -> str:
+    if not tasks:
+        return "General focus"
+    if len(tasks) == 1:
+        return clean_history_title(tasks[0].title)
+    goal_titles = {task.goal.title for task in tasks}
+    if len(goal_titles) == 1:
+        return clean_history_title(f"{next(iter(goal_titles))} focus")
+    return "Focused work"
+
+
+def build_focus_title(summary: str | None, tasks: list[TaskModel]) -> tuple[str, str | None]:
+    """Choose a useful title while keeping optional AI failure non-blocking."""
+    clean_summary = " ".join(summary.split()) if summary else None
+    if clean_summary and looks_like_gibberish(clean_summary):
+        return "General focus", None
+    if clean_summary and (
+        len(clean_summary) <= SHORT_FOCUS_SUMMARY_LENGTH
+        and len(clean_summary.split()) <= SHORT_FOCUS_SUMMARY_WORDS
+    ):
+        return clean_history_title(clean_summary), clean_summary
+
+    task_contexts = [f"{task.title} — {task.goal.title}" for task in tasks]
+    if clean_summary or task_contexts:
+        try:
+            generated = clean_history_title(
+                suggest_focus_title(clean_summary, task_contexts)
+            )
+            if not looks_like_gibberish(generated):
+                return generated, clean_summary
+        except Exception:
+            # History must remain saveable if the optional title agent is unavailable.
+            pass
+    if clean_summary:
+        return clean_history_title(clean_summary), clean_summary
+    return fallback_focus_title(tasks), None
 
 
 @app.get("/health")
@@ -293,7 +359,12 @@ def log_session(session: schemas.FocusSessionCreate, db: Session = Depends(get_d
     if missing_task_ids:
         raise HTTPException(status_code=404, detail="Task not found")
 
+    selected_tasks = [tasks_by_id[item.task_id] for item in session.tasks]
+    history_title, stored_summary = build_focus_title(session.summary, selected_tasks)
+
     new_session = FocusSessionModel(
+        title=history_title,
+        summary=stored_summary,
         planned_minutes=session.planned_minutes,
         actual_minutes=session.actual_minutes,
         completed=session.completed,

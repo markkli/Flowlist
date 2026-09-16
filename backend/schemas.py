@@ -97,7 +97,16 @@ class FocusSessionCreate(BaseModel):
     planned_minutes: int = Field(ge=1, le=480)
     actual_minutes: int = Field(ge=0, le=480)
     completed: bool
+    summary: str | None = Field(default=None, max_length=2000)
     tasks: list["FocusSessionTaskCreate"] = Field(default_factory=list, max_length=30)
+
+    @field_validator("summary")
+    @classmethod
+    def normalize_summary(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        summary = " ".join(value.split())
+        return summary or None
 
     @field_validator("tasks")
     @classmethod
@@ -129,6 +138,7 @@ class FocusSession(BaseModel):
 
     id: int
     task_title: str
+    summary: str | None
     planned_minutes: int
     actual_minutes: int
     completed: bool

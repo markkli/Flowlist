@@ -23,6 +23,10 @@ class ClarificationSet(BaseModel):
     questions: list[ClarificationQuestion]
 
 
+class FocusTitle(BaseModel):
+    title: str
+
+
 class AIConfigurationError(RuntimeError):
     """Raised when an optional AI feature is requested without configuration."""
 
@@ -103,3 +107,31 @@ def suggest_learning_tasks(
         text_format=Breakdown,
     )
     return result.output_parsed.subtasks
+
+
+def suggest_focus_title(summary: str | None, task_contexts: list[str]) -> str:
+    """Turn a ritual note or its attributed work into a compact history title."""
+    context = "\n".join(f"- {item}" for item in task_contexts) or "- No tasks selected"
+    result = get_client().responses.parse(
+        model=model,
+        input=[
+            {
+                "role": "system",
+                "content": (
+                    "Write a calm, specific title for a focus-session history record. "
+                    "Use 3-8 words, sentence case, and a plain noun or action phrase. "
+                    "Find the shared theme when several tasks are listed. Do not join task "
+                    "names with punctuation, mention counts, use quotes, or add a period."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"User note: {summary or 'No note provided.'}\n"
+                    f"Work attributed to:\n{context}"
+                ),
+            },
+        ],
+        text_format=FocusTitle,
+    )
+    return result.output_parsed.title

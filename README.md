@@ -3,7 +3,7 @@
 Flowlist is a focus ritual app: turn a goal into concrete tasks, protect a
 focus block, and see that work accumulate in your activity ledger.
 
-Roadmap items can be projects, learning objectives, or tasks. Tasks share one
+Plan items can be projects, learning objectives, or tasks. Tasks share one
 simple list for work such as paying a bill or reading a book; they do not
 expose nested steps or AI breakdown controls.
 
@@ -132,9 +132,9 @@ PostgreSQL data.
 
 ## Focus timer behavior
 
-The Pomodoro is intentionally independent from the roadmap: start a focus ritual
+The Pomodoro is intentionally independent from the plan: start a focus ritual
 without choosing a task, then attribute the accumulated focus time only when the
-ritual ends. Flowlist suggests unfinished tasks in roadmap order, with recently
+ritual ends. Flowlist suggests unfinished tasks in plan order, with recently
 focused work first.
 
 The default cycle is four rounds of 25 minutes of focus and 5 minutes of rest,
@@ -153,6 +153,13 @@ A session can be attributed to several tasks. Each task can be marked as
 “worked on” and, independently, “finished”; finishing a task also counts it as
 worked on. The focus duration is counted once regardless of how many tasks are
 selected. Leaving all tasks unchecked saves the record as General focus.
+
+The end-of-ritual dialog also accepts a short reflection and lets you create work
+that was not already in the plan. Short reflections become the history title;
+long notes or multi-task sessions use the optional OpenAI title helper, with a
+local fallback so a network or AI failure never prevents the session from being
+saved. While a ritual is running, “Add to plan” can capture a new project,
+learning objective, or simple task without pausing the timer.
 
 Individual records can be removed from History. Removing a record updates the
 activity totals but does not reopen tasks that were completed during it.

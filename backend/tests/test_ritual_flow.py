@@ -165,6 +165,70 @@ def test_ended_early_session_can_be_saved_without_a_task():
     assert session.json()["actual_minutes"] == 8
 
 
+def test_short_ritual_summary_becomes_a_clean_history_title():
+    client = TestClient(app)
+
+    session = client.post(
+        "/sessions",
+        json={
+            "planned_minutes": 25,
+            "actual_minutes": 17,
+            "completed": True,
+            "summary": "  mapped the API error states.  ",
+        },
+    )
+
+    assert session.status_code == 200
+    assert session.json()["task_title"] == "Mapped the API error states"
+    assert session.json()["summary"] == "mapped the API error states."
+
+
+def test_gibberish_ritual_summary_falls_back_to_general_focus():
+    client = TestClient(app)
+
+    session = client.post(
+        "/sessions",
+        json={
+            "planned_minutes": 25,
+            "actual_minutes": 9,
+            "completed": True,
+            "summary": "fdsfdsa",
+        },
+    )
+
+    assert session.status_code == 200
+    assert session.json()["task_title"] == "General focus"
+    assert session.json()["summary"] is None
+
+
+def test_multiple_tasks_use_generated_shared_history_title(monkeypatch):
+    client = TestClient(app)
+    goal = client.post("/goals", json={"title": "AI engineering"}).json()
+    first = client.post(
+        f"/goals/{goal['id']}/tasks", json={"title": "Build retrieval"}
+    ).json()
+    second = client.post(
+        f"/goals/{goal['id']}/tasks", json={"title": "Evaluate responses"}
+    ).json()
+    monkeypatch.setattr(
+        "main.suggest_focus_title",
+        lambda summary, contexts: "Reliable retrieval workflow",
+    )
+
+    session = client.post(
+        "/sessions",
+        json={
+            "planned_minutes": 25,
+            "actual_minutes": 25,
+            "completed": True,
+            "tasks": [{"task_id": first["id"]}, {"task_id": second["id"]}],
+        },
+    )
+
+    assert session.status_code == 200
+    assert session.json()["task_title"] == "Reliable retrieval workflow"
+
+
 def test_task_creation_has_no_prescribed_duration():
     client = TestClient(app)
     _, task = create_goal_and_task(client)
@@ -321,6 +385,7 @@ def test_one_session_can_cover_multiple_tasks_and_finish_selected_ones():
     )
 
     assert response.status_code == 200
+    assert response.json()["task_title"] == "Ship release focus"
     assert [item["task_id"] for item in response.json()["attributions"]] == [
         first["id"],
         second["id"],
