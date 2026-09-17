@@ -4,6 +4,7 @@ from openai import OpenAI
 from pydantic import BaseModel
 
 model = os.environ.get("OPENAI_SUBTASK_MODEL", "gpt-5.4-mini")
+focus_title_model = os.environ.get("OPENAI_FOCUS_TITLE_MODEL", model)
 
 
 class SuggestedSubtask(BaseModel):
@@ -113,7 +114,7 @@ def suggest_focus_title(summary: str | None, task_contexts: list[str]) -> str:
     """Turn a ritual note or its attributed work into a compact history title."""
     context = "\n".join(f"- {item}" for item in task_contexts) or "- No tasks selected"
     result = get_client().responses.parse(
-        model=model,
+        model=focus_title_model,
         input=[
             {
                 "role": "system",

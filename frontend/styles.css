@@ -470,6 +470,12 @@ h3 { margin: 0 0 5px; font-size: 16px; }
   transition: opacity .15s ease, transform .15s ease;
 }
 .heatmap-cell[data-tooltip]:hover::after, .heatmap-cell[data-tooltip]:focus-visible::after { opacity: 1; transform: translate(-50%, 0); }
+.heatmap-cell:nth-child(-n+7)[data-tooltip]::after { left: 0; transform: translateY(3px); }
+.heatmap-cell:nth-child(-n+7)[data-tooltip]:hover::after,
+.heatmap-cell:nth-child(-n+7)[data-tooltip]:focus-visible::after { transform: none; }
+.heatmap-cell:nth-last-child(-n+7)[data-tooltip]::after { right: 0; left: auto; transform: translateY(3px); }
+.heatmap-cell:nth-last-child(-n+7)[data-tooltip]:hover::after,
+.heatmap-cell:nth-last-child(-n+7)[data-tooltip]:focus-visible::after { transform: none; }
 .heatmap-cell.level-1 { background: var(--heat-1); }
 .heatmap-cell.level-2 { background: var(--heat-2); }
 .heatmap-cell.level-3 { background: var(--heat-3); }
