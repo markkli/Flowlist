@@ -13,6 +13,8 @@ class GoalModel(Base):
     title: Mapped[str]
     description: Mapped[str | None]
     goal_type: Mapped[str] = mapped_column(default="project", server_default="project")
+    completed: Mapped[bool] = mapped_column(default=False)
+    position: Mapped[int] = mapped_column(default=0)
 
     tasks: Mapped[list["TaskModel"]] = relationship(
         back_populates="goal", cascade="all, delete-orphan"
@@ -30,6 +32,7 @@ class TaskModel(Base):
     depth: Mapped[int] = mapped_column(default=1)
     title: Mapped[str]
     completed: Mapped[bool] = mapped_column(default=False)
+    position: Mapped[int] = mapped_column(default=0)
 
     goal: Mapped["GoalModel"] = relationship(back_populates="tasks")
     session_attributions: Mapped[list["FocusSessionTaskModel"]] = relationship(

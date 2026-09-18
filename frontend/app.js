@@ -294,7 +294,7 @@ const learningWizardClose = document.getElementById("learning-wizard-close");
 
 function renderLearningSuggestions(goal, proposed, goalSuggestions) {
   goalSuggestions.innerHTML = proposed.length
-    ? '<li class="suggestion-toolbar"><span>Select the milestones that belong in this plan.</span><button class="secondary-btn suggestion-add-selected" type="button">Add selected</button></li>'
+    ? '<li class="suggestion-toolbar"><span><b class="beta-badge">AI draft</b> Keep only the milestones that fit your pace.</span><button class="secondary-btn suggestion-add-selected" type="button">Add selected</button></li>'
     : "";
   goalSuggestions.style.display = proposed.length ? "grid" : "none";
   proposed.forEach((suggestion, index) => {
@@ -329,13 +329,14 @@ function renderLearningSuggestions(goal, proposed, goalSuggestions) {
 
 function closeLearningWizard() {
   const previousTrigger = learningWizardState?.trigger;
+  const returnTarget = learningWizardState?.returnTarget;
   learningWizardState = null;
   learningOverlay.classList.add("hidden");
   learningOverlay.removeAttribute("aria-busy");
   document.body.classList.remove("modal-open");
   if (previousTrigger?.isConnected) {
     previousTrigger.disabled = false;
-    previousTrigger.focus();
+    (returnTarget?.isConnected ? returnTarget : previousTrigger).focus();
   }
 }
 
@@ -356,12 +357,20 @@ function renderLearningQuestion() {
   learningWizardError.textContent = "";
   learningWizardBack.disabled = index === 0;
   learningWizardNext.disabled = false;
-  learningWizardNext.textContent = index === questions.length - 1 ? "Generate path" : "Continue";
+  learningWizardNext.textContent = index === questions.length - 1 ? "Generate draft" : "Continue";
   requestAnimationFrame(() => learningAnswer.focus());
 }
 
 async function openLearningWizard(goal, trigger, goalSuggestions) {
-  const state = { goal, trigger, goalSuggestions, questions: [], answers: [], index: 0 };
+  const state = {
+    goal,
+    trigger,
+    returnTarget: trigger.closest("details")?.querySelector("summary") || trigger,
+    goalSuggestions,
+    questions: [],
+    answers: [],
+    index: 0,
+  };
   learningWizardState = state;
   trigger.disabled = true;
   learningGoalName.textContent = goal.title;
@@ -421,7 +430,7 @@ learningWizardNext.addEventListener("click", async () => {
     if (learningWizardState !== state) return;
     renderLearningSuggestions(state.goal, proposed, state.goalSuggestions);
     closeLearningWizard();
-    showToast("Learning path ready. Choose the milestones you want to keep.");
+    showToast("AI draft ready. Keep only what fits.");
   } catch (error) {
     if (learningWizardState !== state) return;
     learningOverlay.removeAttribute("aria-busy");
@@ -450,7 +459,7 @@ learningOverlay.addEventListener("click", (event) => {
 
 function renderTaskSuggestions(task, proposed, suggestions) {
   suggestions.innerHTML = proposed.length
-    ? '<li class="suggestion-toolbar"><span>Select all the steps you want to add.</span><button class="secondary-btn suggestion-add-selected" type="button">Add selected</button></li>'
+    ? '<li class="suggestion-toolbar"><span><b class="beta-badge">AI draft</b> Select every smaller step that actually helps.</span><button class="secondary-btn suggestion-add-selected" type="button">Add selected</button></li>'
     : "";
   proposed.forEach((suggestion, index) => {
     const item = document.createElement("li");

@@ -2,7 +2,7 @@
 
 **Direction:** Native Mac forest utility
 
-**Updated:** 2026-09-13
+**Updated:** 2026-09-17
 
 **Character:** Quiet, capable, natural, precise
 
@@ -52,14 +52,18 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 
 ### Plan
 
-- A goal is one panel containing its heading, controls, outline, and quick-add form.
+- Use a compact sticky index on desktop so people can jump between directions; wrap it above the outline on smaller screens.
+- A goal is one panel containing its heading, controls, active outline, and completed archive.
+- Creation is progressive: “New direction” reveals the direction composer, while “Add step” reveals a focused inline prompt. Do not keep empty forms open by default.
 - Each task is a 48px minimum row separated by a one-pixel divider.
 - Child steps are indented 22px and connected by a subtle vertical guide.
-- Leaf steps show completion and a single contextual menu for secondary actions.
+- Leaf steps show completion. Add and remove are direct icon actions; edit and AI drafting remain secondary menu actions.
 - Parent steps show progress as completed children over total children.
+- Remove completed leaf tasks from the active outline. Collect them in an expandable checked list and show their parent path as a restrained breadcrumb.
 - Priority controls are forbidden. Sequence communicates what comes first.
 - Do not prescribe a duration for an individual task. Focus time is observed by the Pomodoro, then attributed to work afterward.
 - AI-generated milestones and nested steps are proposals: display them as a multi-select list with one explicit “Add selected” action.
+- AI planning is a Beta secondary action inside the overflow menu, never the main action. State that personal planning usually fits pace and preference better, and label every generated proposal as an AI draft.
 - Treat the plan as a compact outline, not a stack of nested cards. Parent rows use a branch marker and progress copy; leaf rows use a restrained circular completion control.
 - Keep plan content to a readable desktop measure rather than stretching each task across the entire window.
 

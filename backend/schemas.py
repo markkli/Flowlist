@@ -41,12 +41,15 @@ class GoalCreate(TitledPayload):
 class GoalUpdate(OptionalTitleUpdate):
     description: str | None = None
     goal_type: GoalType | None = None
+    completed: bool | None = None
 
 
 class Goal(GoalCreate):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    completed: bool
+    position: int
 
 
 class TaskCreate(TitledPayload):
@@ -65,6 +68,18 @@ class Task(TaskCreate):
     parent_id: int | None
     depth: int
     completed: bool
+    position: int
+
+
+class ReorderPayload(BaseModel):
+    ordered_ids: list[int] = Field(min_length=1)
+
+    @field_validator("ordered_ids")
+    @classmethod
+    def reject_duplicate_ids(cls, value: list[int]) -> list[int]:
+        if len(value) != len(set(value)):
+            raise ValueError("Ordered IDs must be unique")
+        return value
 
 
 class SuggestedSubtask(TitledPayload):
