@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>Flowlist</title>
-  <link rel="stylesheet" href="styles.css?v=forest-17">
+  <link rel="stylesheet" href="styles.css?v=forest-18">
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -58,10 +58,26 @@
         </section>
 
         <section id="view-goals" class="view hidden">
-          <header class="page-heading"><div><p class="kicker">Direction</p><h1>Plan</h1><p class="page-description">Projects, learning objectives, and simple tasks in one working outline.</p></div></header>
+          <header class="page-heading plan-page-heading">
+            <div><p class="kicker">Direction</p><h1>Plan</h1><p class="page-description">Keep the structure clear, then work the next visible step.</p></div>
+            <button class="secondary-btn plan-new-button" id="toggle-goal-composer" type="button" aria-expanded="false" aria-controls="goal-composer"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg><span>New direction</span></button>
+          </header>
           <div class="roadmap-layout">
-            <aside class="new-goal panel"><div><p class="kicker">New item</p><h2>Add a direction</h2></div><form id="goal-form" class="new-goal-form"><label><span>Name</span><input id="goal-title" class="field" type="text" placeholder="e.g. Build portfolio" required></label><fieldset class="type-picker"><legend>Type</legend><div class="type-segments"><label><input type="radio" name="goal-type" value="project" checked><span>Project</span></label><label><input type="radio" name="goal-type" value="learning"><span>Learning</span></label><label><input type="radio" name="goal-type" value="standalone"><span>Task</span></label></div></fieldset><button class="primary-btn">Add</button></form></aside>
-            <div id="goals" class="goal-stack"></div>
+            <aside class="plan-index panel" aria-label="Plan index">
+              <div class="plan-index-heading"><div><p class="kicker">Index</p><h2>Your directions</h2></div><span class="plan-index-count" id="plan-index-count">0</span></div>
+              <nav class="plan-index-list" id="plan-index-list" aria-label="Jump to a direction"></nav>
+            </aside>
+            <div class="plan-main">
+              <aside class="new-goal panel hidden" id="goal-composer">
+                <div class="new-goal-copy"><p class="kicker">New direction</p><h2>Give the work a home</h2><p>Choose a larger project, a learning objective, or a simple task.</p></div>
+                <form id="goal-form" class="new-goal-form">
+                  <label><span>Name</span><input id="goal-title" class="field" type="text" placeholder="e.g. Build portfolio" required></label>
+                  <fieldset class="type-picker"><legend>Type</legend><div class="type-segments"><label><input type="radio" name="goal-type" value="project" checked><span>Project</span></label><label><input type="radio" name="goal-type" value="learning"><span>Learning</span></label><label><input type="radio" name="goal-type" value="standalone"><span>Task</span></label></div></fieldset>
+                  <div class="new-goal-actions"><button class="text-btn" id="cancel-goal-composer" type="button">Cancel</button><button class="primary-btn">Add</button></div>
+                </form>
+              </aside>
+              <div id="goals" class="goal-stack"></div>
+            </div>
           </div>
         </section>
 
@@ -75,16 +91,28 @@
 
   <template id="goal-template">
     <article class="goal-card panel">
-      <div class="goal-card-head"><div class="goal-card-copy"><p class="kicker goal-type-label"></p><h2 class="goal-title"></h2><p class="goal-description"></p><div class="goal-progress-summary"><div class="progress-track"><div class="progress-value goal-progress-value"></div></div><p class="goal-progress-copy"></p></div></div><div class="goal-actions"><button class="goal-generate break-down-goal">Generate learning path</button><details class="context-menu goal-menu"><summary aria-label="More goal actions"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1.4"/><circle cx="10" cy="10" r="1.4"/><circle cx="16" cy="10" r="1.4"/></svg></summary><div class="context-menu-popover"><button class="edit-goal">Edit goal</button><button class="danger delete-goal">Remove goal</button></div></details></div></div>
+      <div class="goal-card-head">
+        <div class="goal-card-copy"><p class="kicker goal-type-label"></p><h2 class="goal-title"></h2><p class="goal-description"></p><div class="goal-progress-summary"><div class="progress-track"><div class="progress-value goal-progress-value"></div></div><p class="goal-progress-copy"></p></div></div>
+        <div class="goal-actions">
+          <button class="secondary-btn goal-add-step" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg><span>Add step</span></button>
+          <details class="context-menu goal-menu"><summary aria-label="More goal actions"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1.4"/><circle cx="10" cy="10" r="1.4"/><circle cx="16" cy="10" r="1.4"/></svg></summary><div class="context-menu-popover goal-menu-popover"><button class="break-down-goal menu-feature"><span>Generate learning path <b class="beta-badge">Beta</b></span><small>Use as a draft—your own plan will usually fit your pace better.</small></button><span class="menu-divider" aria-hidden="true"></span><button class="edit-goal">Edit direction</button><button class="danger delete-goal">Remove direction</button></div></details>
+        </div>
+      </div>
       <form class="goal-edit-form edit-form" style="display:none"><label><span>Name</span><input class="field goal-edit-title" type="text"></label><label><span>Description</span><input class="field goal-edit-description" type="text" placeholder="Optional"></label><label><span>Type</span><select class="field goal-edit-type"><option value="project">Project</option><option value="learning">Learning</option><option value="standalone">Tasks</option></select></label><button class="secondary-btn goal-edit-save">Save</button><button class="text-btn goal-edit-cancel" type="button">Cancel</button></form>
+      <form class="task-form step-composer hidden"><label><span class="step-composer-label">New step</span><input class="field" type="text" placeholder="Describe the next meaningful step" aria-label="New task"></label><button class="secondary-btn">Add</button><button class="text-btn cancel-step-composer" type="button">Cancel</button></form>
       <ul class="goal-suggestion-list task-list suggestions" style="display:none"></ul>
-      <ul class="goal-task-list task-list"></ul>
-      <form class="task-form quick-add"><input class="field" type="text" placeholder="Add a step" aria-label="New task"><button class="secondary-btn">Add</button></form>
+      <section class="goal-outline" aria-label="Active steps"><header class="outline-heading"><h3>Active</h3><span class="active-task-count"></span></header><ul class="goal-task-list task-list"></ul><p class="goal-empty-state hidden">No active steps. Add one when you know what comes next.</p></section>
+      <details class="completed-tasks hidden"><summary><span class="completed-summary-mark"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 10 3 3 7-7"/></svg></span><span>Completed</span><b class="completed-count">0</b><svg class="completed-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg></summary><ul class="completed-task-list"></ul></details>
     </article>
   </template>
 
   <template id="task-template">
-    <li class="task-node"><div class="task-row"><input type="checkbox" class="task-completed" aria-label="Complete task"><span class="task-title"></span><span class="task-progress task-meta"></span><div class="task-actions"><details class="context-menu task-menu"><summary aria-label="More task actions"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1.4"/><circle cx="10" cy="10" r="1.4"/><circle cx="16" cy="10" r="1.4"/></svg></summary><div class="context-menu-popover"><button class="edit-task">Edit</button><button class="add-subtask">Add step</button><button class="break-down">Generate steps</button><button class="delete-task danger">Remove</button></div></details></div></div><form class="task-edit-form edit-form" style="display:none"><input class="field task-edit-title" type="text" aria-label="Task title"><button class="secondary-btn task-edit-save">Save</button><button class="text-btn task-edit-cancel" type="button">Cancel</button></form><form class="subtask-form quick-add nested-form" style="display:none"><input class="field" type="text" placeholder="Add a smaller step" aria-label="Subtask title"><button class="secondary-btn">Add</button></form><ul class="suggestion-list task-list nested-list"></ul><ul class="subtask-list task-list nested-list"></ul></li>
+    <li class="task-node">
+      <div class="task-row"><input type="checkbox" class="task-completed" aria-label="Complete task"><span class="task-title"></span><span class="task-progress task-meta"></span><div class="task-actions"><button class="row-action add-subtask" type="button" aria-label="Add a smaller step"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></button><button class="row-action row-delete delete-task" type="button" aria-label="Remove task"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M8 6V4h4v2m3 0-1 10H6L5 6m3 3v4m4-4v4"/></svg></button><details class="context-menu task-menu"><summary aria-label="More task actions"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1.4"/><circle cx="10" cy="10" r="1.4"/><circle cx="16" cy="10" r="1.4"/></svg></summary><div class="context-menu-popover"><button class="edit-task">Edit</button><button class="break-down menu-feature"><span>Generate smaller steps <b class="beta-badge">Beta</b></span><small>Review every suggestion before adding it.</small></button></div></details></div></div>
+      <form class="task-edit-form edit-form" style="display:none"><input class="field task-edit-title" type="text" aria-label="Task title"><button class="secondary-btn task-edit-save">Save</button><button class="text-btn task-edit-cancel" type="button">Cancel</button></form>
+      <form class="subtask-form step-composer nested-form hidden"><label><span>New substep</span><input class="field" type="text" placeholder="Describe the smaller step" aria-label="Subtask title"></label><button class="secondary-btn">Add</button><button class="text-btn cancel-subtask" type="button">Cancel</button></form>
+      <ul class="suggestion-list task-list nested-list"></ul><ul class="subtask-list task-list nested-list"></ul>
+    </li>
   </template>
 
   <template id="session-template"><article class="session-row panel"><div class="session-copy"><div class="session-title"></div><div class="session-summary-note"></div><div class="session-attributions"></div><div class="session-meta"></div></div><div class="session-actions"><span class="session-status pill"></span><button class="session-delete icon-btn" type="button" aria-label="Delete focus record"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg></button></div></article></template>
@@ -94,12 +122,12 @@
   <div id="timer-settings-overlay" class="overlay settings-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="timer-settings-title"><section class="settings-modal" tabindex="-1"><header class="settings-modal-header"><div><p class="kicker">Pomodoro cycle</p><h2 id="timer-settings-title">Timer settings</h2></div><button class="icon-btn" id="timer-settings-close" type="button" aria-label="Close timer settings"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg></button></header><p class="settings-intro">A long break begins after the final focus round.</p><form id="timer-settings-form"><div class="settings-grid"><label><span>Focus</span><div class="number-field"><input class="field" id="focus-minutes-setting" type="number" min="5" max="120" value="25"><small>min</small></div></label><label><span>Short break</span><div class="number-field"><input class="field" id="break-minutes-setting" type="number" min="1" max="60" value="5"><small>min</small></div></label><label><span>Rounds</span><div class="number-field"><input class="field" id="rounds-setting" type="number" min="2" max="8" value="4"><small>rounds</small></div></label><label><span>Long break</span><div class="number-field"><input class="field" id="long-break-minutes-setting" type="number" min="5" max="90" value="15"><small>min</small></div></label></div><p class="field-error" id="timer-settings-error" role="alert"></p><footer class="settings-actions"><button class="text-btn" id="timer-settings-cancel" type="button">Cancel</button><button class="primary-btn" type="submit">Save cycle</button></footer></form></section></div>
   <div id="learning-path-overlay" class="overlay learning-overlay hidden" role="dialog" aria-modal="true" aria-label="Generate learning path">
     <section class="learning-wizard" tabindex="-1">
-      <header class="learning-wizard-header"><div><p class="kicker">Learning path</p><span class="learning-goal-name" id="learning-goal-name"></span></div><button class="icon-btn" id="learning-wizard-close" type="button" aria-label="Close learning path questions"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg></button></header>
+      <header class="learning-wizard-header"><div><p class="kicker">AI draft <b class="beta-badge">Beta</b></p><span class="learning-goal-name" id="learning-goal-name"></span></div><button class="icon-btn" id="learning-wizard-close" type="button" aria-label="Close learning path questions"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg></button></header>
       <div class="learning-wizard-loading" id="learning-wizard-loading"><span class="loading-ring" aria-hidden="true"></span><h2>Preparing your questions</h2><p>Flowlist is finding the details needed to shape this path.</p></div>
       <div class="learning-wizard-question" id="learning-wizard-question" hidden>
         <div class="wizard-progress-copy"><span id="learning-question-count">Question 1 of 1</span><span id="learning-progress-percent">0%</span></div>
         <div class="wizard-progress" aria-hidden="true"><span id="learning-progress-fill"></span></div>
-        <div class="wizard-prompt"><p class="kicker">A little context</p><h2 id="learning-wizard-title"></h2><p>A sentence or two is enough. You can be specific or keep it broad.</p></div>
+        <div class="wizard-prompt"><p class="kicker">A little context</p><h2 id="learning-wizard-title"></h2><p>AI can miss your pace and preferences. Treat this as a draft; a plan you think through yourself will usually fit better.</p></div>
         <label class="wizard-answer-label" for="learning-wizard-answer">Your answer</label>
         <textarea class="field wizard-answer" id="learning-wizard-answer" rows="4"></textarea>
         <p class="field-error" id="learning-wizard-error" role="alert"></p>
@@ -109,6 +137,6 @@
   </div>
   <div id="celebration-overlay" class="overlay hidden"><div class="timer-modal celebration"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 40V15m0 7-9-8m9 15 10-9M15 40h18"/><path d="M24 15c-2-6-7-9-13-7 1 7 5 10 13 10m0 2c2-7 7-10 14-9-1 7-5 11-14 12"/></svg><span class="status"><i></i>Goal complete</span><h2 id="celebration-goal-title">Goal complete</h2><p>Nice work. Take a moment before choosing what comes next.</p><div class="focus-actions"><button id="celebration-dismiss" class="primary-btn">Continue</button></div></div></div>
   <div id="app-toast" class="app-toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=forest-17"></script>
+  <script src="app.js?v=forest-18"></script>
 </body>
 </html>

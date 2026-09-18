@@ -142,6 +142,23 @@ document.getElementById("theme-toggle").addEventListener("click", () => {
 const goalsContainer = document.getElementById("goals");
 const goalTemplate = document.getElementById("goal-template");
 const taskTemplate = document.getElementById("task-template");
+const planIndexList = document.getElementById("plan-index-list");
+const planIndexCount = document.getElementById("plan-index-count");
+const goalComposer = document.getElementById("goal-composer");
+const goalComposerToggle = document.getElementById("toggle-goal-composer");
+let planSectionObserver = null;
+
+function setGoalComposerOpen(open) {
+  goalComposer.classList.toggle("hidden", !open);
+  goalComposerToggle.setAttribute("aria-expanded", String(open));
+  goalComposerToggle.classList.toggle("active", open);
+  if (open) requestAnimationFrame(() => document.getElementById("goal-title").focus());
+}
+
+goalComposerToggle.addEventListener("click", () => {
+  setGoalComposerOpen(goalComposer.classList.contains("hidden"));
+});
+document.getElementById("cancel-goal-composer").addEventListener("click", () => setGoalComposerOpen(false));
 
 const timerSettingsToggle = document.getElementById("timer-settings-toggle");
 const timerSettingsOverlay = document.getElementById("timer-settings-overlay");
@@ -464,39 +481,113 @@ function renderTaskSuggestions(task, proposed, suggestions) {
   });
 }
 
+function goalTypeLabel(goalType) {
+  if (goalType === "learning") return "Learning objective";
+  if (goalType === "standalone") return "Tasks";
+  return "Project";
+}
+
+function goalDisplayTitle(goal) {
+  return goal.goal_type === "standalone" ? "Tasks" : goal.title;
+}
+
+function setPlanIndexActive(goalId) {
+  planIndexList.querySelectorAll(".plan-index-item").forEach((item) => {
+    const active = item.dataset.goalId === String(goalId);
+    item.classList.toggle("active", active);
+    if (active) item.setAttribute("aria-current", "location");
+    else item.removeAttribute("aria-current");
+  });
+}
+
+function renderPlanIndex(goals) {
+  planIndexCount.textContent = String(goals.length);
+  planIndexList.innerHTML = goals.length ? "" : '<p class="plan-index-empty">No directions yet.</p>';
+  goals.forEach((goal, index) => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "plan-index-item";
+    item.dataset.goalId = goal.id;
+    item.innerHTML = `<span class="plan-index-item-copy"><small>${escapeHtml(goalTypeLabel(goal.goal_type))}</small><strong>${escapeHtml(goalDisplayTitle(goal))}</strong></span><span class="plan-index-progress" data-index-progress="${goal.id}">—</span>`;
+    item.addEventListener("click", () => {
+      document.querySelector(`article[data-goal-id="${goal.id}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setPlanIndexActive(goal.id);
+    });
+    planIndexList.appendChild(item);
+    if (index === 0) setPlanIndexActive(goal.id);
+  });
+}
+
+function observePlanSections() {
+  planSectionObserver?.disconnect();
+  if (!("IntersectionObserver" in window)) return;
+  planSectionObserver = new IntersectionObserver((entries) => {
+    const visible = entries
+      .filter((entry) => entry.isIntersecting)
+      .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+    if (visible) setPlanIndexActive(visible.target.dataset.goalId);
+  }, { rootMargin: "-18% 0px -62% 0px", threshold: [0, 0.2, 0.55] });
+  goalsContainer.querySelectorAll("article[data-goal-id]").forEach((section) => planSectionObserver.observe(section));
+}
+
+function setStepComposer(form, open) {
+  form.classList.toggle("hidden", !open);
+  if (open) requestAnimationFrame(() => form.querySelector('input[type="text"]')?.focus());
+}
+
 async function loadGoals() {
   const goals = await api("/goals");
   goalsContainer.innerHTML = "";
+  renderPlanIndex(goals);
+  if (!goals.length) {
+    goalsContainer.innerHTML = '<section class="plan-empty panel"><p class="kicker">An open page</p><h2>Choose one direction to begin.</h2><p>Projects hold outcomes, learning holds a path, and Tasks catches everything smaller.</p></section>';
+    return;
+  }
+  const taskLoads = [];
   for (const goal of goals) {
     const node = goalTemplate.content.cloneNode(true);
     const section = node.querySelector("article");
     section.dataset.goalId = goal.id;
     section.dataset.goalType = goal.goal_type || "project";
-    node.querySelector(".goal-type-label").textContent = goal.goal_type === "learning"
-      ? "Learning objective"
-      : goal.goal_type === "standalone"
-        ? "Tasks"
-        : "Project";
-    node.querySelector(".goal-title").textContent = goal.goal_type === "standalone" ? "Tasks" : goal.title;
-    node.querySelector(".goal-description").textContent = goal.description || "";
+    section.id = `goal-${goal.id}`;
+    node.querySelector(".goal-type-label").textContent = goalTypeLabel(goal.goal_type);
+    node.querySelector(".goal-title").textContent = goalDisplayTitle(goal);
+    const description = node.querySelector(".goal-description");
+    description.textContent = goal.description || "";
+    description.classList.toggle("hidden", !goal.description);
 
     const goalBreakdown = node.querySelector(".break-down-goal");
     const goalSuggestions = node.querySelector(".goal-suggestion-list");
-    if (goal.goal_type !== "learning") goalBreakdown.remove();
-    else {
+    const menuDivider = node.querySelector(".goal-menu-popover .menu-divider");
+    if (goal.goal_type !== "learning") {
+      goalBreakdown.remove();
+      menuDivider.remove();
+    } else {
       goalBreakdown.addEventListener("click", () => {
+        section.querySelector(".goal-menu")?.removeAttribute("open");
         openLearningWizard(goal, goalBreakdown, goalSuggestions);
       });
     }
 
     const goalEdit = node.querySelector(".goal-edit-form");
     const goalMenu = node.querySelector(".goal-menu");
+    const taskForm = node.querySelector(".task-form");
+    const goalAddStep = node.querySelector(".goal-add-step");
+    if (goal.goal_type === "standalone") {
+      goalAddStep.querySelector("span").textContent = "Add task";
+      taskForm.querySelector(".step-composer-label").textContent = "New task";
+      taskForm.querySelector("input").placeholder = "What needs doing?";
+    }
+    goalAddStep.addEventListener("click", () => setStepComposer(taskForm, taskForm.classList.contains("hidden")));
+    taskForm.querySelector(".cancel-step-composer").addEventListener("click", () => setStepComposer(taskForm, false));
+
     goalEdit.querySelector(".goal-edit-title").value = goal.title;
     goalEdit.querySelector(".goal-edit-description").value = goal.description || "";
     goalEdit.querySelector(".goal-edit-type").value = goal.goal_type || "project";
     node.querySelector(".edit-goal").addEventListener("click", () => {
       goalMenu.removeAttribute("open");
       goalEdit.style.display = goalEdit.style.display === "none" ? "grid" : "none";
+      if (goalEdit.style.display === "grid") goalEdit.querySelector(".goal-edit-title").focus();
     });
     goalEdit.querySelector(".goal-edit-cancel").addEventListener("click", () => {
       goalEdit.style.display = "none";
@@ -514,17 +605,20 @@ async function loadGoals() {
             goal_type: goalEdit.querySelector(".goal-edit-type").value,
           }),
         });
-        loadGoals();
-        showToast("Goal updated");
+        await loadGoals();
+        showToast("Direction updated.");
       } catch (error) {
-        showToast("Could not update this goal.", true);
+        showToast("Could not update this direction.", true);
       }
     });
     node.querySelector(".delete-goal").addEventListener("click", async () => {
+      goalMenu.removeAttribute("open");
+      if (!window.confirm(`Remove “${goalDisplayTitle(goal)}” and every step inside it?`)) return;
       await api(`/goals/${goal.id}`, { method: "DELETE" });
-      loadGoals();
+      await loadGoals();
+      showToast("Direction removed.");
     });
-    node.querySelector(".task-form").addEventListener("submit", async (event) => {
+    taskForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       const input = event.target.querySelector('input[type="text"]');
       if (!input.value.trim()) return;
@@ -533,14 +627,65 @@ async function loadGoals() {
         body: JSON.stringify({ title: input.value.trim() }),
       });
       input.value = "";
-      loadGoals();
+      setStepComposer(taskForm, false);
+      await loadTasks(goal.id);
+      showToast(goal.goal_type === "standalone" ? "Task added." : "Step added.");
     });
-    if (goal.goal_type === "standalone") {
-      node.querySelector(".task-form input").placeholder = "Add a task";
-    }
     goalsContainer.appendChild(node);
-    loadTasks(goal.id);
+    taskLoads.push(loadTasks(goal.id));
   }
+  observePlanSections();
+  await Promise.all(taskLoads);
+}
+
+function childrenOf(task, allTasks) {
+  return allTasks.filter((item) => item.parent_id === task.id).sort((a, b) => a.id - b.id);
+}
+
+function descendantLeaves(task, allTasks) {
+  const children = childrenOf(task, allTasks);
+  return children.length ? children.flatMap((child) => descendantLeaves(child, allTasks)) : [task];
+}
+
+function hasIncompleteLeaf(task, allTasks) {
+  return descendantLeaves(task, allTasks).some((leaf) => !leaf.completed);
+}
+
+function taskParentPath(task, allTasks) {
+  const byId = new Map(allTasks.map((item) => [item.id, item]));
+  const path = [];
+  let parent = byId.get(task.parent_id);
+  while (parent) {
+    path.unshift(parent.title);
+    parent = byId.get(parent.parent_id);
+  }
+  return path;
+}
+
+function renderCompletedTasks(section, tasks) {
+  const completed = leafTasks(tasks).filter((task) => task.completed);
+  const completedSection = section.querySelector(".completed-tasks");
+  const completedList = section.querySelector(".completed-task-list");
+  completedSection.classList.toggle("hidden", completed.length === 0);
+  section.querySelector(".completed-count").textContent = String(completed.length);
+  completedList.innerHTML = "";
+  completed.forEach((task) => {
+    const path = taskParentPath(task, tasks);
+    const item = document.createElement("li");
+    item.className = "completed-task-row";
+    item.innerHTML = `<input type="checkbox" class="task-completed" checked aria-label="Reopen ${escapeHtml(task.title)}"><span class="completed-task-copy"><span>${escapeHtml(task.title)}</span>${path.length ? `<small>${path.map(escapeHtml).join('<i aria-hidden="true">/</i>')}</small>` : ""}</span><button class="row-action row-delete" type="button" aria-label="Remove ${escapeHtml(task.title)}"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M8 6V4h4v2m3 0-1 10H6L5 6m3 3v4m4-4v4"/></svg></button>`;
+    item.querySelector(".task-completed").addEventListener("change", async () => {
+      await api(`/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({ completed: false }) });
+      await loadTasks(task.goal_id);
+    });
+    item.querySelector(".row-delete").addEventListener("click", async () => {
+      if (!window.confirm(`Remove “${task.title}”?`)) return;
+      await api(`/tasks/${task.id}`, { method: "DELETE" });
+      await loadTasks(task.goal_id);
+      showToast("Task removed.");
+    });
+    completedList.appendChild(item);
+  });
 }
 
 async function loadTasks(goalId) {
@@ -550,16 +695,22 @@ async function loadTasks(goalId) {
   const list = section.querySelector(".goal-task-list");
   list.innerHTML = "";
   tasks
-    .filter((task) => task.parent_id === null)
+    .filter((task) => task.parent_id === null && hasIncompleteLeaf(task, tasks))
     .sort((a, b) => a.id - b.id)
     .forEach((task) => renderTask(task, tasks, list, section.dataset.goalType));
   const leaves = leafTasks(tasks);
   const completed = leaves.filter((task) => task.completed).length;
+  const remaining = leaves.length - completed;
   const itemNoun = section.dataset.goalType === "standalone" ? "tasks" : "steps";
   section.querySelector(".goal-progress-copy").textContent = leaves.length
     ? `${completed} of ${leaves.length} ${itemNoun} complete`
     : section.dataset.goalType === "standalone" ? "No tasks yet" : "No steps yet";
   section.querySelector(".goal-progress-value").style.width = `${leaves.length ? (completed / leaves.length) * 100 : 0}%`;
+  section.querySelector(".active-task-count").textContent = remaining ? `${remaining} remaining` : "All clear";
+  section.querySelector(".goal-empty-state").classList.toggle("hidden", remaining !== 0);
+  renderCompletedTasks(section, tasks);
+  const indexProgress = document.querySelector(`[data-index-progress="${goalId}"]`);
+  if (indexProgress) indexProgress.textContent = leaves.length ? `${completed}/${leaves.length}` : "New";
   checkGoalComplete(goalId, tasks);
 }
 
@@ -579,9 +730,8 @@ document.getElementById("celebration-dismiss").addEventListener("click", () => {
 });
 
 function renderTask(task, allTasks, container, goalType = "project") {
-  const children = allTasks
-    .filter((item) => item.parent_id === task.id)
-    .sort((a, b) => a.id - b.id);
+  const children = childrenOf(task, allTasks);
+  const activeChildren = children.filter((child) => hasIncompleteLeaf(child, allTasks));
   const isLeaf = children.length === 0;
   const node = taskTemplate.content.cloneNode(true);
   const taskNode = node.querySelector(".task-node");
@@ -597,6 +747,7 @@ function renderTask(task, allTasks, container, goalType = "project") {
   const subtaskForm = node.querySelector(".subtask-form");
   const subtaskList = node.querySelector(".subtask-list");
   const suggestions = node.querySelector(".suggestion-list");
+  const remove = node.querySelector(".delete-task");
 
   taskNode.dataset.depth = task.depth;
   taskRow.classList.add(isLeaf ? "leaf-task-row" : "parent-task-row");
@@ -642,12 +793,16 @@ function renderTask(task, allTasks, container, goalType = "project") {
     branchMarker.className = "task-branch-marker";
     branchMarker.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4v12m0-6h8m-3-3 3 3-3 3"/></svg>';
     taskRow.insertBefore(branchMarker, title);
-    progress.textContent = `${children.filter((child) => child.completed).length} of ${children.length}`;
+    const leaves = descendantLeaves(task, allTasks);
+    progress.textContent = `${leaves.filter((leaf) => leaf.completed).length}/${leaves.length} done`;
   }
 
-  node.querySelector(".delete-task").addEventListener("click", async () => {
+  remove.setAttribute("aria-label", `Remove ${task.title}`);
+  remove.addEventListener("click", async () => {
+    if (!window.confirm(`Remove “${task.title}”${children.length ? " and its smaller steps" : ""}?`)) return;
     await api(`/tasks/${task.id}`, { method: "DELETE" });
-    loadTasks(task.goal_id);
+    await loadTasks(task.goal_id);
+    showToast("Task removed.");
   });
 
   if (task.depth >= MAX_DEPTH || goalType === "standalone") {
@@ -655,10 +810,9 @@ function renderTask(task, allTasks, container, goalType = "project") {
     breakdown.remove();
     subtaskForm.remove();
   } else {
-    add.addEventListener("click", () => {
-      menu.removeAttribute("open");
-      subtaskForm.style.display = subtaskForm.style.display === "none" ? "grid" : "none";
-    });
+    add.setAttribute("aria-label", `Add a smaller step under ${task.title}`);
+    add.addEventListener("click", () => setStepComposer(subtaskForm, subtaskForm.classList.contains("hidden")));
+    subtaskForm.querySelector(".cancel-subtask").addEventListener("click", () => setStepComposer(subtaskForm, false));
     subtaskForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       const input = subtaskForm.querySelector('input[type="text"]');
@@ -667,10 +821,12 @@ function renderTask(task, allTasks, container, goalType = "project") {
         method: "POST",
         body: JSON.stringify({ title: input.value.trim() }),
       });
-      loadTasks(task.goal_id);
+      await loadTasks(task.goal_id);
+      showToast("Substep added.");
     });
     breakdown.addEventListener("click", async () => {
       menu.removeAttribute("open");
+      const originalMarkup = breakdown.innerHTML;
       breakdown.textContent = "Generating…";
       breakdown.disabled = true;
       try {
@@ -684,14 +840,14 @@ function renderTask(task, allTasks, container, goalType = "project") {
           true
         );
       } finally {
-        breakdown.textContent = "Generate steps";
+        breakdown.innerHTML = originalMarkup;
         breakdown.disabled = false;
       }
     });
   }
 
   container.appendChild(node);
-  children.forEach((child) => renderTask(child, allTasks, subtaskList, goalType));
+  activeChildren.forEach((child) => renderTask(child, allTasks, subtaskList, goalType));
 }
 
 document.getElementById("goal-form").addEventListener("submit", async (event) => {
@@ -714,6 +870,7 @@ document.getElementById("goal-form").addEventListener("submit", async (event) =>
       });
     }
     input.value = "";
+    setGoalComposerOpen(false);
     await loadGoals();
     showToast(type === "standalone" ? "Task added." : "Goal added.");
   } catch (error) {
