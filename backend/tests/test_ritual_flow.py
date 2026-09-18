@@ -483,3 +483,67 @@ def test_goal_deletion_preserves_attribution_snapshot():
         "goal_title": "Write thesis",
         "completed": False,
     }
+
+
+def test_nested_completion_rolls_up_only_after_explicit_section_approval():
+    client = TestClient(app)
+    goal = client.post(
+        "/goals", json={"title": "Learn retrieval", "goal_type": "learning"}
+    ).json()
+    section = client.post(
+        f"/goals/{goal['id']}/tasks", json={"title": "Vector search"}
+    ).json()
+    first = client.post(
+        f"/tasks/{section['id']}/subtasks", json={"title": "Read the guide"}
+    ).json()
+    second = client.post(
+        f"/tasks/{section['id']}/subtasks", json={"title": "Build a demo"}
+    ).json()
+
+    assert client.patch(
+        f"/tasks/{section['id']}", json={"completed": True}
+    ).status_code == 409
+    client.patch(f"/tasks/{first['id']}", json={"completed": True})
+    client.patch(f"/tasks/{second['id']}", json={"completed": True})
+    assert client.patch(
+        f"/tasks/{section['id']}", json={"completed": True}
+    ).status_code == 200
+    assert client.patch(
+        f"/goals/{goal['id']}", json={"completed": True}
+    ).status_code == 200
+
+    client.patch(f"/tasks/{first['id']}", json={"completed": False})
+    tasks = {task["id"]: task for task in client.get(f"/goals/{goal['id']}/tasks").json()}
+    reopened_goal = client.get(f"/goals/{goal['id']}").json()
+    assert tasks[first["id"]]["completed"] is False
+    assert tasks[second["id"]]["completed"] is True
+    assert tasks[section["id"]]["completed"] is False
+    assert reopened_goal["completed"] is False
+
+
+def test_plan_order_is_persistent_for_goals_and_sibling_tasks():
+    client = TestClient(app)
+    first_goal = client.post("/goals", json={"title": "First"}).json()
+    second_goal = client.post("/goals", json={"title": "Second"}).json()
+    first_task = client.post(
+        f"/goals/{first_goal['id']}/tasks", json={"title": "A"}
+    ).json()
+    second_task = client.post(
+        f"/goals/{first_goal['id']}/tasks", json={"title": "B"}
+    ).json()
+
+    reordered_goals = client.post(
+        "/goals/reorder",
+        json={"ordered_ids": [second_goal["id"], first_goal["id"]]},
+    )
+    reordered_tasks = client.post(
+        "/tasks/reorder",
+        json={"ordered_ids": [second_task["id"], first_task["id"]]},
+    )
+
+    assert reordered_goals.status_code == 200
+    assert [goal["title"] for goal in client.get("/goals").json()] == ["Second", "First"]
+    assert reordered_tasks.status_code == 200
+    assert [
+        task["title"] for task in client.get(f"/goals/{first_goal['id']}/tasks").json()
+    ] == ["B", "A"]

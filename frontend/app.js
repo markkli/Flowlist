@@ -143,20 +143,57 @@ const goalsContainer = document.getElementById("goals");
 const goalTemplate = document.getElementById("goal-template");
 const taskTemplate = document.getElementById("task-template");
 const planIndexList = document.getElementById("plan-index-list");
-const planIndexCount = document.getElementById("plan-index-count");
 const goalComposer = document.getElementById("goal-composer");
-const goalComposerToggle = document.getElementById("toggle-goal-composer");
+const completedDirections = document.getElementById("completed-directions");
+const completedDirectionsList = document.getElementById("completed-directions-list");
+const completedDirectionsCount = document.getElementById("completed-directions-count");
+const COLLAPSED_TASKS_KEY = "flowlist-collapsed-plan-sections";
+let activeGoalCreateType = "project";
+let planGoalsCache = [];
+const goalTasksCache = new Map();
 let planSectionObserver = null;
+let draggingGoalId = null;
+let draggingTaskId = null;
 
-function setGoalComposerOpen(open) {
+function loadCollapsedTaskIds() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(COLLAPSED_TASKS_KEY)) || []);
+  } catch (error) {
+    return new Set();
+  }
+}
+
+const collapsedTaskIds = loadCollapsedTaskIds();
+
+function saveCollapsedTaskIds() {
+  localStorage.setItem(COLLAPSED_TASKS_KEY, JSON.stringify([...collapsedTaskIds]));
+}
+
+function setGoalComposerOpen(open, goalType = activeGoalCreateType) {
+  activeGoalCreateType = goalType;
   goalComposer.classList.toggle("hidden", !open);
-  goalComposerToggle.setAttribute("aria-expanded", String(open));
-  goalComposerToggle.classList.toggle("active", open);
+  document.querySelectorAll("[data-goal-create]").forEach((button) => {
+    button.classList.toggle("active", open && button.dataset.goalCreate === goalType);
+    button.setAttribute("aria-expanded", String(open && button.dataset.goalCreate === goalType));
+  });
+  const labels = {
+    project: ["New project", "What are you building?", "e.g. Launch portfolio"],
+    learning: ["New learning objective", "What do you want to understand?", "e.g. Learn AI engineering"],
+    standalone: ["New task", "What needs doing?", "e.g. Pay electricity bill"],
+  };
+  const [kicker, heading, placeholder] = labels[goalType];
+  document.getElementById("goal-composer-kicker").textContent = kicker;
+  document.getElementById("goal-composer-heading").textContent = heading;
+  document.getElementById("goal-title").placeholder = placeholder;
   if (open) requestAnimationFrame(() => document.getElementById("goal-title").focus());
 }
 
-goalComposerToggle.addEventListener("click", () => {
-  setGoalComposerOpen(goalComposer.classList.contains("hidden"));
+document.querySelectorAll("[data-goal-create]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const sameOpenType = !goalComposer.classList.contains("hidden")
+      && activeGoalCreateType === button.dataset.goalCreate;
+    setGoalComposerOpen(!sameOpenType, button.dataset.goalCreate);
+  });
 });
 document.getElementById("cancel-goal-composer").addEventListener("click", () => setGoalComposerOpen(false));
 

@@ -47,6 +47,45 @@ def find_task(db: Session, task_id: int) -> TaskModel:
     return task
 
 
+def next_goal_position(db: Session) -> int:
+    return (db.scalar(select(func.max(GoalModel.position))) or 0) + 1
+
+
+def next_task_position(db: Session, goal_id: int, parent_id: int | None) -> int:
+    statement = select(func.max(TaskModel.position)).where(
+        TaskModel.goal_id == goal_id,
+        TaskModel.parent_id == parent_id,
+    )
+    return (db.scalar(statement) or 0) + 1
+
+
+def reopen_task_lineage(db: Session, task: TaskModel) -> None:
+    """Reopen every container above a task whose work became active again."""
+    parent_id = task.parent_id
+    while parent_id is not None:
+        parent = find_task(db, parent_id)
+        parent.completed = False
+        parent_id = parent.parent_id
+    find_goal(db, task.goal_id).completed = False
+
+
+def task_is_ready_to_close(db: Session, task: TaskModel) -> bool:
+    children = db.scalars(
+        select(TaskModel).where(TaskModel.parent_id == task.id)
+    ).all()
+    return bool(children) and all(child.completed for child in children)
+
+
+def goal_is_ready_to_close(db: Session, goal: GoalModel) -> bool:
+    roots = db.scalars(
+        select(TaskModel).where(
+            TaskModel.goal_id == goal.id,
+            TaskModel.parent_id.is_(None),
+        )
+    ).all()
+    return bool(roots) and all(task.completed for task in roots)
+
+
 def clean_history_title(value: str, max_length: int = 100) -> str:
     """Normalize user/AI copy without destroying intentional acronym casing."""
     title = " ".join(value.split()).strip(" \t\n\r\"'`.,;:!?-–—")
@@ -122,7 +161,7 @@ def health(db: Session = Depends(get_db)):
 
 @app.post("/goals", response_model=schemas.Goal)
 def create_goal(goal: schemas.GoalCreate, db: Session = Depends(get_db)):
-    new_goal = GoalModel(**goal.model_dump())
+    new_goal = GoalModel(position=next_goal_position(db), **goal.model_dump())
     db.add(new_goal)
     db.commit()
     db.refresh(new_goal)
@@ -131,7 +170,19 @@ def create_goal(goal: schemas.GoalCreate, db: Session = Depends(get_db)):
 
 @app.get("/goals", response_model=list[schemas.Goal])
 def list_goals(db: Session = Depends(get_db)):
-    return db.scalars(select(GoalModel)).all()
+    return db.scalars(select(GoalModel).order_by(GoalModel.position, GoalModel.id)).all()
+
+
+@app.post("/goals/reorder", response_model=list[schemas.Goal])
+def reorder_goals(order: schemas.ReorderPayload, db: Session = Depends(get_db)):
+    goals = db.scalars(select(GoalModel)).all()
+    goals_by_id = {goal.id: goal for goal in goals}
+    if set(order.ordered_ids) != set(goals_by_id):
+        raise HTTPException(status_code=400, detail="Reorder every direction exactly once")
+    for position, goal_id in enumerate(order.ordered_ids, start=1):
+        goals_by_id[goal_id].position = position
+    db.commit()
+    return [goals_by_id[goal_id] for goal_id in order.ordered_ids]
 
 
 @app.get("/goals/{goal_id}", response_model=schemas.Goal)
@@ -144,7 +195,16 @@ def update_goal(
     goal_id: int, updates: schemas.GoalUpdate, db: Session = Depends(get_db)
 ):
     goal = find_goal(db, goal_id)
-    for field, value in updates.model_dump(exclude_unset=True).items():
+    changes = updates.model_dump(exclude_unset=True)
+    if changes.get("completed") is True:
+        if goal.goal_type == "standalone":
+            raise HTTPException(status_code=400, detail="The shared Tasks list stays active")
+        if not goal_is_ready_to_close(db, goal):
+            raise HTTPException(
+                status_code=409,
+                detail="Complete every top-level section before closing this direction",
+            )
+    for field, value in changes.items():
         setattr(goal, field, value)
     db.commit()
     db.refresh(goal)
@@ -163,8 +223,13 @@ def delete_goal(goal_id: int, db: Session = Depends(get_db)):
 def create_task(
     goal_id: int, task: schemas.TaskCreate, db: Session = Depends(get_db)
 ):
-    find_goal(db, goal_id)
-    new_task = TaskModel(goal_id=goal_id, **task.model_dump())
+    goal = find_goal(db, goal_id)
+    goal.completed = False
+    new_task = TaskModel(
+        goal_id=goal_id,
+        position=next_task_position(db, goal_id, None),
+        **task.model_dump(),
+    )
     db.add(new_task)
     db.commit()
     db.refresh(new_task)
@@ -182,12 +247,20 @@ def create_standalone_task(
         .order_by(GoalModel.id)
     )
     if goal is None:
-        goal = GoalModel(title="Tasks", goal_type="standalone")
+        goal = GoalModel(
+            title="Tasks",
+            goal_type="standalone",
+            position=next_goal_position(db),
+        )
         db.add(goal)
         db.flush()
     elif goal.title == "Standalone tasks":
         goal.title = "Tasks"
-    new_task = TaskModel(goal_id=goal.id, **task.model_dump())
+    new_task = TaskModel(
+        goal_id=goal.id,
+        position=next_task_position(db, goal.id, None),
+        **task.model_dump(),
+    )
     db.add(new_task)
     db.commit()
     db.refresh(new_task)
@@ -198,7 +271,9 @@ def create_standalone_task(
 def list_tasks(goal_id: int, db: Session = Depends(get_db)):
     find_goal(db, goal_id)
     return db.scalars(
-        select(TaskModel).where(TaskModel.goal_id == goal_id)
+        select(TaskModel)
+        .where(TaskModel.goal_id == goal_id)
+        .order_by(TaskModel.position, TaskModel.id)
     ).all()
 
 
@@ -303,8 +378,10 @@ def create_subtask(
         goal_id=parent.goal_id,
         parent_id=parent.id,
         depth=parent.depth + 1,
+        position=next_task_position(db, parent.goal_id, parent.id),
         **task.model_dump(),
     )
+    reopen_task_lineage(db, new_task)
     db.add(new_task)
     db.commit()
     db.refresh(new_task)
@@ -326,12 +403,50 @@ def breakdown_task(task_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=503, detail=str(error)) from error
 
 
+@app.post("/tasks/reorder", response_model=list[schemas.Task])
+def reorder_tasks(order: schemas.ReorderPayload, db: Session = Depends(get_db)):
+    tasks = [find_task(db, task_id) for task_id in order.ordered_ids]
+    first = tasks[0]
+    siblings = db.scalars(
+        select(TaskModel).where(
+            TaskModel.goal_id == first.goal_id,
+            TaskModel.parent_id == first.parent_id,
+        )
+    ).all()
+    if set(order.ordered_ids) != {task.id for task in siblings}:
+        raise HTTPException(
+            status_code=400,
+            detail="Reorder every task in this section exactly once",
+        )
+    if any(
+        task.goal_id != first.goal_id or task.parent_id != first.parent_id
+        for task in tasks
+    ):
+        raise HTTPException(status_code=400, detail="Tasks must share one parent")
+    for position, task in enumerate(tasks, start=1):
+        task.position = position
+    db.commit()
+    return tasks
+
+
 @app.patch("/tasks/{task_id}", response_model=schemas.Task)
 def update_task(
     task_id: int, updates: schemas.TaskUpdate, db: Session = Depends(get_db)
 ):
     task = find_task(db, task_id)
-    for field, value in updates.model_dump(exclude_unset=True).items():
+    changes = updates.model_dump(exclude_unset=True)
+    if changes.get("completed") is True:
+        children_exist = db.scalar(
+            select(TaskModel.id).where(TaskModel.parent_id == task.id).limit(1)
+        )
+        if children_exist is not None and not task_is_ready_to_close(db, task):
+            raise HTTPException(
+                status_code=409,
+                detail="Complete every child before closing this section",
+            )
+    if changes.get("completed") is False:
+        reopen_task_lineage(db, task)
+    for field, value in changes.items():
         setattr(task, field, value)
     db.commit()
     db.refresh(task)
