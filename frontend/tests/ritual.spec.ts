@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 const goal = {id:1,title:'Project',goal_type:'project',completed:false,position:1};
 const task = {id:1,goal_id:1,parent_id:null,depth:1,title:'A task',completed:false,position:1};
-const dashboard = {goals:[{goal,tasks:[task]}],stats:{current_streak:0,total_sessions:0,total_minutes:0},week_sessions:0,activity:[]};
+const dashboard = {queue:[{task,goal}],goals:[{goal,tasks:[task]}],stats:{current_streak:0,total_sessions:0,total_minutes:0},week_sessions:0,activity:[]};
 test.beforeEach(async ({page}) => {
   await page.route('**/api/**', async route => {
     const path = new URL(route.request().url()).pathname;
@@ -70,7 +70,7 @@ test('a failed save retries with the same ritual ID and keeps the reflection', a
 
 test('quotes in titles remain text and do not create attributes', async ({page}) => {
   const title = 'Review "quoted" title" autofocus onfocus="alert(1)';
-  await page.route('**/api/dashboard?*', route => route.fulfill({json:{...dashboard,goals:[{goal,tasks:[{...task,title}]}]}}));
+  await page.route('**/api/dashboard?*', route => route.fulfill({json:{...dashboard,queue:[{task:{...task,title},goal}],goals:[{goal,tasks:[{...task,title}]}]}}));
   await page.goto('/');
   await expect(page.locator('.agenda-title')).toHaveText(title);
   await expect(page.locator('.agenda-title')).toHaveAttribute('title',title);

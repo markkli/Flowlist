@@ -60,7 +60,7 @@ def task_plan_key(
     task: TaskModel,
     tasks_by_id: dict[int, TaskModel],
     goal_positions: dict[int, int],
-) -> tuple[int, tuple[tuple[int, int], ...]]:
+) -> tuple[int, int, tuple[tuple[int, int], ...]]:
     """Sort a task by the visible direction and sibling order in the Plan view."""
     path = [(task.position, task.id)]
     parent_id = task.parent_id
@@ -69,12 +69,22 @@ def task_plan_key(
         path.append((parent.position, parent.id))
         parent_id = parent.parent_id
     path.reverse()
-    return goal_positions.get(task.goal_id, 0), tuple(path)
+    return goal_positions.get(task.goal_id, 0), task.goal_id, tuple(path)
 
 
 
 def complete_task(db: Session, task: TaskModel) -> None:
-    children = db.scalars(select(TaskModel).where(TaskModel.parent_id == task.id)).all()
-    if children and not all(child.completed for child in children):
-        raise HTTPException(status_code=409, detail="Complete every child before closing this section")
-    task.completed = True
+    """An explicit completion includes descendants, never ancestors."""
+    tasks = db.scalars(select(TaskModel).where(TaskModel.goal_id == task.goal_id)).all()
+    children_by_parent = {}
+    for item in tasks:
+        children_by_parent.setdefault(item.parent_id, []).append(item)
+    pending = [task]
+    visited = set()
+    while pending:
+        current = pending.pop()
+        if current.id in visited:
+            continue
+        visited.add(current.id)
+        current.completed = True
+        pending.extend(children_by_parent.get(current.id, []))

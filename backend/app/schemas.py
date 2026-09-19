@@ -176,6 +176,12 @@ class FocusTaskOption(BaseModel):
     title: str
     goal_id: int
     goal_title: str
+    goal_type: GoalType
+    parent_id: int | None
+    depth: int
+    position: int
+    ancestor_titles: list[str] = Field(default_factory=list)
+    has_children: bool = False
     last_focused_at: datetime | None = None
 
 

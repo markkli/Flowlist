@@ -52,23 +52,13 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 
 ### Plan
 
-- Use a compact vertical sticky dot navigator between the app sidebar and direction panels at every supported width. It must remain visible while scrolling, stay above card stacking contexts, and reveal an unclipped label on hover/focus.
-- A goal is one collapsible panel containing its heading, controls, active outline, and completed archive. Collapsing hides the body without changing completion state.
-- Keep Project, Learning, and Task creation individually reachable in the page header, but style them as quiet text actions rather than three competing primary buttons. Each opens one compact composer.
-- Task rows have no horizontal divider or tinted background band. Use whitespace, indentation, and type weight to express grouping.
-- Child steps are indented without connector lines or shaded containers.
-- Leaf steps show completion. Rename by selecting the title. Add, AI draft, and delete appear in an overlaid hover/focus tray so hidden controls never reserve an empty right column; on touch layouts they remain available with 44px targets.
-- Every task row reserves the same disclosure slot and completion slot. Leaves keep an invisible disclosure placeholder; unfinished parents keep a visible but disabled completion box. Titles must never jump horizontally when node state changes.
-- Parent steps show direct-child progress and can expand or collapse. Once every direct child is finished, the already-present parent checkbox becomes enabled; completion never rolls up automatically.
-- A completed leaf leaves the active outline but its ancestors remain. Closing a completed parent exposes completion at the next level. Reopening any descendant reopens every ancestor while preserving completed siblings.
-- Collect all checked work in an expandable list and show its parent path as a restrained breadcrumb. Fully closed top-level directions move to Completed directions.
-- Priority controls are forbidden. Sequence communicates what comes first.
-- Whole directions move with explicit up/down controls; large panels are not draggable. After a move, viewport position and focus follow the moved control so repeated clicks continue without reacquiring it. Compact task reordering is limited to siblings within the same parent, with Alt+Arrow as its keyboard alternative.
-- Do not prescribe a duration for an individual task. Focus time is observed by the Pomodoro, then attributed to work afterward.
-- AI-generated milestones and nested steps are proposals: display them as a multi-select list with one explicit “Add selected” action.
-- Goal-level controls remain explicit and labelled because they affect the entire direction: move, Add step, AI draft Beta, and Remove. AI planning is never the main action. State that personal planning usually fits pace and preference better, and label every generated proposal as an AI draft.
-- Treat the plan as a compact outline, not a stack of nested cards or a diagram made from intersecting lines.
-- Keep plan content to a readable desktop measure rather than stretching each task across the entire window.
+- Follow [the Plan page specification](pages/plan.md) for its authoritative layout and interaction details.
+- Use named direction navigation: a sticky list on wide desktop and a compact horizontal strip on narrower screens.
+- Keep direction headers content-sized with title, concise counts, Add, and More. Secondary actions must not force a toolbar row.
+- Leaves have a checkbox; unfinished sections have disclosure and progress. Once direct children are finished, a section exposes its completion checkbox. Shared Tasks has no hierarchy placeholders.
+- Preserve manual parent completion, ancestor reopening, completed archives, and AI draft selection before insertion.
+- Reordering remains within sibling groups, with keyboard/menu alternatives to dragging. Plan order and the manually chosen focus queue order are independent.
+- Use feature-owned styles in `frontend/src/features/plan/plan.css`; avoid adding conflicting Plan rules to the global stylesheet.
 
 ### Learning Path Questions
 
@@ -93,7 +83,7 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 - Every attribution row has separate “Worked on” and “Finished” controls. Finishing implies worked-on; the session duration is still counted only once. No selected tasks means General focus.
 - The end-of-ritual dialog accepts an optional reflection and can create missing work in Tasks, an existing group, or a new project/learning objective before attribution.
 - Preserve every reflection. Save a local history title immediately; longer reflections and multi-task sets may receive an optional title update after saving. AI failure never prevents saving or removes the note.
-- The task queue shows unfinished leaf tasks in Plan order and is labelled Task queue, without implying a daily schedule. It contains only completion, title, and parent context. Keep each title and its project, learning objective, or “Task” label to one line with an ellipsis and native title tooltip for the full text.
+- The task queue is a persistent shortlist chosen by the user, independent of Plan order. Choose tasks / Edit queue opens a searchable picker with selection and order controls. Each row offers completion, title/context, and a quiet menu for movement or membership removal. Finished tasks disappear; Undo restores them. The queue has no daily reset.
 - “Task” covers simple personal or administrative work that needs no plan hierarchy. Collect these items in one lightweight list and do not offer AI breakdown or nested-step controls.
 - The Pomodoro and queue panels maintain the same intentional height on desktop. The queue scrolls internally when it contains more rows.
 - Supporting panels remain quieter and use minimal shadows.

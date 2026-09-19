@@ -1,0 +1,92 @@
+.queue-panel .panel-heading { align-items: flex-start; gap: 12px; }
+.queue-heading-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.queue-heading-actions .queue-edit { min-height: 36px; white-space: nowrap; padding: 0 12px; }
+.queue-heading-actions .quiet-link { min-height: 24px; color: var(--muted); font-size: 11px; }
+.queue-panel .queue-summary { margin: 17px 0 5px; }
+.queue-summary .progress-meta { align-items: center; gap: 8px; margin: 0; font-size: 11px; }
+.queue-summary #daily-progress-number { white-space: nowrap; color: var(--muted); }
+.queue-summary [hidden] { display: none; }
+.queue-panel .queue-item { grid-template-columns: 28px minmax(0, 1fr) 32px; min-height: 59px; gap: 8px; }
+.queue-item .task-check { width: 22px; height: 22px; }
+.queue-item .agenda-title { font-size: 13px; font-weight: 580; }
+.queue-item .agenda-goal { margin-top: 3px; font-size: 11px; }
+.queue-icon-button { width: 32px; height: 32px; flex: 0 0 32px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font-size: 19px; line-height: 1; }
+.queue-icon-button:hover:not(:disabled), .queue-icon-button[aria-expanded="true"] { background: var(--surface-muted); color: var(--ink); }
+.queue-icon-button:disabled { opacity: .3; }
+.queue-icon-button svg { width: 18px; height: 18px; }
+.queue-more svg { fill: currentColor; }
+.queue-stroke-icon svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.queue-more { color: var(--faint); }
+.queue-item:hover .queue-more, .queue-item:focus-within .queue-more { color: var(--ink); }
+.queue-row-menu { position: fixed; z-index: 75; width: 186px; display: grid; gap: 2px; padding: 5px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface-strong); box-shadow: var(--shadow-2); }
+.queue-row-menu button { min-height: 38px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font-size: 12px; text-align: left; }
+.queue-row-menu button:hover:not(:disabled), .queue-row-menu button:focus-visible { background: var(--surface-muted); }
+.queue-row-menu button:last-child { color: var(--muted); border-top: 1px solid var(--border); border-radius: 0 0 6px 6px; margin-top: 3px; }
+.queue-empty { display: grid; justify-items: start; align-content: center; gap: 10px; min-height: 215px; padding: 20px 3px 12px; }
+.queue-empty-mark { width: 35px; height: 35px; display: grid; place-items: center; border-radius: 9px; background: var(--surface-muted); color: var(--forest); }
+.queue-empty-mark svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.queue-empty h3 { margin: 0; color: var(--ink); font-size: 16px; font-weight: 630; }
+.queue-empty p { max-width: 34ch; margin: 0 0 3px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.queue-empty .secondary-btn { min-height: 36px; }
+.queue-picker-overlay { z-index: 80; padding: 24px; }
+.queue-picker { overflow-y: auto; overscroll-behavior: contain; width: min(620px, 100%); max-height: min(780px, calc(100dvh - 48px)); min-height: 0; display: flex; flex-direction: column; padding: 24px; border: 1px solid var(--border-strong); border-radius: 18px; background: var(--surface-strong); color: var(--ink); box-shadow: var(--shadow-2); }
+.queue-picker-header { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; }
+.queue-picker-header h2 { margin: 0; font-size: 24px; letter-spacing: -.025em; line-height: 1.2; }
+.queue-picker-header .kicker { margin-bottom: 6px; font-size: 10px; }
+.queue-picker-close { margin: -4px -4px 0 0; width: 40px; height: 40px; flex-basis: 40px; }
+.queue-picker-close svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+.queue-picker-description { max-width: 60ch; margin: 12px 0 19px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.queue-search-label { margin-bottom: 6px; color: var(--muted); font-size: 11px; font-weight: 600; }
+.queue-picker .queue-search { min-height: 42px; flex-shrink: 0; background: var(--surface); }
+.queue-draft { flex-shrink: 0; margin-top: 10px; }
+.queue-draft > summary { display: flex; justify-content: space-between; align-items: center; min-height: 42px; gap: 12px; color: var(--muted); cursor: pointer; font-size: 12px; }
+.queue-draft > summary::marker { color: var(--faint); }
+.queue-draft > summary::after { content: ""; width: 6px; height: 6px; flex: 0 0 6px; margin-right: 5px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); }
+.queue-draft[open] > summary::after { transform: rotate(225deg); }
+.queue-draft > summary > span:first-child { margin-right: auto; }
+.queue-draft summary b { margin-left: 5px; color: var(--ink); font-size: 11px; font-variant-numeric: tabular-nums; }
+.queue-draft-hint { color: var(--muted); font-size: 10px; }
+.queue-draft-list { max-height: 155px; margin: 0 0 12px; padding: 0 4px 0 26px; overflow-y: auto; scrollbar-width: thin; }
+.queue-draft-row { position: relative; min-height: 38px; padding-right: 102px; color: var(--muted); font-size: 11px; }
+.queue-draft-title { display: block; padding: 10px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-size: 12px; }
+.queue-draft-controls { position: absolute; top: 3px; right: 0; display: flex; gap: 2px; }
+.queue-draft-controls .queue-icon-button { font-size: 16px; }
+.queue-draft-empty { list-style: none; margin-left: -24px; padding: 7px 0 10px; color: var(--muted); font-size: 12px; }
+.queue-options { min-height: 120px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; margin: 0 -8px; padding: 2px 8px 12px; border-top: 1px solid var(--border); }
+.queue-option-group { min-width: 0; padding: 0; margin: 15px 0 0; border: 0; }
+.queue-option-group legend { max-width: 100%; padding: 0 0 5px; color: var(--muted); font-size: 11px; font-weight: 650; overflow-wrap: anywhere; }
+.queue-option { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: center; gap: 10px; min-height: 48px; margin: 0; padding: 7px 8px; border-radius: 8px; cursor: pointer; }
+.queue-option:hover, .queue-option:focus-within { background: var(--row-hover); }
+.queue-option:has(input:checked) { background: color-mix(in srgb, var(--forest) 5%, transparent); }
+.queue-option input { width: 18px; height: 18px; margin: 0; accent-color: var(--forest); cursor: pointer; }
+.queue-option .queue-option-copy { display: grid; gap: 3px; margin: 0; min-width: 0; color: var(--ink); font-size: 13px; font-weight: 500; letter-spacing: 0; }
+.queue-option-title { overflow-wrap: anywhere; }
+.queue-option-context { color: var(--muted); font-size: 10px; line-height: 1.5; font-weight: 400; overflow-wrap: anywhere; }
+.queue-picker-empty { min-height: 135px; display: grid; align-content: center; justify-items: center; gap: 6px; text-align: center; }
+.queue-picker-empty strong { font-size: 13px; font-weight: 600; }
+.queue-picker-empty p { margin: 0; color: var(--muted); font-size: 12px; }
+.queue-picker-error { flex-shrink: 0; margin: 0; font-size: 12px; }
+.queue-picker-error:not(:empty) { padding: 10px 0; }
+.queue-picker-footer { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 16px; margin-top: 2px; border-top: 1px solid var(--border); }
+.queue-picker-footer > div { display: flex; gap: 6px; }
+.queue-picker-footer button { min-height: 40px; }
+.queue-selection-count { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+@media (max-width: 600px) {
+  .queue-picker-overlay { padding: 12px; }
+  .queue-picker { max-height: calc(100dvh - 24px); padding: 18px; border-radius: 14px; }
+  .queue-picker-header h2 { font-size: 22px; }
+  .queue-picker-description { margin-bottom: 14px; }
+  .queue-picker-close { width: 44px; height: 44px; flex-basis: 44px; }
+  .queue-picker-footer button { min-height: 44px; }
+  .queue-draft-hint { font-size: 10px; }
+  .queue-row-menu button { min-height: 44px; }
+}
+@media (pointer: coarse) {
+  .queue-panel .queue-item { grid-template-columns: 36px minmax(0, 1fr) 44px; gap: 6px; }
+  .queue-item .queue-more { width: 44px; height: 44px; }
+  .queue-item .task-check { position: relative; margin-left: 7px; }
+  .queue-item .task-check::before { content: ''; position: absolute; inset: -11px; }
+  .queue-draft-controls .queue-icon-button { width: 40px; height: 44px; flex-basis: 40px; }
+  .queue-draft-row { min-height: 48px; padding-right: 126px; }
+  .queue-draft-title { padding-top: 15px; }
+}

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 from app import schemas
 from app.database import get_db
 from app.models import FocusSessionModel, GoalModel
+from app.api.queue import queue_items
 
 router = APIRouter()
 
@@ -50,5 +51,6 @@ def dashboard(timezone_name: str = Query("UTC", alias="timezone"), db: Session =
     goals = db.scalars(select(GoalModel).where(GoalModel.completed.is_(False)).options(selectinload(GoalModel.tasks)).order_by(GoalModel.position, GoalModel.id)).all()
     return {
         **activity_data(db, timezone_name),
+        "queue": queue_items(db),
         "goals": [{"goal": schemas.Goal.model_validate(goal), "tasks": [schemas.Task.model_validate(task) for task in sorted(goal.tasks, key=lambda item: (item.position, item.id))]} for goal in goals],
     }

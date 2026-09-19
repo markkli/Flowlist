@@ -1,5 +1,6 @@
 import { api, timezoneQuery } from '../../shared/api';
 import { escapeHtml } from '../../shared/dom';
+import { initQueue } from './queue';
 export function initDashboard({ setDateCopy, showToast }) {
 function leafTasks(tasks) {
   const parents = new Set(tasks.map(task => task.parent_id));
@@ -10,45 +11,6 @@ function leafTasks(tasks) {
   visit(null); return ordered;
 }
 function localDateKey(date) { return [date.getFullYear(), String(date.getMonth()+1).padStart(2,'0'), String(date.getDate()).padStart(2,'0')].join('-'); }
-function renderAgenda(goalsWithTasks) {
-  const all = goalsWithTasks
-    .flatMap(({ goal, tasks }) => leafTasks(tasks).map((task) => ({ task, goal })))
-    .filter(({ task }) => !task.completed);
-  const list = document.getElementById("today-agenda");
-  list.innerHTML = "";
-  all.forEach(({ task, goal }) => {
-    const row = document.createElement("div");
-    row.className = `agenda-item${task.completed ? " done" : ""}`;
-    const context = goal.goal_type === "standalone" ? "Task" : goal.title;
-    row.innerHTML = `<button class="task-check" aria-label="${task.completed ? "Reopen" : "Complete"} ${escapeHtml(task.title)}" aria-pressed="${task.completed}"></button><div class="agenda-copy"><span class="agenda-title" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}</span><span class="agenda-goal" title="${escapeHtml(context)}">${escapeHtml(context)}</span></div>`;
-    row.querySelector(".task-check").addEventListener("click", async (event) => {
-      const button = event.currentTarget;
-      button.disabled = true;
-      try {
-      await api(`/tasks/${task.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ completed: !task.completed }),
-      });
-      await loadDashboard();
-      showToast("Task completed.", false, {label:"Undo", run:async () => {
-        await api(`/tasks/${task.id}`, {method:"PATCH",body:JSON.stringify({completed:false})});
-        await loadDashboard();
-      }});
-      } catch(error) { button.disabled = false; showToast(error.message,true); }
-    });
-    list.appendChild(row);
-  });
-  if (!all.length) {
-    list.innerHTML = '<p class="page-description">Nothing queued. Add a step from Plan.</p>';
-  }
-  const total = goalsWithTasks.flatMap(({ tasks }) => leafTasks(tasks));
-  const done = total.filter(task => task.completed).length;
-  document.getElementById("daily-progress-copy").textContent = all.length
-    ? `${all.length} remaining`
-    : "No tasks planned";
-  document.getElementById("daily-progress-number").textContent = `${done} finished`;
-  document.getElementById("daily-progress-value").style.width = `${total.length ? (done / total.length) * 100 : 0}%`;
-}
 
 function renderGoalsSummary(goalsWithTasks) {
   const container = document.getElementById("dashboard-goals");
@@ -126,9 +88,10 @@ function renderMomentum(data) {
 async function loadDashboard() {
   setDateCopy();
   const data = await api(`/dashboard?${timezoneQuery()}`);
-  renderAgenda(data.goals);
+  queue.setData(data);
   renderGoalsSummary(data.goals);
   renderMomentum(data);
 }
+const queue = initQueue({ showToast, onChange: loadDashboard });
 return { loadDashboard };
 }

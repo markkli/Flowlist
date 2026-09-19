@@ -40,6 +40,17 @@ class TaskModel(Base):
     )
 
 
+class FocusQueueModel(Base):
+    """A persistent, user-ordered shortlist independent of the Plan order."""
+
+    __tablename__ = "focus_queue"
+
+    task_id: Mapped[int] = mapped_column(
+        ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True
+    )
+    position: Mapped[int] = mapped_column(default=0)
+
+
 class FocusSessionModel(Base):
     __tablename__ = "focus_sessions"
 

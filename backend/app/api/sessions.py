@@ -51,8 +51,9 @@ def log_session(session: schemas.FocusSessionCreate, background: BackgroundTasks
         if existing and existing.deleted_at is None:
             return existing
         raise HTTPException(status_code=409, detail="This ritual has already been saved")
-    # Validate/complete leaves before parents when several levels are selected.
-    for task in sorted(selected_tasks, key=lambda item: item.depth, reverse=True):
+    # Use the same downward completion rule as the Plan. A selection marked
+    # worked-on only does not reopen a descendant completed by its parent.
+    for task in sorted(selected_tasks, key=lambda item: item.depth):
         if selections_by_task_id[task.id].completed:
             complete_task(db, task)
     for selection in session.tasks:

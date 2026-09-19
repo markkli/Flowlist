@@ -59,11 +59,11 @@
 
         <section id="view-goals" class="view hidden">
           <header class="page-heading plan-page-heading">
-            <div><p class="kicker">Direction</p><h1>Plan</h1><p class="page-description">Keep the structure clear, then work the next visible step.</p></div>
-            <div class="plan-create-actions" aria-label="Add to plan"><span>Add</span><button type="button" data-goal-create="project">Project</button><button type="button" data-goal-create="learning">Learning</button><button type="button" data-goal-create="standalone">Task</button></div>
+            <div><p class="kicker">Direction</p><h1>Plan</h1><p class="page-description">Make room for the work that matters. Break it into steps.</p></div>
+            <div class="plan-create-actions" aria-label="Add to plan"><span>New</span><button type="button" data-goal-create="project">Project</button><button type="button" data-goal-create="learning">Learning</button><button type="button" data-goal-create="standalone">Task</button></div>
           </header>
           <div class="roadmap-layout">
-            <aside class="plan-index" aria-label="Plan index">
+            <aside class="plan-index" aria-label="Plan index"><p class="plan-index-heading">In your plan</p>
               <nav class="plan-index-list" id="plan-index-list" aria-label="Jump to a direction"></nav>
             </aside>
             <div class="plan-main">
@@ -89,33 +89,57 @@
   </div>
 
   <template id="goal-template">
-    <article class="goal-card panel">
-      <div class="goal-card-head">
-        <button class="goal-collapse" type="button" aria-expanded="true"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg></button>
-        <div class="goal-card-copy"><p class="kicker goal-type-label"></p><h2><button class="goal-title inline-title" type="button"></button></h2><form class="goal-title-form inline-edit hidden"><input class="field goal-edit-title" type="text" aria-label="Direction name"><button class="sr-only">Save</button></form><p class="goal-description"></p><div class="goal-progress-summary"><div class="progress-track"><div class="progress-value goal-progress-value"></div></div><p class="goal-progress-copy"></p></div></div>
-        <button class="goal-complete hidden" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 10 3 3 7-7"/></svg><span>Close direction</span></button>
-        <div class="goal-actions">
-          <div class="goal-move-actions" role="group" aria-label="Move direction">
-            <button class="row-action goal-move-up" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 12 5-5 5 5"/></svg></button>
-            <button class="row-action goal-move-down" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 8 5 5 5-5"/></svg></button>
-          </div>
-          <button class="goal-action goal-add-step" type="button" aria-label="Add step"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg><span class="goal-action-label">Add step</span></button>
-          <button class="goal-action action-ai break-down-goal" type="button" aria-label="Draft a learning path with AI (Beta)"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 1.2 4.1L15 8l-3.8 1.9L10 14l-1.2-4.1L5 8l3.8-1.9L10 2Z"/><path d="m15.5 13 .7 2.3 2.3.7-2.3.7-.7 2.3-.7-2.3-2.3-.7 2.3-.7.7-2.3Z"/></svg><span>AI draft</span><small>Beta</small></button>
-          <button class="goal-action goal-action-danger delete-goal" type="button" aria-label="Remove direction"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M8 6V4h4v2m3 0-1 10H6L5 6m3 3v4m4-4v4"/></svg><span>Remove</span></button>
+    <article class="goal-card">
+      <header class="goal-card-head">
+        <button class="goal-collapse plan-icon" type="button" aria-expanded="true"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg></button>
+        <div class="goal-card-copy">
+          <h2><button class="goal-title inline-title" type="button"></button></h2>
+          <form class="goal-title-form inline-edit hidden"><input class="field goal-edit-title" type="text" maxlength="120" aria-label="Direction name"><button class="sr-only">Save</button></form>
+          <div class="direction-meta"><span class="goal-type-label"></span><span class="goal-progress-copy"></span></div>
+          <p class="goal-description hidden"></p>
         </div>
+        <div class="goal-actions">
+          <button class="goal-add-step" type="button" aria-label="Add step"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg><span class="goal-action-label">Add step</span></button>
+          <button class="plan-icon goal-more" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="16" cy="10" r="1.5"/></svg></button>
+          <div class="plan-menu goal-menu" popover="auto" role="menu">
+            <button class="rename-goal" type="button" role="menuitem">Rename</button>
+            <button class="break-down-goal" type="button" role="menuitem">Draft learning path <small class="beta-badge">AI · Beta</small></button>
+            <button class="goal-move-up" type="button" role="menuitem">Move up</button>
+            <button class="goal-move-down" type="button" role="menuitem">Move down</button>
+            <hr><button class="delete-goal danger" type="button" role="menuitem">Remove direction</button>
+          </div>
+        </div>
+      </header>
+      <div class="goal-body">
+        <div class="goal-status hidden"><span class="goal-status-copy"></span><button class="goal-complete text-btn hidden" type="button">Close direction</button></div>
+        <form class="task-form step-composer hidden"><label><span class="step-composer-label">New step</span><input class="field" type="text" maxlength="120" placeholder="Describe the next meaningful step" aria-label="New task"></label><button class="secondary-btn">Add</button><button class="text-btn cancel-step-composer" type="button">Cancel</button></form>
+        <ul class="goal-suggestion-list task-list suggestions" style="display:none"></ul>
+        <section class="goal-outline" aria-label="Active steps"><ul class="goal-task-list task-list"></ul><p class="goal-empty-state hidden">Add a step when you’re ready to begin.</p></section>
+        <details class="completed-tasks hidden"><summary><span><b class="completed-count">0</b> completed</span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg></summary><ul class="completed-task-list"></ul></details>
       </div>
-      <form class="task-form step-composer hidden"><label><span class="step-composer-label">New step</span><input class="field" type="text" placeholder="Describe the next meaningful step" aria-label="New task"></label><button class="secondary-btn">Add</button><button class="text-btn cancel-step-composer" type="button">Cancel</button></form>
-      <ul class="goal-suggestion-list task-list suggestions" style="display:none"></ul>
-      <section class="goal-outline" aria-label="Active steps"><ul class="goal-task-list task-list"></ul><p class="goal-empty-state hidden">Nothing active here. Add the next meaningful step.</p></section>
-      <details class="completed-tasks hidden"><summary><span class="completed-summary-mark"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 10 3 3 7-7"/></svg></span><span><b class="completed-count">0</b> completed</span><svg class="completed-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg></summary><ul class="completed-task-list"></ul></details>
     </article>
   </template>
 
   <template id="task-template">
     <li class="task-node">
-      <div class="task-row"><button class="reorder-handle task-reorder-handle" type="button" aria-label="Reorder task"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="7" cy="6" r="1"/><circle cx="13" cy="6" r="1"/><circle cx="7" cy="10" r="1"/><circle cx="13" cy="10" r="1"/><circle cx="7" cy="14" r="1"/><circle cx="13" cy="14" r="1"/></svg></button><button class="task-chevron hidden" type="button" aria-label="Collapse section" aria-expanded="true"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg></button><input type="checkbox" class="task-completed" aria-label="Complete task"><button class="task-title inline-title" type="button"></button><span class="task-progress task-meta"></span><div class="task-actions reveal-actions"><button class="row-action add-subtask" type="button" aria-label="Add a smaller step"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></button><button class="row-action action-ai break-down" type="button" aria-label="Draft smaller steps with AI (Beta)"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 1.2 4.1L15 8l-3.8 1.9L10 14l-1.2-4.1L5 8l3.8-1.9L10 2Z"/><path d="m15.5 13 .7 2.3 2.3.7-2.3.7-.7 2.3-.7-2.3-2.3-.7 2.3-.7.7-2.3Z"/></svg><span class="action-tooltip">AI draft · Beta</span></button><button class="row-action row-delete delete-task" type="button" aria-label="Remove task"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M8 6V4h4v2m3 0-1 10H6L5 6m3 3v4m4-4v4"/></svg></button></div></div>
-      <form class="task-edit-form inline-edit hidden"><input class="field task-edit-title" type="text" aria-label="Task title"><button class="sr-only">Save</button></form>
-      <form class="subtask-form step-composer nested-form hidden"><label><span>New substep</span><input class="field" type="text" placeholder="Describe the smaller step" aria-label="Subtask title"></label><button class="secondary-btn">Add</button><button class="text-btn cancel-subtask" type="button">Cancel</button></form>
+      <div class="task-row">
+        <button class="task-chevron plan-icon hidden" type="button" aria-expanded="true"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg></button>
+        <input type="checkbox" class="task-completed" aria-label="Complete task">
+        <div class="task-copy"><button class="task-title inline-title" type="button"></button><span class="task-progress task-meta"></span></div>
+        <button class="reorder-handle task-reorder-handle plan-icon" type="button" aria-label="Reorder task" title="Drag to reorder, or use Alt + Up / Down"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="7" cy="6" r="1"/><circle cx="13" cy="6" r="1"/><circle cx="7" cy="10" r="1"/><circle cx="13" cy="10" r="1"/><circle cx="7" cy="14" r="1"/><circle cx="13" cy="14" r="1"/></svg></button>
+        <button class="task-more plan-icon" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="16" cy="10" r="1.5"/></svg></button>
+        <div class="plan-menu task-menu" popover="auto" role="menu">
+          <button class="queue-task" type="button" role="menuitem">Add to focus queue</button>
+          <button class="rename-task" type="button" role="menuitem">Rename</button>
+          <button class="add-subtask" type="button" role="menuitem">Add a smaller step</button>
+          <button class="break-down" type="button" role="menuitem">Draft smaller steps <small class="beta-badge">AI · Beta</small></button>
+          <button class="task-move-up" type="button" role="menuitem">Move up</button>
+          <button class="task-move-down" type="button" role="menuitem">Move down</button>
+          <hr><button class="delete-task danger" type="button" role="menuitem">Remove task</button>
+        </div>
+      </div>
+      <form class="task-edit-form inline-edit hidden"><input class="field task-edit-title" type="text" maxlength="120" aria-label="Task title"><button class="sr-only">Save</button></form>
+      <form class="subtask-form step-composer nested-form hidden"><label><span>New substep</span><input class="field" type="text" maxlength="120" placeholder="Describe the smaller step" aria-label="Subtask title"></label><button class="secondary-btn">Add</button><button class="text-btn cancel-subtask" type="button">Cancel</button></form>
       <ul class="suggestion-list task-list nested-list"></ul><ul class="subtask-list task-list nested-list" data-task-children></ul>
     </li>
   </template>

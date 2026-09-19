@@ -1,5 +1,6 @@
 import { api } from '../../shared/api';
 import { escapeHtml, trapFocus, syncDialogs } from '../../shared/dom';
+import './plan.css';
 const MAX_DEPTH = 3;
 function leafTasks(tasks) { const parents = new Set(tasks.map(task => task.parent_id)); return tasks.filter(task => !parents.has(task.id)); }
 export function initPlan({ showToast }) {
@@ -18,6 +19,48 @@ let planGoalsCache = [];
 let learningWizardState = null;
 let planSectionObserver = null;
 let draggingTaskId = null;
+let menuSequence = 0;
+let queuedTaskIds = new Set();
+
+function setupMenu(trigger, menu, label) {
+  menu.id = `plan-menu-${++menuSequence}`;
+  trigger.setAttribute('aria-label', `Actions for ${label}`);
+  trigger.setAttribute('aria-haspopup', 'menu');
+  trigger.setAttribute('aria-controls', menu.id);
+  trigger.setAttribute('aria-expanded', 'false');
+  menu.setAttribute('aria-label', `Actions for ${label}`);
+  const items = () => [...menu.querySelectorAll('button:not(:disabled)')];
+  const open = () => {
+    menu.showPopover();
+    const anchor = trigger.getBoundingClientRect();
+    const bounds = menu.getBoundingClientRect();
+    menu.style.left = `${Math.max(12, Math.min(anchor.right - bounds.width, window.innerWidth - bounds.width - 12))}px`;
+    menu.style.top = `${Math.max(12, Math.min(anchor.bottom + 4, window.innerHeight - bounds.height - 12))}px`;
+    trigger.setAttribute('aria-expanded', 'true');
+    items()[0]?.focus();
+  };
+  trigger.addEventListener('click', () => menu.matches(':popover-open') ? menu.hidePopover() : open());
+  trigger.addEventListener('keydown', event => {
+    if (event.key === 'ArrowDown') { event.preventDefault(); open(); }
+  });
+  menu.addEventListener('toggle', () => trigger.setAttribute('aria-expanded', String(menu.matches(':popover-open'))));
+  menu.addEventListener('keydown', event => {
+    const buttons = items();
+    const index = buttons.indexOf(document.activeElement);
+    if (['ArrowDown','ArrowUp','Home','End'].includes(event.key)) {
+      event.preventDefault(); event.stopPropagation();
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length;
+      buttons[next]?.focus();
+    } else if (event.key === 'Escape' || event.key === 'Tab') {
+      event.preventDefault(); event.stopPropagation(); menu.hidePopover(); trigger.focus();
+    }
+  });
+  // Close before the action runs so composers and dialogs can claim focus.
+  menu.addEventListener('click', event => {
+    if (!event.target.closest('button')) return;
+    menu.hidePopover(); trigger.focus();
+  }, true);
+}
 
 function loadCollapsedTaskIds() {
   try {
@@ -163,7 +206,7 @@ async function openLearningWizard(goal, trigger, goalSuggestions) {
   const state = {
     goal,
     trigger,
-    returnTarget: trigger.closest("details")?.querySelector("summary") || trigger,
+    returnTarget: trigger.closest(".goal-card")?.querySelector(".goal-more") || trigger,
     goalSuggestions,
     questions: [],
     answers: [],
@@ -289,7 +332,7 @@ function renderTaskSuggestions(task, proposed, suggestions) {
 }
 
 function goalTypeLabel(goalType) {
-  if (goalType === "learning") return "Learning objective";
+  if (goalType === "learning") return "Learning";
   if (goalType === "standalone") return "Tasks";
   return "Project";
 }
@@ -343,9 +386,10 @@ function setStepComposer(form, open) {
 }
 
 function setupInlineEdit({ trigger, form, input, save }) {
-  const close = () => {
+  const close = (restoreFocus = true) => {
     form.classList.add("hidden");
     trigger.classList.remove("hidden");
+    if (restoreFocus) trigger.focus({ preventScroll: true });
   };
   trigger.addEventListener("click", () => {
     trigger.classList.add("hidden");
@@ -373,7 +417,7 @@ function setupInlineEdit({ trigger, form, input, save }) {
   });
   input.addEventListener("blur", () => {
     requestAnimationFrame(() => {
-      if (!form.contains(document.activeElement) && input.value.trim() === trigger.textContent.trim()) close();
+      if (!form.contains(document.activeElement) && input.value.trim() === trigger.textContent.trim()) close(false);
     });
   });
 }
@@ -424,7 +468,8 @@ function renderCompletedDirections(goals) {
 }
 
 async function loadGoals() {
-  const goals = await api("/goals");
+  const [goals, queue] = await Promise.all([api("/goals"), api("/queue")]);
+  queuedTaskIds = new Set(Array.isArray(queue) ? queue.map(({task}) => task.id) : []);
   planGoalsCache = goals;
   const activeGoals = goals.filter((goal) => !goal.completed || goal.goal_type === "standalone");
   const finishedGoals = goals.filter((goal) => goal.completed && goal.goal_type !== "standalone");
@@ -460,6 +505,7 @@ async function loadGoals() {
         save: async (title) => {
           await api(`/goals/${goal.id}`, { method: "PATCH", body: JSON.stringify({ title }) });
           await loadGoals();
+          document.querySelector(`#goal-${goal.id} .goal-title`)?.focus();
           showToast("Direction renamed.");
         },
       });
@@ -468,7 +514,20 @@ async function loadGoals() {
     description.textContent = goal.description || "";
     description.classList.toggle("hidden", !goal.description);
 
+    setupMenu(node.querySelector('.goal-more'), node.querySelector('.goal-menu'), goalDisplayTitle(goal));
+    const renameGoal = node.querySelector('.rename-goal');
+    if (goal.goal_type === 'standalone') renameGoal.remove();
+    else renameGoal.addEventListener('click', () => goalTitle.click());
     const collapseGoal = node.querySelector(".goal-collapse");
+    section.querySelector('.goal-body').id = `goal-body-${goal.id}`;
+    collapseGoal.setAttribute('aria-controls', `goal-body-${goal.id}`);
+    const expandGoal = () => {
+      section.classList.remove('is-collapsed');
+      collapseGoal.setAttribute('aria-expanded', 'true');
+      collapseGoal.setAttribute('aria-label', `Collapse ${goalDisplayTitle(goal)}`);
+      collapsedGoalIds.delete(goal.id);
+      saveCollapsedGoalIds();
+    };
     if (goal.goal_type === "standalone") {
       collapseGoal.remove();
     } else {
@@ -493,6 +552,7 @@ async function loadGoals() {
       goalBreakdown.remove();
     } else {
       goalBreakdown.addEventListener("click", () => {
+        expandGoal();
         openLearningWizard(goal, goalBreakdown, goalSuggestions);
       });
     }
@@ -505,8 +565,11 @@ async function loadGoals() {
       taskForm.querySelector(".step-composer-label").textContent = "New task";
       taskForm.querySelector("input").placeholder = "What needs doing?";
     }
-    goalAddStep.addEventListener("click", () => setStepComposer(taskForm, taskForm.classList.contains("hidden")));
-    taskForm.querySelector(".cancel-step-composer").addEventListener("click", () => setStepComposer(taskForm, false));
+    goalAddStep.addEventListener("click", () => {
+      expandGoal();
+      setStepComposer(taskForm, taskForm.classList.contains("hidden"));
+    });
+    taskForm.querySelector(".cancel-step-composer").addEventListener("click", () => { setStepComposer(taskForm, false); goalAddStep.focus(); });
 
     node.querySelector(".delete-goal").addEventListener("click", async () => {
       if (!window.confirm(`Remove “${goalDisplayTitle(goal)}” and every step inside it?`)) return;
@@ -522,8 +585,8 @@ async function loadGoals() {
     moveUp.setAttribute("aria-label", `Move ${goalDisplayTitle(goal)} up`);
     moveDown.setAttribute("aria-label", `Move ${goalDisplayTitle(goal)} down`);
     const moveDirection = async (delta, trigger) => {
-      const anchorTop = trigger.getBoundingClientRect().top;
-      const selector = delta < 0 ? ".goal-move-up" : ".goal-move-down";
+      const anchorTop = section.querySelector(".goal-more").getBoundingClientRect().top;
+      const selector = ".goal-more";
       moveUp.disabled = true;
       moveDown.disabled = true;
       try {
@@ -554,6 +617,7 @@ async function loadGoals() {
       input.value = "";
       setStepComposer(taskForm, false);
       await loadTasks(goal.id);
+      goalAddStep.focus();
       showToast(goal.goal_type === "standalone" ? "Task added." : "Step added.");
     });
     goalsContainer.appendChild(node);
@@ -598,14 +662,17 @@ async function reorderTasks(task, target, allTasks) {
 }
 
 async function moveTaskBy(task, allTasks, delta) {
-  const ids = siblingsOf(task, allTasks).map((item) => item.id);
-  const index = ids.indexOf(task.id);
+  const siblings = siblingsOf(task, allTasks);
+  const activeIds = siblings.filter(item => !item.completed).map(item => item.id);
+  const index = activeIds.indexOf(task.id);
   const target = index + delta;
-  if (index < 0 || target < 0 || target >= ids.length) return;
-  [ids[index], ids[target]] = [ids[target], ids[index]];
+  if (index < 0 || target < 0 || target >= activeIds.length) return;
+  [activeIds[index], activeIds[target]] = [activeIds[target], activeIds[index]];
+  let activeIndex = 0;
+  const ids = siblings.map(item => item.completed ? item.id : activeIds[activeIndex++]);
   await api("/tasks/reorder", { method: "POST", body: JSON.stringify({ ordered_ids: ids }) });
   await loadTasks(task.goal_id);
-  document.querySelector(`[data-task-id="${task.id}"] .task-reorder-handle`)?.focus();
+  document.querySelector(`[data-task-id="${task.id}"] .task-more`)?.focus();
 }
 
 function renderCompletedTasks(section, tasks) {
@@ -650,11 +717,8 @@ async function loadTasks(goalId) {
   const completed = leaves.filter((task) => task.completed).length;
   const itemNoun = section.dataset.goalType === "standalone" ? "tasks" : "steps";
   section.querySelector(".goal-progress-copy").textContent = leaves.length
-    ? completed === leaves.length && section.dataset.goalType !== "standalone"
-      ? "All tasks finished · close the remaining sections"
-      : `${completed} of ${leaves.length} ${itemNoun} complete`
-    : section.dataset.goalType === "standalone" ? "No tasks yet" : "No steps yet";
-  section.querySelector(".goal-progress-value").style.width = `${leaves.length ? (completed / leaves.length) * 100 : 0}%`;
+    ? `${completed} / ${leaves.length} complete`
+    : `No ${itemNoun} yet`;
   const activeRoots = tasks.filter((task) => task.parent_id === null && !task.completed);
   section.querySelector(".goal-empty-state").classList.toggle("hidden", activeRoots.length !== 0);
   renderCompletedTasks(section, tasks);
@@ -664,8 +728,11 @@ async function loadTasks(goalId) {
     && tasks.some((task) => task.parent_id === null)
     && tasks.filter((task) => task.parent_id === null).every((task) => task.completed);
   goalComplete.classList.toggle("hidden", !readyToClose);
+  const allLeavesDone = leaves.length > 0 && completed === leaves.length && goalType !== 'standalone';
+  section.querySelector('.goal-status').classList.toggle('hidden', !allLeavesDone);
+  section.querySelector('.goal-status-copy').textContent = readyToClose ? 'Everything is complete.' : 'Tasks finished. Close the remaining sections below.';
+  section.querySelector('.goal-empty-state').textContent = tasks.length ? 'All clear. Add another step whenever you need one.' : goalType === 'standalone' ? 'A place for the small things. Add your first task.' : 'Add a step when you’re ready to begin.';
   if (readyToClose) {
-    section.querySelector(".goal-progress-copy").textContent = "All tasks finished · ready to close this direction";
     goalComplete.onclick = async () => {
       const goal = planGoalsCache.find((item) => item.id === goalId);
       await api(`/goals/${goalId}`, { method: "PATCH", body: JSON.stringify({ completed: true }) });
@@ -718,6 +785,7 @@ function renderTask(task, allTasks, container, goalType = "project") {
         body: JSON.stringify({ title: editedTitle }),
       });
       await loadTasks(task.goal_id);
+      document.querySelector(`[data-task-id="${task.id}"] .task-title`)?.focus();
       showToast("Task renamed.");
     },
   });
@@ -744,25 +812,23 @@ function renderTask(task, allTasks, container, goalType = "project") {
       finally { checkbox.disabled = false; }
     });
   } else {
-    checkbox.disabled = true;
-    checkbox.setAttribute("aria-label", `Complete the smaller steps before closing ${task.title}`);
-    checkbox.title = "Complete the smaller steps first";
+    // An unfinished section is a disclosure row. Show its completion control
+    // only when its children are done, without reserving a second leading slot.
+    checkbox.remove();
   }
 
   if (isLeaf) {
-    chevron.classList.remove("hidden");
-    chevron.classList.add("is-placeholder");
-    chevron.disabled = true;
+    chevron.remove();
     progress.remove();
   } else {
     const completedChildren = children.filter((child) => child.completed).length;
-    progress.textContent = readyToClose ? "All steps complete" : `${completedChildren} of ${children.length}`;
+    progress.textContent = readyToClose ? "Ready to close" : `${completedChildren} / ${children.length} steps complete`;
     if (!activeChildren.length) {
-      chevron.classList.remove("hidden");
-      chevron.classList.add("is-placeholder");
-      chevron.disabled = true;
+      chevron.remove();
     } else {
       chevron.classList.remove("hidden");
+      subtaskList.id = `task-children-${task.id}`;
+      chevron.setAttribute('aria-controls', subtaskList.id);
       const collapsed = collapsedTaskIds.has(task.id);
       taskNode.classList.toggle("is-collapsed", collapsed);
       chevron.setAttribute("aria-expanded", String(!collapsed));
@@ -793,7 +859,11 @@ function renderTask(task, allTasks, container, goalType = "project") {
     subtaskForm.remove();
   } else {
     add.setAttribute("aria-label", `Add a smaller step under ${task.title}`);
-    add.addEventListener("click", () => setStepComposer(subtaskForm, subtaskForm.classList.contains("hidden")));
+    add.addEventListener("click", () => {
+      taskNode.classList.remove('is-collapsed'); collapsedTaskIds.delete(task.id); saveCollapsedTaskIds();
+      chevron.setAttribute('aria-expanded','true'); chevron.setAttribute('aria-label', `Collapse ${task.title}`);
+      setStepComposer(subtaskForm, subtaskForm.classList.contains("hidden"));
+    });
     subtaskForm.querySelector(".cancel-subtask").addEventListener("click", () => setStepComposer(subtaskForm, false));
     subtaskForm.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -807,9 +877,17 @@ function renderTask(task, allTasks, container, goalType = "project") {
       showToast("Substep added.");
     });
     breakdown.addEventListener("click", async () => {
+      taskNode.classList.remove('is-collapsed'); collapsedTaskIds.delete(task.id); saveCollapsedTaskIds();
+      chevron.setAttribute('aria-expanded','true'); chevron.setAttribute('aria-label', `Collapse ${task.title}`);
       const originalMarkup = breakdown.innerHTML;
       breakdown.textContent = "Generating…";
       breakdown.disabled = true;
+      taskRow.setAttribute('aria-busy', 'true');
+      const loading = document.createElement('p');
+      loading.className = 'task-generation-status';
+      loading.setAttribute('role', 'status');
+      loading.textContent = 'Drafting smaller steps…';
+      taskRow.after(loading);
       try {
         const proposed = await api(`/tasks/${task.id}/breakdown`, { method: "POST" });
         renderTaskSuggestions(task, proposed, suggestions);
@@ -823,10 +901,38 @@ function renderTask(task, allTasks, container, goalType = "project") {
       } finally {
         breakdown.innerHTML = originalMarkup;
         breakdown.disabled = false;
+        taskRow.removeAttribute('aria-busy');
+        loading.remove();
       }
     });
   }
 
+  setupMenu(node.querySelector('.task-more'), node.querySelector('.task-menu'), task.title);
+  node.querySelector('.rename-task').addEventListener('click', () => title.click());
+  const queueButton = node.querySelector('.queue-task');
+  if (!isLeaf) queueButton.remove();
+  else {
+    const updateQueueLabel = () => { queueButton.textContent = queuedTaskIds.has(task.id) ? 'Remove from focus queue' : 'Add to focus queue'; };
+    updateQueueLabel();
+    queueButton.addEventListener('click', async () => {
+      const removing = queuedTaskIds.has(task.id);
+      queueButton.disabled = true;
+      try {
+        const queue = await api(`/queue/${task.id}`, {method: removing ? 'DELETE' : 'POST'});
+        queuedTaskIds = new Set(queue.map(({task}) => task.id));
+        updateQueueLabel();
+        showToast(removing ? 'Removed from your focus queue. Task kept in Plan.' : 'Added to your focus queue. Find it on Today.');
+      } catch(error) { showToast(error.message,true); }
+      finally { queueButton.disabled = false; }
+    });
+  }
+  const siblings = siblingsOf(task, allTasks).filter(item => !item.completed);
+  for (const [selector, delta] of [['.task-move-up', -1], ['.task-move-down', 1]]) {
+    const button = node.querySelector(selector);
+    const target = siblings.findIndex(item => item.id === task.id) + delta;
+    button.disabled = target < 0 || target >= siblings.length;
+    button.addEventListener('click', () => moveTaskBy(task, allTasks, delta));
+  }
   reorderHandle.addEventListener("pointerdown", () => { taskNode.draggable = true; });
   reorderHandle.addEventListener("pointerup", () => { taskNode.draggable = false; });
   reorderHandle.addEventListener("keydown", async (event) => {

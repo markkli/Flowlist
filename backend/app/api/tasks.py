@@ -8,18 +8,17 @@ from app.services.plan import find_goal, find_task, next_task_position, reopen_t
 from app.ai import AIConfigurationError, suggest_subtasks
 
 router = APIRouter()
-MAX_DEPTH = 3
+MAX_DEPTH = 2
 
 @router.get("/next-focus", response_model=schemas.NextFocus)
 def get_next_focus(db: Session = Depends(get_db)):
     all_tasks = db.scalars(select(TaskModel)).all()
     tasks_by_id = {task.id: task for task in all_tasks}
-    goal_positions = {
-        goal.id: goal.position for goal in db.scalars(select(GoalModel)).all()
-    }
+    active_goals = db.scalars(select(GoalModel).where(GoalModel.completed.is_(False))).all()
+    goal_positions = {goal.id: goal.position for goal in active_goals}
     parent_ids = {task.parent_id for task in all_tasks if task.parent_id is not None}
     candidates = [
-        task for task in all_tasks if not task.completed and task.id not in parent_ids
+        task for task in all_tasks if not task.completed and task.id not in parent_ids and task.goal_id in goal_positions
     ]
     if not candidates:
         raise HTTPException(status_code=404, detail="No unfinished focus task found")
@@ -33,21 +32,21 @@ def get_next_focus(db: Session = Depends(get_db)):
 
 @router.get("/focus-options", response_model=list[schemas.FocusTaskOption])
 def list_focus_options(db: Session = Depends(get_db)):
-    """Return unfinished leaf tasks in a useful post-session attribution order."""
+    """Offer every unfinished level, grouped in the same hierarchy as Plan."""
     all_tasks = db.scalars(select(TaskModel)).all()
     parent_ids = {task.parent_id for task in all_tasks if task.parent_id is not None}
+    goals_by_id = {
+        goal.id: goal for goal in db.scalars(select(GoalModel).where(GoalModel.completed.is_(False))).all()
+    }
     candidates = [
-        task for task in all_tasks if not task.completed and task.id not in parent_ids
+        task for task in all_tasks if not task.completed and task.goal_id in goals_by_id
     ]
     tasks_by_id = {task.id: task for task in all_tasks}
-    goal_positions = {
-        goal.id: goal.position for goal in db.scalars(select(GoalModel)).all()
-    }
+    goal_positions = {goal.id: goal.position for goal in goals_by_id.values()}
     recent_rows = db.execute(
         select(
             FocusSessionTaskModel.task_id,
             func.max(FocusSessionModel.created_at),
-            func.max(FocusSessionModel.id),
         )
         .join(
             FocusSessionModel,
@@ -57,24 +56,31 @@ def list_focus_options(db: Session = Depends(get_db)):
         .group_by(FocusSessionTaskModel.task_id)
     ).all()
     last_focused = {
-        task_id: created_at for task_id, created_at, _session_id in recent_rows
+        task_id: created_at for task_id, created_at in recent_rows
     }
-    last_session_ids = {
-        task_id: session_id for task_id, _created_at, session_id in recent_rows
-    }
-    candidates.sort(
-        key=lambda task: (
-            0 if task.id in last_session_ids else 1,
-            -last_session_ids.get(task.id, 0),
-            task_plan_key(task, tasks_by_id, goal_positions),
-        )
-    )
+    candidates.sort(key=lambda task: task_plan_key(task, tasks_by_id, goal_positions))
+
+    def ancestor_titles(task):
+        titles = []
+        parent_id = task.parent_id
+        while parent_id is not None:
+            parent = tasks_by_id[parent_id]
+            titles.append(parent.title)
+            parent_id = parent.parent_id
+        return list(reversed(titles))
+
     return [
         schemas.FocusTaskOption(
             id=task.id,
             title=task.title,
             goal_id=task.goal_id,
-            goal_title=task.goal.title,
+            goal_title=goals_by_id[task.goal_id].title,
+            goal_type=goals_by_id[task.goal_id].goal_type,
+            parent_id=task.parent_id,
+            depth=task.depth,
+            position=task.position,
+            ancestor_titles=ancestor_titles(task),
+            has_children=task.id in parent_ids,
             last_focused_at=last_focused.get(task.id),
         )
         for task in candidates
@@ -88,10 +94,10 @@ def create_subtask(
     parent = find_task(db, parent_id)
     if parent.goal.goal_type == "standalone":
         raise HTTPException(status_code=400, detail="The Tasks list does not support nested steps")
-    if parent.depth >= MAX_DEPTH:
+    if parent.parent_id is not None or parent.depth >= MAX_DEPTH:
         raise HTTPException(
             status_code=400,
-            detail=f"Maximum depth of {MAX_DEPTH} reached; this task can't have subtasks.",
+            detail="Subtasks cannot contain another level. Add a sibling subtask instead.",
         )
     new_task = TaskModel(
         goal_id=parent.goal_id,
@@ -112,10 +118,10 @@ def breakdown_task(task_id: int, db: Session = Depends(get_db)):
     task = find_task(db, task_id)
     if task.goal.goal_type == "standalone":
         raise HTTPException(status_code=400, detail="The Tasks list does not support AI breakdown")
-    if task.depth >= MAX_DEPTH:
+    if task.parent_id is not None or task.depth >= MAX_DEPTH:
         raise HTTPException(
             status_code=400,
-            detail=f"Maximum depth of {MAX_DEPTH} reached; this task can't have subtasks.",
+            detail="Subtasks cannot contain another level. Add a sibling subtask instead.",
         )
     goal = find_goal(db, task.goal_id)
     try:
@@ -173,5 +179,4 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
     db.delete(task)
     db.commit()
     return {"deleted": True}
-
 

@@ -1,45 +1,46 @@
-# Plan Page Override
+# Plan page
 
-**Updated:** 2026-09-18
+Updated: 2026-09-19
 
-## Purpose
+## Structure
 
-The Plan page is a working outline, not a dashboard of nested cards. It should make three things immediately clear: where the user is headed, what remains active, and what has already been finished.
+Plan is a compact outline of directions and actionable steps. Keep the forest palette and system typography, with restrained borders and content-sized panels. The title and task list carry the hierarchy; secondary controls belong in an accessible More menu.
 
-## Desktop Structure
+- At wide desktop widths, show a named direction index beside the outline. At narrower widths, use a horizontally scrollable strip of named links above it. The page itself must not overflow.
+- A direction header has disclosure, a 17–19px editable title, a short type/completion count, Add step, and More. Avoid fixed header heights, large progress bars, and separate toolbar rows.
+- Rename, AI draft, Move up/down, and Remove live in More. Keep menu targets at least 44px and render menus in the browser top layer so cards cannot clip them.
+- Project, Learning, and Task creation remain available in the page header and each reveal one composer.
+- Add and AI draft expand a collapsed direction before revealing their content. Collapse state persists locally.
 
-- Use a sticky vertical dot group between the app sidebar and one readable column of direction panels at all breakpoints. Do not turn it horizontal, connect the dots with a rule, or allow direction cards to cover its labels.
-- The active dot follows the visible direction. Hover and keyboard focus enlarge it and reveal type/name in a floating label; clicking scrolls directly to the direction.
-- Keep Project, Learning, and Task as separate but low-emphasis creation actions in the atmospheric page heading. Each reveals one compact composer.
-- Each goal header contains a collapse control, editable title, overall progress, and explicit labelled actions that affect the whole direction. Learning directions expose a restrained AI Draft Beta action.
+## Task hierarchy
 
-## Task Hierarchy
+- Leaves have a completion checkbox and title; do not reserve empty disclosure or drag columns before the title.
+- Unfinished sections have a disclosure control and direct-child count. When all their children are complete, replace disclosure with a completion checkbox and “Ready to close.” Completion remains manual.
+- Use compact indentation, subtle vertical guides, and stronger section titles. Keep each task in one row when its title fits, including on touch layouts.
+- More provides Rename, Add smaller step, AI draft, Move up/down, and Remove where eligible. Leaf tasks also provide Add to / Remove from focus queue.
+- Mouse users can drag the trailing handle within a sibling group. Alt+Up/Down and menu actions provide keyboard alternatives.
+- Menus support arrow keys, Home/End, Escape, and focus return. Inline rename restores focus on save or Escape.
+- Shared Tasks stays flat. It has no hierarchy placeholders, substeps, or AI drafting.
 
-- Render unfinished work and every ancestor required to understand it. Finishing a leaf must never erase its parent context.
-- Every row has a fixed disclosure column and fixed completion column. A leaf uses an invisible disclosure placeholder. A parent checkbox remains visible but disabled until every direct child is checked; then show “All steps complete” and enable it.
-- Use indentation, spacing, and type weight for hierarchy; do not use horizontal row dividers, vertical guide lines, tinted background bands, or nested bordered task cards.
-- Rename by clicking the title. Reveal Add substep, AI Beta, and Remove in an absolutely positioned hover/focus tray so hidden controls do not leave a blank action column; keep equivalent touch-safe access.
-- Expand/collapse applies to parent nodes and whole directions and persists locally.
-- Whole directions use visible-on-hover up/down controls because dragging a large card is imprecise. Reposition the viewport after each move so the same arrow remains beneath the pointer and retains keyboard focus. Compact task drag reorder works only within a sibling group; Alt+Up/Down is the keyboard alternative.
-- Confirm deletion because removing a parent may also remove descendants.
+## Completed work
 
-## Completed Work
+- Finished nodes appear in the expandable Completed list with their ancestor path. Reopening restores the ancestor chain without reopening completed siblings.
+- A direction can close after every root section is manually complete. Show the close action beside a concise completion note in the body.
+- Completion has an Undo toast; deletion requires confirmation.
 
-- Place all checked nodes in an expandable Completed section at the bottom of their direction.
-- Rows use checked controls, crossed titles, and breadcrumbs made from ancestor titles.
-- Reopening an item returns it and its ancestor chain to the active outline while preserving completed siblings.
-- A direction becomes closable only after every top-level node is manually closed. Closed directions move to a separate Completed directions section.
-- Completion uses a brief cause-and-effect fade and an Undo toast.
+## Queue
 
-## AI Drafting
+- Today contains a persistent, manually selected shortlist independent of Plan order.
+- Choose tasks / Edit queue opens a searchable picker grouped by direction, with selection count and an expandable order editor.
+- Only unfinished leaf tasks in active directions are eligible. Save replaces the queue; Cancel/Escape discard the draft.
+- Queue row menus move items or remove membership. Removing from the queue never deletes the Plan task.
+- Completion filters a task from the queue. Undo reopens it in its previous position, unless the queue has since been explicitly replaced.
+- The picker traps focus, restores its opener, handles errors without losing selections, and fits narrow/short viewports.
 
-- “Generate learning path” is a restrained sparkle action in the learning-direction header and is marked Beta in its tooltip/wizard.
-- “Generate smaller steps” uses the same sparkle action on eligible task rows.
-- Copy must explain that AI output is a draft and that a personally considered plan will usually fit pace and preferences better.
-- Never insert generated work automatically. Show a multi-select proposal list and require Add selected.
+## AI
 
-## Responsive Behavior
+AI drafting remains secondary and marked Beta. Learning questions and generated proposals are drafts. Never add suggestions automatically: require selection and Add selected.
 
-- Below the desktop breakpoint, narrow the vertical dot column but keep it sticky beside the goal stack.
-- At compact widths, group the three creation actions into a quiet segmented strip, preserve 44px touch targets, and allow row controls to remain operable without relying on hover.
-- No horizontal scrolling at 375px.
+## Responsive checks
+
+Check 375px, tablet, short landscape, and desktop in both themes. Preserve visible keyboard focus and 44px primary touch targets. Long titles wrap in Plan; queue titles expose full text via their title attribute and picker.

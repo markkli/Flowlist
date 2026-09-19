@@ -97,9 +97,15 @@ development, and PostgreSQL for the container stack remain in place.
 
 ## Product behavior
 
-- Plan order is the task queue order. The queue shows unfinished leaf tasks;
-  completed work remains accessible in Plan. Closed directions are excluded
-  from the dashboard. There are no task priorities or prescribed task durations.
+- Today’s task queue is a persistent shortlist that you choose and order. Use
+  **Choose tasks / Edit queue**, or a leaf task’s menu in Plan. Removing a task
+  from the queue leaves it in Plan; completing it hides it and Undo restores it.
+  Queue order is independent of Plan order and does not reset each day. Closed
+  directions are excluded. There are no priorities or prescribed task durations.
+- Plan uses compact, collapsible outlines, named navigation, and action menus.
+  Flat tasks do not reserve hierarchy columns. Feature styles live alongside
+  their view code in `frontend/src/features/plan/plan.css` and
+  `frontend/src/features/dashboard/queue.css`.
 - Projects and learning objectives support three task levels. The shared Tasks
   list stays flat, with no AI breakdown. Parent sections close only when all
   direct children are complete. Reopening a child reopens its ancestor chain.
