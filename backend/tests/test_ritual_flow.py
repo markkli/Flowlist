@@ -11,13 +11,13 @@ from fastapi.testclient import TestClient
 
 # This must be set before importing Flowlist's database module. It ensures the
 # test never reads from or writes to the developer's real database.
-TEST_DATABASE = Path(tempfile.gettempdir()) / "flowlist-ritual-test.sqlite3"
-TEST_DATABASE.unlink(missing_ok=True)
+TEST_DIRECTORY = tempfile.TemporaryDirectory(prefix="flowlist-tests-")
+TEST_DATABASE = Path(TEST_DIRECTORY.name) / "test.sqlite3"
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DATABASE}"
 os.environ.pop("OPENAI_API_KEY", None)
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from database import Base, engine  # noqa: E402
+from app.database import Base, engine  # noqa: E402
 # database.py loads the developer .env for normal app startup. Remove the key
 # again so tests exercise deterministic local fallbacks unless they explicitly
 # monkeypatch an AI helper.
@@ -187,7 +187,7 @@ def test_short_ritual_summary_becomes_a_clean_history_title():
     assert session.json()["summary"] == "mapped the API error states."
 
 
-def test_gibberish_ritual_summary_falls_back_to_general_focus():
+def test_unusual_ritual_summary_is_preserved():
     client = TestClient(app)
 
     session = client.post(
@@ -201,11 +201,11 @@ def test_gibberish_ritual_summary_falls_back_to_general_focus():
     )
 
     assert session.status_code == 200
-    assert session.json()["task_title"] == "General focus"
-    assert session.json()["summary"] is None
+    assert session.json()["task_title"] == "Fdsfdsa"
+    assert session.json()["summary"] == "fdsfdsa"
 
 
-def test_multiple_tasks_use_generated_shared_history_title(monkeypatch):
+def test_multiple_tasks_save_with_local_title_before_optional_enrichment(monkeypatch):
     client = TestClient(app)
     goal = client.post("/goals", json={"title": "AI engineering"}).json()
     first = client.post(
@@ -215,7 +215,7 @@ def test_multiple_tasks_use_generated_shared_history_title(monkeypatch):
         f"/goals/{goal['id']}/tasks", json={"title": "Evaluate responses"}
     ).json()
     monkeypatch.setattr(
-        "main.suggest_focus_title",
+        "app.services.titles.suggest_focus_title",
         lambda summary, contexts: "Reliable retrieval workflow",
     )
 
@@ -230,7 +230,7 @@ def test_multiple_tasks_use_generated_shared_history_title(monkeypatch):
     )
 
     assert session.status_code == 200
-    assert session.json()["task_title"] == "Reliable retrieval workflow"
+    assert session.json()["task_title"] == "AI engineering focus"
 
 
 def test_task_creation_has_no_prescribed_duration():
@@ -265,7 +265,7 @@ def test_learning_breakdown_asks_questions_then_returns_learning_path(monkeypatc
         "/goals", json={"title": "AI engineering", "goal_type": "learning"}
     ).json()
     monkeypatch.setattr(
-        "main.suggest_learning_questions",
+        "app.api.goals.suggest_learning_questions",
         lambda title, description: [
             {"id": "level", "question": "What is your current level?"}
         ],
@@ -274,7 +274,7 @@ def test_learning_breakdown_asks_questions_then_returns_learning_path(monkeypatc
     questions = client.post(f"/goals/{goal['id']}/breakdown/questions")
     assert questions.status_code == 200
     monkeypatch.setattr(
-        "main.suggest_learning_tasks",
+        "app.api.goals.suggest_learning_tasks",
         lambda title, description, answers: [{"title": "Build a small model"}],
     )
     response = client.post(
@@ -552,3 +552,102 @@ def test_plan_order_is_persistent_for_goals_and_sibling_tasks():
         task["title"] for task in client.get(f"/goals/{first_goal['id']}/tasks").json()
     ] == ["B", "A"]
     assert client.get("/next-focus").json()["task"]["id"] == second_task["id"]
+
+
+def test_session_cannot_bypass_parent_completion_validation():
+    client = TestClient(app)
+    goal, parent = create_goal_and_task(client)
+    child = client.post(f"/tasks/{parent['id']}/subtasks", json={"title": "Unfinished child"}).json()
+    response = client.post('/sessions', json={"planned_minutes":25, "actual_minutes":25, "completed":True, "tasks":[{"task_id":parent['id'], "completed":True}]})
+    assert response.status_code == 409
+    assert client.get('/sessions').json() == []
+    assert all(not task['completed'] for task in client.get(f"/goals/{goal['id']}/tasks").json())
+    response = client.post('/sessions', json={"planned_minutes":25, "actual_minutes":25, "completed":True, "tasks":[{"task_id":parent['id'], "completed":True}, {"task_id":child['id'], "completed":True}]})
+    assert response.status_code == 200
+
+
+@pytest.mark.parametrize('field', ['title', 'completed'])
+def test_null_task_updates_are_validation_errors(field):
+    client = TestClient(app)
+    _, task = create_goal_and_task(client)
+    assert client.patch(f"/tasks/{task['id']}",json={field:None}).status_code == 422
+
+
+@pytest.mark.parametrize('field', ['title', 'completed', 'goal_type'])
+def test_null_goal_updates_are_validation_errors(field):
+    client = TestClient(app)
+    goal, _ = create_goal_and_task(client)
+    assert client.patch(f"/goals/{goal['id']}",json={field:None}).status_code == 422
+
+
+def test_flat_tasks_reject_nesting_and_ai():
+    client = TestClient(app)
+    task = client.post('/standalone-tasks',json={'title':'Flat task'}).json()
+    assert client.post(f"/tasks/{task['id']}/subtasks",json={'title':'Child'}).status_code == 400
+    assert client.post(f"/tasks/{task['id']}/breakdown").status_code == 400
+
+
+def test_long_session_retry_delete_and_restore():
+    client = TestClient(app)
+    goal, task = create_goal_and_task(client)
+    body = {'client_id':'retry-safe-id','planned_minutes':900,'actual_minutes':900,'completed':True,'summary':'原始的反思', 'tasks':[{'task_id':task['id'],'completed':True}]}
+    first = client.post('/sessions',json=body)
+    retry = client.post('/sessions',json=body)
+    assert first.status_code == retry.status_code == 200
+    assert first.json()['id'] == retry.json()['id']
+    assert first.json()['summary'] == '原始的反思'
+    assert client.get('/stats').json()['total_minutes'] == 900
+    session_id = first.json()['id']
+    assert client.delete(f'/sessions/{session_id}').status_code == 200
+    assert client.get('/stats').json()['total_sessions'] == 0
+    assert client.post('/sessions',json=body).status_code == 409
+    assert client.get('/sessions?deleted=true').json()[0]['id'] == session_id
+    assert client.post(f'/sessions/{session_id}/restore').status_code == 200
+    assert client.get('/stats').json()['total_minutes'] == 900
+    assert client.get(f"/goals/{goal['id']}/tasks").json()[0]['completed']
+
+
+def test_history_cursor_does_not_repeat_records():
+    client = TestClient(app)
+    for _ in range(4):
+        client.post('/sessions',json={'planned_minutes':1,'actual_minutes':1,'completed':True})
+    first = client.get('/sessions?limit=2').json()
+    second = client.get(f"/sessions?limit=2&before_id={first[-1]['id']}").json()
+    assert len(first) == len(second) == 2
+    assert not {row['id'] for row in first} & {row['id'] for row in second}
+
+
+def test_dashboard_uses_local_dates_and_excludes_closed_goals(monkeypatch):
+    from datetime import datetime, timezone
+    from app.database import SessionLocal
+    from app.models import FocusSessionModel
+    import app.api.dashboard as dashboard
+    class FixedDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2026,9,19,2,tzinfo=timezone.utc).astimezone(tz)
+    monkeypatch.setattr(dashboard,'datetime',FixedDateTime)
+    client = TestClient(app)
+    goal, task = create_goal_and_task(client)
+    client.patch(f"/tasks/{task['id']}",json={'completed':True})
+    client.patch(f"/goals/{goal['id']}",json={'completed':True})
+    with SessionLocal() as db:
+        db.add(FocusSessionModel(planned_minutes=25,actual_minutes=25,completed=True,created_at=datetime(2026,9,19,1)))
+        db.commit()
+    data = client.get('/dashboard?timezone=America/Chicago').json()
+    assert data['goals'] == []
+    assert data['activity'] == [{'date':'2026-09-18','sessions':1,'minutes':25}]
+    assert data['stats']['current_streak'] == 1
+    assert data['week_sessions'] == 1
+    assert client.get('/dashboard?timezone=bad/zone').status_code == 422
+
+
+def test_ai_enrichment_failure_does_not_lose_session(monkeypatch):
+    def fail(*_): raise RuntimeError('simulated AI failure')
+    monkeypatch.setenv('OPENAI_API_KEY','test-only')
+    monkeypatch.setattr('app.services.titles.suggest_focus_title',fail)
+    client = TestClient(app)
+    summary = 'A long reflection that should always be saved even when the optional AI title service is unavailable.'
+    response = client.post('/sessions',json={'planned_minutes':25,'actual_minutes':25,'completed':True,'summary':summary})
+    assert response.status_code == 200
+    assert client.get('/sessions').json()[0]['summary'] == summary

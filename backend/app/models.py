@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database import Base
+from app.database import Base
 
 
 class GoalModel(Base):
@@ -44,6 +44,8 @@ class FocusSessionModel(Base):
     __tablename__ = "focus_sessions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    client_id: Mapped[str | None] = mapped_column(nullable=True, unique=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(nullable=True)
     title: Mapped[str | None] = mapped_column(nullable=True)
     summary: Mapped[str | None] = mapped_column(nullable=True)
     planned_minutes: Mapped[int]

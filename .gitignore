@@ -11,7 +11,7 @@ htmlcov/
 .env
 .env.*
 !.env.example
-backend/flowlist.local.db
+backend/flowlist.local.db*
 backend/local-development.env
 .flowlist-backend.log
 .flowlist-frontend.log
@@ -25,3 +25,9 @@ backend/local-development.env
 # Local Codex agent skills (not application source)
 .agents/
 skills-lock.json
+
+# Frontend build and test output
+node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/

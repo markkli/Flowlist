@@ -1,179 +1,154 @@
 # Flowlist
 
-Flowlist is a focus ritual app: turn a goal into concrete tasks, protect a
-focus block, and see that work accumulate in your activity ledger.
+Flowlist is a private focus app: organize projects, learning objectives, and a
+shared Tasks list; run a focus ritual; then attribute the time to the work.
 
-Plan items can be projects, learning objectives, or tasks. Tasks share one
-simple list for work such as paying a bill or reading a book; they do not
-expose nested steps or AI breakdown controls.
+## Local development
 
-## How the app fits together
-
-```text
-Frontend (browser)
-        ↓ HTTP requests
-FastAPI backend (port 8000)
-        ↓ SQLAlchemy
-PostgreSQL (Docker)
-```
-
-- `frontend/` is the browser interface.
-- `backend/main.py` defines Flowlist's HTTP API routes.
-- `backend/models.py` defines goals, tasks, and focus-session tables.
-- `backend/schemas.py` validates data crossing the API boundary.
-- `backend/database.py` creates database connections.
-
-## Run Flowlist locally
-
-### Quick local mode (no Docker)
-
-This is the easiest way to run Flowlist on your Mac while developing. It uses
-SQLite, a small local database file, instead of PostgreSQL.
-
-First, install the local environment once:
+Requires Python 3.13 and Node.js 22.12+.
 
 ```bash
 python3 -m venv backend/.venv
 backend/.venv/bin/pip install -r backend/requirements.txt -r backend/requirements-dev.txt
-```
-
-Then start both servers with one command:
-
-```bash
+npm --prefix frontend ci
 ./scripts/run-local.sh
 ```
 
-The script creates `backend/local-development.env` on first run, applies all
-database migrations, starts FastAPI and the frontend, and prints the connected
-URL. Open `http://127.0.0.1:5500`. Press `Ctrl+C` to stop both servers.
+Open http://127.0.0.1:5500. The launcher applies migrations, runs FastAPI on
+port 8000, and starts Vite with an `/api` proxy. It creates
+`backend/local-development.env` from the example on first use and reuses an
+existing `backend/.env` API key without printing it. AI features are optional.
+The local database is `backend/flowlist.local.db`.
 
-If `backend/local-development.env` leaves `OPENAI_API_KEY` blank, the launcher
-reuses the key from `backend/.env` when one is already present. It never prints
-the key or writes it into the repository.
-
-The database is stored in `backend/flowlist.local.db`, which is local-only and
-can be deleted when you want a fresh development database.
-
-If you prefer to run the frontend separately:
+To run the servers separately:
 
 ```bash
-python3 -m http.server 5500 -d frontend
+# Terminal 1, from backend (configure DATABASE_URL first)
+.venv/bin/alembic upgrade head
+.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+
+# Terminal 2, from the repository root
+npm --prefix frontend run dev
 ```
 
-Then open `http://127.0.0.1:5500`.
+Set `FLOWLIST_API_TARGET` for the Vite process if your API uses another port.
+The frontend now requires Vite or a production build; do not serve its source
+with `python -m http.server` or open `index.html` directly.
 
-### Deployment-like mode (Docker)
-
-### 1. Configure local secrets
+## Production build and local preview
 
 ```bash
-cp .env.example .env
+npm --prefix frontend run build
+cd backend
+# Configure DATABASE_URL, then:
+.venv/bin/alembic upgrade head
+.venv/bin/uvicorn preview:app --host 127.0.0.1 --port 8010
 ```
 
-Change `POSTGRES_PASSWORD` before exposing the app. `OPENAI_API_KEY` is
-optional; the rest of Flowlist works without AI drafting.
+The preview serves `frontend/dist` and the API together at
+http://127.0.0.1:8010. Assets are fingerprinted by Vite.
 
-### 2. Start the complete stack
+Alternatively, copy `.env.example` to `.env` and run:
 
 ```bash
 docker compose up --build
 ```
 
-This starts PostgreSQL, FastAPI, and the production frontend server. Open
-`http://127.0.0.1:8080` (or the port selected by `FLOWLIST_PORT`). Nginx serves
-the interface and forwards `/api` to FastAPI, so the browser sees one origin.
-The API is intentionally not published directly by the Compose stack.
+The Compose stack uses PostgreSQL, FastAPI, and Nginx. The frontend is exposed
+on **127.0.0.1:8080 only**; the API and database stay inside the Docker network.
+Authentication and per-user ownership are deliberately deferred until shipping.
+Do not expose this single-user build publicly. Back up the database before
+upgrades. `.env` files, database files, logs, builds, and caches are ignored.
 
-On a new database, the backend automatically runs all Alembic migrations before
-it starts. If you already created a local Flowlist database before migrations
-were added, do not run the initial migration against those existing tables.
-Instead, once, mark its matching baseline version:
-
-```bash
-docker compose run --rm backend alembic stamp 20260804_01
-```
-
-`stamp` records the version without changing tables. Future Flowlist migrations
-will then run normally when the backend starts.
-
-Do not open `index.html` using a `file://` URL: the UI can render, but it cannot
-reliably reach the backend.
-
-## Test the core ritual
-
-The end-to-end test proves the most important product loop:
+## Repository structure
 
 ```text
-create goal → add task → run Pomodoro → attribute session → optionally complete task → update stats
+backend/
+  app/
+    main.py             # app assembly, CORS, health
+    api/                # goals, tasks, sessions, dashboard HTTP routes
+    services/           # shared completion/ordering and title enrichment
+    models.py           # SQLAlchemy tables
+    schemas.py          # request/response validation
+    database.py         # database connections
+    ai.py               # optional AI integration
+  migrations/           # Alembic schema history
+  tests/                # API and migration regression tests
+  preview.py            # combined local production preview
+frontend/
+  src/
+    shared/             # typed API client, domain types, safe DOM helpers
+    features/
+      timer/            # typed timer transitions plus UI adapter
+      plan/
+      history/
+      dashboard/
+    main.js             # navigation, theme, feature initialization
+  public/images/        # original artwork
+  tests/                # isolated Playwright browser tests
+  styles.css            # existing forest theme and responsive styles
+  index.html            # semantic page and dialog templates
 ```
 
-Create the local development environment once:
+The frontend uses Vite and TypeScript for shared services and timer state.
+Existing view adapters remain ES modules in JavaScript, allowing gradual typing
+without rewriting the interface. FastAPI, SQLAlchemy, Alembic, SQLite for local
+development, and PostgreSQL for the container stack remain in place.
+
+## Product behavior
+
+- Plan order is the task queue order. The queue shows unfinished leaf tasks;
+  completed work remains accessible in Plan. Closed directions are excluded
+  from the dashboard. There are no task priorities or prescribed task durations.
+- Projects and learning objectives support three task levels. The shared Tasks
+  list stays flat, with no AI breakdown. Parent sections close only when all
+  direct children are complete. Reopening a child reopens its ancestor chain.
+  Session attribution uses the same completion rules as direct task edits.
+- AI planning produces proposals that require explicit selection. Learning
+  paths ask clarification questions first.
+- Start a ritual without choosing a task. Defaults are 25 minutes of focus,
+  5 minutes of rest, and a 15-minute break after four rounds. Settings apply to
+  the next ritual. Skip credits only elapsed focus, never break time. Minutes
+  are rounded down once across the whole ritual.
+- Minimize the timer to browse the app while it continues. Escape minimizes
+  the running timer. After sleep, only the current focus block is credited;
+  additional unattended focus rounds are never invented.
+- Ending a ritual opens attribution. Worked on and Finished are independent
+  choices, except that Finished implies Worked on. Time is counted once.
+  Long rituals are supported beyond eight hours.
+- Running state, unsaved reflections, and selections are stored **on this
+  browser/device** until saved or deliberately discarded. Refresh restores them.
+  Escape and Save later retain the draft. Discard asks for confirmation. Browser
+  storage is not a cloud backup; clearing it removes unsaved work.
+- A stable ritual ID makes save retries safe after a lost response. Tabs share
+  the ritual state, using browser locks where available. A saved ritual clears
+  its local reflection and selections.
+- Reflections are preserved even if unusual or written in another language.
+  The backend commits a fallback title immediately. Optional AI enrichment runs
+  after the response with a bounded timeout; failure keeps the local title.
+  This enrichment is best effort, not a durable job queue.
+- History loads in pages. Delete hides a record from totals and offers Undo;
+  Show deleted records allows later restoration. Deletion never changes tasks.
+  There is currently no permanent purge control.
+- Activity cells and streaks use the browser's IANA timezone, with Monday-aligned
+  weeks. Streaks require at least one focused minute that day. This week is a
+  weekly count; the activity totals are lifetime figures.
+- Navigation uses URL fragments so refresh and browser Back preserve the view.
+
+## Tests
 
 ```bash
-python3 -m venv backend/.venv
-backend/.venv/bin/pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+backend/.venv/bin/python -m pytest backend/tests -q
+npm --prefix frontend run build
+npm --prefix frontend test
+cd frontend
+npx playwright install chromium
+npm run test:e2e
 ```
 
-Then run the test:
-
-```bash
-cd backend
-.venv/bin/pytest tests/test_ritual_flow.py
-```
-
-The test uses a disposable SQLite database and never touches your real
-PostgreSQL data.
-
-## Focus timer behavior
-
-The Pomodoro is intentionally independent from the plan: start a focus ritual
-without choosing a task, then attribute the accumulated focus time only when the
-ritual ends. Flowlist suggests unfinished tasks in plan order, with recently
-focused work first.
-
-The default cycle is four rounds of 25 minutes of focus and 5 minutes of rest,
-followed by a 15-minute long break. Focus length, short break, rounds, and long
-break can all be changed from the timer settings dialog. Flowlist does not
-prescribe durations for individual tasks; the session records the time actually
-spent instead.
-
-Each running block has a visible “Skip to next” control. Skipping focus advances
-directly to its break and only adds time that actually elapsed; skipped time is
-never credited. Skipping or naturally completing a break begins the next focus
-round. Cycles continue until “End ritual” is selected. Only then does Flowlist
-show the task-attribution checklist and save one record for the entire ritual.
-
-A session can be attributed to several tasks. Each task can be marked as
-“worked on” and, independently, “finished”; finishing a task also counts it as
-worked on. The focus duration is counted once regardless of how many tasks are
-selected. Leaving all tasks unchecked saves the record as General focus.
-
-The end-of-ritual dialog also accepts a short reflection and lets you create work
-that was not already in the plan. Short reflections become the history title;
-long notes or multi-task sessions use the optional OpenAI title helper, with a
-local fallback so a network or AI failure never prevents the session from being
-saved. While a ritual is running, “Add to plan” can capture a task into the
-shared Tasks list or directly under an existing project or learning objective
-without pausing the timer. Creating a new direction remains in the full Plan
-view, where the decision has enough context.
-
-Individual records can be removed from History. Removing a record updates the
-activity totals but does not reopen tasks that were completed during it.
-
-While a block is running, the frontend stores its phase and end timestamp in
-browser storage—not private notes or credentials. If the window is refreshed,
-Flowlist calculates the remaining time and continues the block. The recovery
-record is cleared when the focus or break interval ends.
-
-## Deployment notes
-
-- Commit `.env.example`, never `.env`. Local keys, databases, logs, caches, and
-  the installed UI skill are ignored by Git.
-- Database changes run through Alembic before the API starts.
-- Python dependencies are pinned so image rebuilds are repeatable.
-- The frontend container serves static assets through Nginx and proxies API
-  traffic; deploy the three Compose services together on any Docker host.
-- Back up the `pgdata` volume before upgrades. The quick-mode SQLite file is
-  development data and is not used by the container stack.
-- For a public deployment, terminate HTTPS at the hosting platform or a reverse
-  proxy and set a long random database password.
+API tests use a uniquely named disposable SQLite database. Migration tests check
+upgrades and downgrades against seeded data. Browser tests use intercepted API
+responses and isolated browser profiles, never the user's database. Timer tests
+cover skipped blocks, long breaks, sleep recovery, and long rituals. Playwright
+checks draft recovery, failed saves, safe title rendering, history Undo,
+keyboard behavior, navigation, and responsive layouts.

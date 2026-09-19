@@ -2,7 +2,7 @@ from datetime import datetime
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 GoalType = Literal["project", "learning", "standalone"]
 
@@ -20,13 +20,22 @@ class TitledPayload(BaseModel):
 
 
 class OptionalTitleUpdate(BaseModel):
+    @model_validator(mode="before")
+    @classmethod
+    def reject_null_required_fields(cls, value):
+        if isinstance(value, dict):
+            for key in ("title", "completed", "goal_type"):
+                if key in value and value[key] is None:
+                    raise ValueError(f"{key} must not be null")
+        return value
+
     title: str | None = Field(default=None, min_length=1, max_length=120)
 
     @field_validator("title")
     @classmethod
     def normalize_title(cls, value: str | None) -> str | None:
         if value is None:
-            return value
+            raise ValueError("Title must not be null")
         title = value.strip()
         if not title:
             raise ValueError("Title must not be blank")
@@ -109,8 +118,9 @@ class LearningBreakdownRequest(BaseModel):
 
 
 class FocusSessionCreate(BaseModel):
-    planned_minutes: int = Field(ge=1, le=480)
-    actual_minutes: int = Field(ge=0, le=480)
+    client_id: str | None = Field(default=None, min_length=1, max_length=64)
+    planned_minutes: int = Field(ge=1, le=2147483647)
+    actual_minutes: int = Field(ge=0, le=2147483647)
     completed: bool
     summary: str | None = Field(default=None, max_length=2000)
     tasks: list["FocusSessionTaskCreate"] = Field(default_factory=list, max_length=30)

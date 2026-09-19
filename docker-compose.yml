@@ -36,7 +36,7 @@ services:
   frontend:
     build: ./frontend
     ports:
-      - "${FLOWLIST_PORT:-8080}:80"
+      - "127.0.0.1:${FLOWLIST_PORT:-8080}:80"
     depends_on:
       backend:
         condition: service_healthy

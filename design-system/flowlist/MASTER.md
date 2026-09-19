@@ -2,7 +2,7 @@
 
 **Direction:** Native Mac forest utility
 
-**Updated:** 2026-09-18
+**Updated:** 2026-09-19
 
 **Character:** Quiet, capable, natural, precise
 
@@ -92,8 +92,8 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 - Keep “Add to plan” available during focus and breaks in a nested modal that does not pause or dismiss the running timer. It captures one task into the shared Tasks list or an existing active project/learning objective; creating an entirely new direction stays in the full Plan view.
 - Every attribution row has separate “Worked on” and “Finished” controls. Finishing implies worked-on; the session duration is still counted only once. No selected tasks means General focus.
 - The end-of-ritual dialog accepts an optional reflection and can create missing work in Tasks, an existing group, or a new project/learning objective before attribution.
-- Short meaningful reflections become cleaned history titles; longer reflections and selected-task sets use the title agent. Gibberish becomes General focus, and AI failure always falls back locally without blocking the save.
-- The task queue contains only completion, title, and parent context. Keep each title and its project, learning objective, or “Task” label to one line with an ellipsis and native title tooltip for the full text.
+- Preserve every reflection. Save a local history title immediately; longer reflections and multi-task sets may receive an optional title update after saving. AI failure never prevents saving or removes the note.
+- The task queue shows unfinished leaf tasks in Plan order and is labelled Task queue, without implying a daily schedule. It contains only completion, title, and parent context. Keep each title and its project, learning objective, or “Task” label to one line with an ellipsis and native title tooltip for the full text.
 - “Task” covers simple personal or administrative work that needs no plan hierarchy. Collect these items in one lightweight list and do not offer AI breakdown or nested-step controls.
 - The Pomodoro and queue panels maintain the same intentional height on desktop. The queue scrolls internally when it contains more rows.
 - Supporting panels remain quieter and use minimal shadows.
@@ -103,7 +103,7 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 
 - Each focus session is one record even when it was attributed to several tasks.
 - Show which tasks were worked on and which were finished.
-- Provide a compact, explicitly labelled delete control on every record; deletion updates statistics but never reopens completed tasks.
+- Provide a compact, explicitly labelled delete control on every record, followed by Undo. A deleted-records view supports later restoration. Deletion updates statistics but never reopens completed tasks.
 
 ### Controls
 
@@ -126,3 +126,13 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 - Use consistent inline SVG icons; no emoji icons.
 - Verify light and dark modes at 375, 768, 1024, and 1440px.
 - Verify keyboard focus, empty states, long task names, three hierarchy levels, and no horizontal overflow.
+
+## Reliability and Recovery
+
+- Running focus can minimize into a persistent bottom bar; reserve content space and respect safe-area insets.
+- Escape minimizes the timer or keeps attribution for later. Only explicit confirmed Discard removes an unsaved ritual.
+- Preserve the current block, accumulated time, reflection, and task selections through refresh. Show unsaved rituals in the bottom bar.
+- Keep session saves retryable without duplicate records. Show actionable errors and retain form values.
+- Use the browser timezone consistently for activity and streaks, align the heatmap to Monday, and show a true weekly sidebar count.
+- Distinguish finished tasks from sections awaiting manual closure in progress labels.
+- Keep Plan headers compact at narrow widths. Preserve the established forest palette and system typography.

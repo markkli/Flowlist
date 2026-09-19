@@ -1391,3 +1391,44 @@ label > span { display: block; margin-bottom: 5px; color: var(--muted); font-siz
   .step-composer > .cancel-step-composer, .step-composer > .cancel-subtask { grid-column: 1 / -1; min-height: 32px; }
   .task-edit-form { margin-left: 42px; }
 }
+
+/* Recovery, compact navigation, and accessible timer controls. */
+.connection-error { display:flex; align-items:center; gap:16px; padding:14px; margin-bottom:16px; border:1px solid var(--danger); border-radius:10px; color:var(--danger); }
+.timer-mini { position:fixed; z-index:35; bottom:20px; left:calc(50% + 116px); transform:translateX(-50%); display:flex; align-items:center; gap:12px; max-width:calc(100vw - 32px); padding:8px 14px; border:1px solid var(--border-strong); border-radius:14px; background:var(--surface-strong); box-shadow:var(--shadow-2); }
+.timer-mini > button:first-child { display:flex; align-items:center; gap:18px; min-height:44px; border:0; color:var(--ink); background:transparent; font-weight:600; }
+.mini-action { color:var(--muted); font-size:12px; }
+.timer-mini .text-btn { white-space:nowrap; min-height:44px; }
+.timer-minimize { display:block; margin:0 0 16px auto; min-height:44px; }
+body:has(.timer-mini:not(.hidden)) main { padding-bottom:110px; }
+body:has(.timer-mini:not(.hidden)) .app-toast { bottom:100px; }
+.heatmap-cell.future { opacity:.25; }
+.history-toolbar { margin-bottom:14px; }
+#history-more { margin-top:20px; }
+#history-deleted[aria-pressed="true"] { color:var(--danger); }
+.attribution-actions { flex-wrap:wrap; }
+.attribution-actions button { min-height:44px; }
+@media (max-width:820px) {
+  .timer-mini { left:50%; width:max-content; gap:8px; bottom:12px; }
+  .plan-page-heading { min-height:0; padding:16px 18px; gap:12px; }
+  .plan-page-heading .page-description { margin-top:5px; }
+  .plan-create-actions { width:auto; }
+  .plan-create-actions > span { width:auto; }
+  .goal-card-head { padding:16px 14px 12px; }
+  .goal-actions { margin-top:8px; }
+  .goal-progress-summary { margin-top:8px; }
+}
+@media (max-width:520px) {
+  .timer-mini > button:first-child { gap:8px; font-size:12px; }
+  .mini-action { display:none; }
+  .plan-page-heading { padding:14px; }
+  .plan-page-heading h1 { font-size:27px; }
+  .plan-create-actions { width:100%; }
+  .goal-card h2 { font-size:19px; }
+  .task-row .task-actions { position:static; opacity:1; pointer-events:auto; transform:none; background:transparent; border:0; box-shadow:none; }
+}
+
+.attribution-toggle { position:relative; min-width:44px; min-height:44px; }
+.attribution-toggle input { inset:0; width:100%; height:100%; margin:0; opacity:0; pointer-events:auto; cursor:pointer; z-index:1; }
+.attribution-toggle .toggle-box { pointer-events:none; }
+.goal-progress-copy { white-space:normal; }
+.timer-mini { bottom:max(12px, env(safe-area-inset-bottom)); }

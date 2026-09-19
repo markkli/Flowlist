@@ -28,10 +28,14 @@ if [[ -z "${OPENAI_API_KEY:-}" && -f "$BACKEND_DIR/.env" ]]; then
   export OPENAI_API_KEY
 fi
 
+if [[ ! -d "$ROOT_DIR/frontend/node_modules" ]]; then
+  npm --prefix "$ROOT_DIR/frontend" ci
+fi
+
 "$BACKEND_DIR/.venv/bin/alembic" upgrade head
 "$BACKEND_DIR/.venv/bin/uvicorn" main:app --port 8000 > "$ROOT_DIR/.flowlist-backend.log" 2>&1 &
 BACKEND_PID=$!
-python3 -m http.server 5500 -d "$ROOT_DIR/frontend" > "$ROOT_DIR/.flowlist-frontend.log" 2>&1 &
+node "$ROOT_DIR/frontend/node_modules/vite/bin/vite.js" "$ROOT_DIR/frontend" --host 127.0.0.1 --port 5500 --strictPort > "$ROOT_DIR/.flowlist-frontend.log" 2>&1 &
 FRONTEND_PID=$!
 
 cleanup() {
@@ -42,4 +46,8 @@ trap cleanup EXIT INT TERM
 echo "Flowlist is running at http://127.0.0.1:5500"
 echo "Backend health: http://127.0.0.1:8000/health"
 echo "Press Ctrl+C to stop both servers."
-wait "$BACKEND_PID" "$FRONTEND_PID"
+while kill -0 "$BACKEND_PID" 2>/dev/null && kill -0 "$FRONTEND_PID" 2>/dev/null; do
+  sleep 1
+done
+echo "A Flowlist server stopped. Check .flowlist-backend.log and .flowlist-frontend.log."
+exit 1

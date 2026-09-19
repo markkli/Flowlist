@@ -38,7 +38,7 @@ def get_client() -> OpenAI:
         raise AIConfigurationError(
             "AI task breakdown is not configured. Add OPENAI_API_KEY to enable it."
         )
-    return OpenAI(api_key=api_key)
+    return OpenAI(api_key=api_key, timeout=15.0, max_retries=0)
 
 
 def suggest_subtasks(goal_title: str, task_title: str) -> list[SuggestedSubtask]:
