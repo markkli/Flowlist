@@ -1,4 +1,6 @@
-const API_BASE = "http://127.0.0.1:8000";
+const isLocalStaticServer = ["127.0.0.1", "localhost"].includes(window.location.hostname)
+  && window.location.port === "5500";
+const API_BASE = window.FLOWLIST_API_BASE || (isLocalStaticServer ? "http://127.0.0.1:8000" : "/api");
 const MAX_DEPTH = 3;
 const ACTIVE_TIMER_KEY = "flowlist-active-focus";
 const TIMER_SETTINGS_KEY = "flowlist-timer-settings";
@@ -1347,14 +1349,33 @@ const planCaptureOverlay = document.getElementById("plan-capture-overlay");
 const planCaptureModal = planCaptureOverlay.querySelector(".quick-plan-modal");
 const planCaptureForm = document.getElementById("plan-capture-form");
 const planCaptureName = document.getElementById("plan-capture-name");
+const planCaptureDestination = document.getElementById("plan-capture-destination");
 const planCaptureError = document.getElementById("plan-capture-error");
 
-function setPlanCaptureOpen(open) {
+function renderPlanCaptureDestinations(goals) {
+  const activeDirections = goals.filter(
+    (goal) => goal.goal_type !== "standalone" && !goal.completed,
+  );
+  planCaptureDestination.innerHTML = [
+    '<option value="__tasks__">Tasks · shared list</option>',
+    ...activeDirections.map(
+      (goal) => `<option value="${goal.id}">${escapeHtml(goal.title)} · ${goal.goal_type === "learning" ? "Learning" : "Project"}</option>`,
+    ),
+  ].join("");
+}
+
+async function setPlanCaptureOpen(open) {
   planCaptureOverlay.classList.toggle("hidden", !open);
   focusOverlay.setAttribute("aria-hidden", String(open));
   planCaptureError.textContent = "";
   if (open) {
     document.body.classList.add("modal-open");
+    try {
+      renderPlanCaptureDestinations(await api("/goals"));
+    } catch (error) {
+      renderPlanCaptureDestinations([]);
+      planCaptureError.textContent = "Existing directions could not be loaded. You can still add to Tasks.";
+    }
     requestAnimationFrame(() => planCaptureName.focus());
   } else {
     planCaptureForm.reset();
@@ -1374,29 +1395,30 @@ planCaptureForm.addEventListener("submit", async (event) => {
     planCaptureName.focus();
     return;
   }
-  const type = planCaptureForm.querySelector('input[name="capture-type"]:checked').value;
+  const destination = planCaptureDestination.value;
   const submit = event.submitter;
   submit.disabled = true;
   submit.textContent = "Adding…";
   try {
-    if (type === "standalone") {
+    if (destination === "__tasks__") {
       await api("/standalone-tasks", {
         method: "POST",
         body: JSON.stringify({ title }),
       });
     } else {
-      await api("/goals", {
+      await api(`/goals/${Number(destination)}/tasks`, {
         method: "POST",
-        body: JSON.stringify({ title, goal_type: type }),
+        body: JSON.stringify({ title }),
       });
     }
     setPlanCaptureOpen(false);
-    showToast(type === "standalone" ? "Task added to your plan." : "Direction added to your plan.");
+    await loadGoals();
+    showToast("Task added to your plan.");
   } catch (error) {
     planCaptureError.textContent = "Flowlist could not add this item. Try again.";
   } finally {
     submit.disabled = false;
-    submit.textContent = "Add to plan";
+    submit.textContent = "Add task";
   }
 });
 

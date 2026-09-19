@@ -1,3 +1,9 @@
 .venv
 __pycache__
+*.py[cod]
+.pytest_cache
 .env
+local-development.env
+flowlist.local.db
+tests
+.DS_Store

@@ -10,7 +10,7 @@ expose nested steps or AI breakdown controls.
 ## How the app fits together
 
 ```text
-Frontend (browser, port 5500)
+Frontend (browser)
         ↓ HTTP requests
 FastAPI backend (port 8000)
         ↓ SQLAlchemy
@@ -62,25 +62,27 @@ python3 -m http.server 5500 -d frontend
 
 Then open `http://127.0.0.1:5500`.
 
-### PostgreSQL mode (Docker)
+### Deployment-like mode (Docker)
 
 ### 1. Configure local secrets
 
 ```bash
-cp backend/.env.example backend/.env
+cp .env.example .env
 ```
 
-`OPENAI_API_KEY` is optional. Leave it blank if you do not want the AI task
-breakdown feature; the rest of Flowlist will still work.
+Change `POSTGRES_PASSWORD` before exposing the app. `OPENAI_API_KEY` is
+optional; the rest of Flowlist works without AI drafting.
 
-### 2. Start PostgreSQL and the API
+### 2. Start the complete stack
 
 ```bash
 docker compose up --build
 ```
 
-This starts PostgreSQL and FastAPI. The backend health endpoint is available at
-`http://127.0.0.1:8000/health`.
+This starts PostgreSQL, FastAPI, and the production frontend server. Open
+`http://127.0.0.1:8080` (or the port selected by `FLOWLIST_PORT`). Nginx serves
+the interface and forwards `/api` to FastAPI, so the browser sees one origin.
+The API is intentionally not published directly by the Compose stack.
 
 On a new database, the backend automatically runs all Alembic migrations before
 it starts. If you already created a local Flowlist database before migrations
@@ -94,16 +96,8 @@ docker compose run --rm backend alembic stamp 20260804_01
 `stamp` records the version without changing tables. Future Flowlist migrations
 will then run normally when the backend starts.
 
-### 3. Serve the frontend
-
-In another terminal:
-
-```bash
-python3 -m http.server 5500 -d frontend
-```
-
-Open `http://127.0.0.1:5500` in the browser. Do not open `index.html` using a
-`file://` URL: the UI can render, but it cannot reliably reach the backend.
+Do not open `index.html` using a `file://` URL: the UI can render, but it cannot
+reliably reach the backend.
 
 ## Test the core ritual
 
@@ -158,8 +152,10 @@ The end-of-ritual dialog also accepts a short reflection and lets you create wor
 that was not already in the plan. Short reflections become the history title;
 long notes or multi-task sessions use the optional OpenAI title helper, with a
 local fallback so a network or AI failure never prevents the session from being
-saved. While a ritual is running, “Add to plan” can capture a new project,
-learning objective, or simple task without pausing the timer.
+saved. While a ritual is running, “Add to plan” can capture a task into the
+shared Tasks list or directly under an existing project or learning objective
+without pausing the timer. Creating a new direction remains in the full Plan
+view, where the decision has enough context.
 
 Individual records can be removed from History. Removing a record updates the
 activity totals but does not reopen tasks that were completed during it.
@@ -168,3 +164,16 @@ While a block is running, the frontend stores its phase and end timestamp in
 browser storage—not private notes or credentials. If the window is refreshed,
 Flowlist calculates the remaining time and continues the block. The recovery
 record is cleared when the focus or break interval ends.
+
+## Deployment notes
+
+- Commit `.env.example`, never `.env`. Local keys, databases, logs, caches, and
+  the installed UI skill are ignored by Git.
+- Database changes run through Alembic before the API starts.
+- Python dependencies are pinned so image rebuilds are repeatable.
+- The frontend container serves static assets through Nginx and proxies API
+  traffic; deploy the three Compose services together on any Docker host.
+- Back up the `pgdata` volume before upgrades. The quick-mode SQLite file is
+  development data and is not used by the container stack.
+- For a public deployment, terminate HTTPS at the hosting platform or a reverse
+  proxy and set a long random database password.

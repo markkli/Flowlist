@@ -11,15 +11,15 @@ The Plan page is a working outline, not a dashboard of nested cards. It should m
 - Use a sticky vertical dot group between the app sidebar and one readable column of direction panels at all breakpoints. Do not turn it horizontal, connect the dots with a rule, or allow direction cards to cover its labels.
 - The active dot follows the visible direction. Hover and keyboard focus enlarge it and reveal type/name in a floating label; clicking scrolls directly to the direction.
 - Keep Project, Learning, and Task as separate but low-emphasis creation actions in the atmospheric page heading. Each reveals one compact composer.
-- Each goal header contains its editable title, overall progress, and context actions that reveal only on hover/focus. Learning directions expose a restrained AI Beta sparkle.
+- Each goal header contains a collapse control, editable title, overall progress, and explicit labelled actions that affect the whole direction. Learning directions expose a restrained AI Draft Beta action.
 
 ## Task Hierarchy
 
 - Render unfinished work and every ancestor required to understand it. Finishing a leaf must never erase its parent context.
-- Every row has a fixed disclosure column and fixed completion column. A leaf uses an invisible disclosure placeholder. A parent checkbox remains visible but disabled until every direct child is checked; then show “Ready to close” and enable it.
+- Every row has a fixed disclosure column and fixed completion column. A leaf uses an invisible disclosure placeholder. A parent checkbox remains visible but disabled until every direct child is checked; then show “All steps complete” and enable it.
 - Use indentation, spacing, and type weight for hierarchy; do not use horizontal row dividers, vertical guide lines, tinted background bands, or nested bordered task cards.
-- Rename by clicking the title. Reveal Add substep, AI Beta, Remove, and reorder on hover/focus; keep equivalent touch-safe access.
-- Expand/collapse applies to parent nodes and persists locally.
+- Rename by clicking the title. Reveal Add substep, AI Beta, and Remove in an absolutely positioned hover/focus tray so hidden controls do not leave a blank action column; keep equivalent touch-safe access.
+- Expand/collapse applies to parent nodes and whole directions and persists locally.
 - Whole directions use visible-on-hover up/down controls because dragging a large card is imprecise. Reposition the viewport after each move so the same arrow remains beneath the pointer and retains keyboard focus. Compact task drag reorder works only within a sibling group; Alt+Up/Down is the keyboard alternative.
 - Confirm deletion because removing a parent may also remove descendants.
 

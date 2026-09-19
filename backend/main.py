@@ -24,14 +24,19 @@ SHORT_FOCUS_SUMMARY_WORDS = 12
 
 app = FastAPI(title="Flowlist API")
 
+local_origins = ["http://127.0.0.1:5500", "http://localhost:5500"]
+configured_origins = [
+    origin.strip()
+    for origin in os.getenv("FLOWLIST_CORS_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5500", "http://localhost:5500"],
+    allow_origins=[*local_origins, *configured_origins],
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# i left a note here
 
 def find_goal(db: Session, goal_id: int) -> GoalModel:
     goal = db.get(GoalModel, goal_id)

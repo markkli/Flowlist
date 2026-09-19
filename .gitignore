@@ -3,6 +3,9 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+.pytest_cache/
+.coverage
+htmlcov/
 
 # Env / secrets
 .env
@@ -12,9 +15,12 @@ backend/flowlist.local.db
 backend/local-development.env
 .flowlist-backend.log
 .flowlist-frontend.log
+*.log
 
 # OS
 .DS_Store
+.idea/
+.vscode/
 
 # Local Codex agent skills (not application source)
 .agents/

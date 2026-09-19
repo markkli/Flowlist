@@ -1,28 +1,46 @@
 services:
   db:
-    image: postgres:16
+    image: postgres:16-alpine
     environment:
-      POSTGRES_USER: flowlist
-      POSTGRES_PASSWORD: flowlist_dev_password
-      POSTGRES_DB: flowlist
+      POSTGRES_USER: ${POSTGRES_USER:-flowlist}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-before-deploying}
+      POSTGRES_DB: ${POSTGRES_DB:-flowlist}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U flowlist"]
-      interval: 2s
-      timeout: 3s
-      retries: 10
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
 
   backend:
     build: ./backend
-    env_file: ./backend/.env
     environment:
-      DATABASE_URL: postgresql+psycopg://flowlist:flowlist_dev_password@db:5432/flowlist
-    ports:
-      - "8000:8000"
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-flowlist}:${POSTGRES_PASSWORD:-change-me-before-deploying}@db:5432/${POSTGRES_DB:-flowlist}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_SUBTASK_MODEL: ${OPENAI_SUBTASK_MODEL:-gpt-5.4-mini}
+      OPENAI_FOCUS_TITLE_MODEL: ${OPENAI_FOCUS_TITLE_MODEL:-gpt-5.4-mini}
+      FLOWLIST_CORS_ORIGINS: ${FLOWLIST_CORS_ORIGINS:-}
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "${FLOWLIST_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   pgdata:

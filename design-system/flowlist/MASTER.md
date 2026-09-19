@@ -53,11 +53,11 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 ### Plan
 
 - Use a compact vertical sticky dot navigator between the app sidebar and direction panels at every supported width. It must remain visible while scrolling, stay above card stacking contexts, and reveal an unclipped label on hover/focus.
-- A goal is one panel containing its heading, controls, active outline, and completed archive.
+- A goal is one collapsible panel containing its heading, controls, active outline, and completed archive. Collapsing hides the body without changing completion state.
 - Keep Project, Learning, and Task creation individually reachable in the page header, but style them as quiet text actions rather than three competing primary buttons. Each opens one compact composer.
 - Task rows have no horizontal divider or tinted background band. Use whitespace, indentation, and type weight to express grouping.
 - Child steps are indented without connector lines or shaded containers.
-- Leaf steps show completion. Rename by selecting the title. Add, AI draft, delete, and reorder appear on hover/focus; on touch layouts they remain available with 44px targets.
+- Leaf steps show completion. Rename by selecting the title. Add, AI draft, and delete appear in an overlaid hover/focus tray so hidden controls never reserve an empty right column; on touch layouts they remain available with 44px targets.
 - Every task row reserves the same disclosure slot and completion slot. Leaves keep an invisible disclosure placeholder; unfinished parents keep a visible but disabled completion box. Titles must never jump horizontally when node state changes.
 - Parent steps show direct-child progress and can expand or collapse. Once every direct child is finished, the already-present parent checkbox becomes enabled; completion never rolls up automatically.
 - A completed leaf leaves the active outline but its ancestors remain. Closing a completed parent exposes completion at the next level. Reopening any descendant reopens every ancestor while preserving completed siblings.
@@ -66,7 +66,7 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 - Whole directions move with explicit up/down controls; large panels are not draggable. After a move, viewport position and focus follow the moved control so repeated clicks continue without reacquiring it. Compact task reordering is limited to siblings within the same parent, with Alt+Arrow as its keyboard alternative.
 - Do not prescribe a duration for an individual task. Focus time is observed by the Pomodoro, then attributed to work afterward.
 - AI-generated milestones and nested steps are proposals: display them as a multi-select list with one explicit “Add selected” action.
-- AI planning is a Beta sparkle action, never the main action. State that personal planning usually fits pace and preference better, and label every generated proposal as an AI draft.
+- Goal-level controls remain explicit and labelled because they affect the entire direction: move, Add step, AI draft Beta, and Remove. AI planning is never the main action. State that personal planning usually fits pace and preference better, and label every generated proposal as an AI draft.
 - Treat the plan as a compact outline, not a stack of nested cards or a diagram made from intersecting lines.
 - Keep plan content to a readable desktop measure rather than stretching each task across the entire window.
 
@@ -89,7 +89,7 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 - Every running focus, short-break, and long-break block exposes “Skip to next.” Skipping focus advances the round but records only fully elapsed focus minutes; skipping a break begins the next focus block. Keep “End ritual” available as the exit route.
 - Continue from focus to break and into later cycles without interrupting the ritual. Show the centered attribution dialog only when the user chooses “End ritual,” and save the accumulated focus time as one record without presenting a target-time ratio.
 - Every deliberate Start begins a fresh ritual at round one. A long break follows every configured set of rounds, after which the round count begins again while the ritual continues.
-- Keep “Add to plan” available during focus and breaks in a nested modal that does not pause or dismiss the running timer.
+- Keep “Add to plan” available during focus and breaks in a nested modal that does not pause or dismiss the running timer. It captures one task into the shared Tasks list or an existing active project/learning objective; creating an entirely new direction stays in the full Plan view.
 - Every attribution row has separate “Worked on” and “Finished” controls. Finishing implies worked-on; the session duration is still counted only once. No selected tasks means General focus.
 - The end-of-ritual dialog accepts an optional reflection and can create missing work in Tasks, an existing group, or a new project/learning objective before attribution.
 - Short meaningful reflections become cleaned history titles; longer reflections and selected-task sets use the title agent. Gibberish becomes General focus, and AI failure always falls back locally without blocking the save.
