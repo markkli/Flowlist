@@ -162,6 +162,7 @@ const completedDirections = document.getElementById("completed-directions");
 const completedDirectionsList = document.getElementById("completed-directions-list");
 const completedDirectionsCount = document.getElementById("completed-directions-count");
 const COLLAPSED_TASKS_KEY = "flowlist-collapsed-plan-sections";
+const COLLAPSED_GOALS_KEY = "flowlist-collapsed-directions";
 let activeGoalCreateType = "project";
 let planGoalsCache = [];
 const goalTasksCache = new Map();
@@ -178,8 +179,22 @@ function loadCollapsedTaskIds() {
 
 const collapsedTaskIds = loadCollapsedTaskIds();
 
+function loadCollapsedGoalIds() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(COLLAPSED_GOALS_KEY)) || []);
+  } catch (error) {
+    return new Set();
+  }
+}
+
+const collapsedGoalIds = loadCollapsedGoalIds();
+
 function saveCollapsedTaskIds() {
   localStorage.setItem(COLLAPSED_TASKS_KEY, JSON.stringify([...collapsedTaskIds]));
+}
+
+function saveCollapsedGoalIds() {
+  localStorage.setItem(COLLAPSED_GOALS_KEY, JSON.stringify([...collapsedGoalIds]));
 }
 
 function setGoalComposerOpen(open, goalType = activeGoalCreateType) {
@@ -691,7 +706,9 @@ async function loadGoals() {
     section.dataset.goalId = goal.id;
     section.dataset.goalType = goal.goal_type || "project";
     section.id = `goal-${goal.id}`;
-    node.querySelector(".goal-type-label").textContent = goalTypeLabel(goal.goal_type);
+    const goalType = node.querySelector(".goal-type-label");
+    goalType.textContent = goalTypeLabel(goal.goal_type);
+    goalType.classList.toggle("hidden", goal.goal_type === "standalone");
     const goalTitle = node.querySelector(".goal-title");
     const goalTitleForm = node.querySelector(".goal-title-form");
     const goalTitleInput = node.querySelector(".goal-edit-title");
@@ -715,6 +732,25 @@ async function loadGoals() {
     description.textContent = goal.description || "";
     description.classList.toggle("hidden", !goal.description);
 
+    const collapseGoal = node.querySelector(".goal-collapse");
+    if (goal.goal_type === "standalone") {
+      collapseGoal.remove();
+    } else {
+      const collapsed = collapsedGoalIds.has(goal.id);
+      section.classList.toggle("is-collapsed", collapsed);
+      collapseGoal.setAttribute("aria-expanded", String(!collapsed));
+      collapseGoal.setAttribute("aria-label", `${collapsed ? "Expand" : "Collapse"} ${goalDisplayTitle(goal)}`);
+      collapseGoal.addEventListener("click", () => {
+        const willCollapse = !section.classList.contains("is-collapsed");
+        section.classList.toggle("is-collapsed", willCollapse);
+        collapseGoal.setAttribute("aria-expanded", String(!willCollapse));
+        collapseGoal.setAttribute("aria-label", `${willCollapse ? "Expand" : "Collapse"} ${goalDisplayTitle(goal)}`);
+        if (willCollapse) collapsedGoalIds.add(goal.id);
+        else collapsedGoalIds.delete(goal.id);
+        saveCollapsedGoalIds();
+      });
+    }
+
     const goalBreakdown = node.querySelector(".break-down-goal");
     const goalSuggestions = node.querySelector(".goal-suggestion-list");
     if (goal.goal_type !== "learning") {
@@ -729,6 +765,7 @@ async function loadGoals() {
     const goalAddStep = node.querySelector(".goal-add-step");
     if (goal.goal_type === "standalone") {
       goalAddStep.setAttribute("aria-label", "Add task");
+      goalAddStep.querySelector(".goal-action-label").textContent = "Add task";
       taskForm.querySelector(".step-composer-label").textContent = "New task";
       taskForm.querySelector("input").placeholder = "What needs doing?";
     }
@@ -976,7 +1013,7 @@ function renderTask(task, allTasks, container, goalType = "project") {
     progress.remove();
   } else {
     const completedChildren = children.filter((child) => child.completed).length;
-    progress.textContent = readyToClose ? "Ready to close" : `${completedChildren} of ${children.length}`;
+    progress.textContent = readyToClose ? "All steps complete" : `${completedChildren} of ${children.length}`;
     if (!activeChildren.length) {
       chevron.classList.remove("hidden");
       chevron.classList.add("is-placeholder");

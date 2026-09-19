@@ -1196,6 +1196,12 @@ label > span { display: block; margin-bottom: 5px; color: var(--muted); font-siz
   border-bottom: 0;
   background: linear-gradient(120deg, color-mix(in srgb, var(--surface) 96%, var(--sage)), var(--surface));
 }
+.goal-card.is-collapsed > :not(.goal-card-head) { display: none; }
+.goal-card.is-collapsed .goal-card-head { min-height: 94px; }
+.goal-collapse { width: 36px; height: 36px; flex: 0 0 36px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--muted); }
+.goal-collapse:hover { background: var(--surface-muted); color: var(--ink); }
+.goal-collapse svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.7; transition: transform .16s ease; }
+.goal-card.is-collapsed .goal-collapse svg { transform: rotate(-90deg); }
 .goal-card-head::after { display: none; }
 .goal-card h2 { max-width: 40ch; margin-bottom: 4px; }
 .inline-title { display: block; max-width: 100%; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; letter-spacing: inherit; }
@@ -1208,6 +1214,11 @@ label > span { display: block; margin-bottom: 5px; color: var(--muted); font-siz
 .goal-actions { flex: 0 0 auto; margin-left: auto; }
 .goal-move-actions { display: flex; align-items: center; gap: 1px; }
 .goal-move-actions .row-action:disabled { background: transparent; color: var(--faint); opacity: .24; }
+.goal-action { min-height: 36px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid var(--border); border-radius: 8px; background: color-mix(in srgb, var(--surface-strong) 72%, transparent); color: var(--muted); font-size: 10px; font-weight: 660; }
+.goal-action:hover { border-color: var(--border-strong); background: var(--surface-strong); color: var(--ink); }
+.goal-action svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.goal-action small { padding: 2px 4px; border-radius: 99px; background: color-mix(in srgb, var(--sand) 22%, transparent); color: var(--muted); font-size: 7px; letter-spacing: .06em; text-transform: uppercase; }
+.goal-action-danger:hover { border-color: color-mix(in srgb, var(--danger) 35%, var(--border)); background: color-mix(in srgb, var(--danger) 7%, var(--surface)); color: var(--danger); }
 .reveal-actions { opacity: 0; transform: translateX(4px); transition: opacity .15s ease, transform .15s ease; }
 .goal-card-head:hover .reveal-actions,
 .goal-card-head:focus-within .reveal-actions,
@@ -1242,7 +1253,7 @@ label > span { display: block; margin-bottom: 5px; color: var(--muted); font-siz
 .goal-outline { padding: 10px 22px 14px; }
 .goal-task-list { border-top: 0; }
 .task-node { min-width: 0; border-radius: 10px; transition: opacity .16s ease, background .16s ease, box-shadow .16s ease; }
-.task-row { min-height: 50px; gap: 7px; padding: 6px 5px; border-bottom: 0; border-radius: 9px; }
+.task-row { position: relative; min-height: 50px; gap: 7px; padding: 6px 5px; border-bottom: 0; border-radius: 9px; }
 .task-row:hover, .task-row:focus-within { background: color-mix(in srgb, var(--row-hover) 78%, transparent); }
 .task-row.is-completing { opacity: .22; transform: translateX(5px); transition: opacity .18s ease, transform .18s ease; }
 .task-node.is-dragging { opacity: .38; }
@@ -1257,6 +1268,9 @@ label > span { display: block; margin-bottom: 5px; color: var(--muted); font-siz
 .task-node.is-collapsed > [data-task-children] { display: none; }
 .task-meta { padding: 3px 7px; border-radius: 99px; background: color-mix(in srgb, var(--surface-muted) 62%, transparent); font-size: 9px; }
 .ready-to-close .task-meta { background: color-mix(in srgb, var(--forest) 9%, transparent); color: var(--forest); }
+.task-row .task-actions { position: absolute; top: 50%; right: 5px; z-index: 2; padding: 2px; border: 1px solid var(--border); border-radius: 99px; background: var(--surface-strong); box-shadow: var(--shadow-1); opacity: 0; pointer-events: none; transform: translate(5px,-50%); }
+.task-row:hover .task-actions.reveal-actions, .task-row:focus-within .task-actions.reveal-actions { opacity: 1; pointer-events: auto; transform: translate(0,-50%); }
+.task-row:hover .task-meta, .task-row:focus-within .task-meta { opacity: 0; }
 .nested-list { margin: 2px 0 5px 31px; padding: 0 0 0 13px; border-left: 0; border-radius: 0; background: transparent; }
 .nested-list .nested-list { margin-left: 26px; padding-left: 11px; background: transparent; }
 .nested-list .task-row { min-height: 46px; padding-left: 4px; }
@@ -1291,6 +1305,8 @@ label > span { display: block; margin-bottom: 5px; color: var(--muted); font-siz
 @media (hover: none) {
   .reveal-actions, .reorder-handle { opacity: 1; transform: none; }
   .action-tooltip { display: none; }
+  .task-row .task-actions { position: static; padding: 0; border: 0; background: transparent; box-shadow: none; opacity: 1; pointer-events: auto; transform: none; }
+  .task-row:hover .task-meta, .task-row:focus-within .task-meta { opacity: 1; }
 }
 
 @media (max-width: 1050px) {
@@ -1309,7 +1325,7 @@ label > span { display: block; margin-bottom: 5px; color: var(--muted); font-siz
   .plan-page-heading { min-height: 0; align-items: flex-start; flex-direction: column; padding: 22px; }
   .plan-create-actions { width: 100%; flex-wrap: wrap; }
   .plan-create-actions > span { width: 100%; }
-  .goal-card-head { display: flex; padding: 22px 16px 18px; }
+  .goal-card-head { display: flex; flex-wrap: wrap; padding: 22px 16px 18px; }
   .goal-actions { justify-content: flex-end; margin-top: 0; }
   .goal-outline { padding-right: 14px; padding-left: 14px; }
   .task-row { min-height: 54px; }
@@ -1348,6 +1364,7 @@ label > span { display: block; margin-bottom: 5px; color: var(--muted); font-siz
   .goal-card-head { align-items: flex-start; flex-wrap: wrap; }
   .goal-card-copy { flex-basis: calc(100% - 16px); }
   .goal-actions { width: 100%; }
+  .goal-action { min-height: 44px; }
   .goal-complete { order: 3; }
   .task-row { display: flex; grid-template-columns: none; gap: 4px; }
   .task-title { font-size: 14px; }

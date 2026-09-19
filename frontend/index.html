@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>Flowlist</title>
-  <link rel="stylesheet" href="styles.css?v=forest-22">
+  <link rel="stylesheet" href="styles.css?v=forest-23">
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -91,16 +91,17 @@
   <template id="goal-template">
     <article class="goal-card panel">
       <div class="goal-card-head">
+        <button class="goal-collapse" type="button" aria-expanded="true"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg></button>
         <div class="goal-card-copy"><p class="kicker goal-type-label"></p><h2><button class="goal-title inline-title" type="button"></button></h2><form class="goal-title-form inline-edit hidden"><input class="field goal-edit-title" type="text" aria-label="Direction name"><button class="sr-only">Save</button></form><p class="goal-description"></p><div class="goal-progress-summary"><div class="progress-track"><div class="progress-value goal-progress-value"></div></div><p class="goal-progress-copy"></p></div></div>
         <button class="goal-complete hidden" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 10 3 3 7-7"/></svg><span>Close direction</span></button>
-        <div class="goal-actions reveal-actions">
+        <div class="goal-actions">
           <div class="goal-move-actions" role="group" aria-label="Move direction">
             <button class="row-action goal-move-up" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 12 5-5 5 5"/></svg></button>
             <button class="row-action goal-move-down" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 8 5 5 5-5"/></svg></button>
           </div>
-          <button class="row-action goal-add-step" type="button" aria-label="Add step"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg></button>
-          <button class="row-action action-ai break-down-goal" type="button" aria-label="Draft a learning path with AI (Beta)"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 1.2 4.1L15 8l-3.8 1.9L10 14l-1.2-4.1L5 8l3.8-1.9L10 2Z"/><path d="m15.5 13 .7 2.3 2.3.7-2.3.7-.7 2.3-.7-2.3-2.3-.7 2.3-.7.7-2.3Z"/></svg><span class="action-tooltip">AI draft · Beta</span></button>
-          <button class="row-action row-delete delete-goal" type="button" aria-label="Remove direction"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M8 6V4h4v2m3 0-1 10H6L5 6m3 3v4m4-4v4"/></svg></button>
+          <button class="goal-action goal-add-step" type="button" aria-label="Add step"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg><span class="goal-action-label">Add step</span></button>
+          <button class="goal-action action-ai break-down-goal" type="button" aria-label="Draft a learning path with AI (Beta)"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m10 2 1.2 4.1L15 8l-3.8 1.9L10 14l-1.2-4.1L5 8l3.8-1.9L10 2Z"/><path d="m15.5 13 .7 2.3 2.3.7-2.3.7-.7 2.3-.7-2.3-2.3-.7 2.3-.7.7-2.3Z"/></svg><span>AI draft</span><small>Beta</small></button>
+          <button class="goal-action goal-action-danger delete-goal" type="button" aria-label="Remove direction"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h12M8 6V4h4v2m3 0-1 10H6L5 6m3 3v4m4-4v4"/></svg><span>Remove</span></button>
         </div>
       </div>
       <form class="task-form step-composer hidden"><label><span class="step-composer-label">New step</span><input class="field" type="text" placeholder="Describe the next meaningful step" aria-label="New task"></label><button class="secondary-btn">Add</button><button class="text-btn cancel-step-composer" type="button">Cancel</button></form>
@@ -141,6 +142,6 @@
   </div>
   <div id="celebration-overlay" class="overlay hidden"><div class="timer-modal celebration"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 40V15m0 7-9-8m9 15 10-9M15 40h18"/><path d="M24 15c-2-6-7-9-13-7 1 7 5 10 13 10m0 2c2-7 7-10 14-9-1 7-5 11-14 12"/></svg><span class="status"><i></i>Goal complete</span><h2 id="celebration-goal-title">Goal complete</h2><p>Nice work. Take a moment before choosing what comes next.</p><div class="focus-actions"><button id="celebration-dismiss" class="primary-btn">Continue</button></div></div></div>
   <div id="app-toast" class="app-toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=forest-22"></script>
+  <script src="app.js?v=forest-23"></script>
 </body>
 </html>
