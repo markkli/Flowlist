@@ -52,17 +52,18 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 
 ### Plan
 
-- Use a compact vertical dot navigator on desktop with no connecting line. The active dot glows and grows; hover or keyboard focus reveals the direction label. On smaller screens it becomes a horizontal dot group.
+- Use a compact vertical sticky dot navigator between the app sidebar and direction panels at every supported width. It must remain visible while scrolling, stay above card stacking contexts, and reveal an unclipped label on hover/focus.
 - A goal is one panel containing its heading, controls, active outline, and completed archive.
 - Keep Project, Learning, and Task creation individually reachable in the page header, but style them as quiet text actions rather than three competing primary buttons. Each opens one compact composer.
 - Task rows have no horizontal divider or tinted background band. Use whitespace, indentation, and type weight to express grouping.
 - Child steps are indented without connector lines or shaded containers.
 - Leaf steps show completion. Rename by selecting the title. Add, AI draft, delete, and reorder appear on hover/focus; on touch layouts they remain available with 44px targets.
-- Parent steps show direct-child progress and can expand or collapse. Once every direct child is finished, the parent becomes explicitly checkable; completion never rolls up automatically.
+- Every task row reserves the same disclosure slot and completion slot. Leaves keep an invisible disclosure placeholder; unfinished parents keep a visible but disabled completion box. Titles must never jump horizontally when node state changes.
+- Parent steps show direct-child progress and can expand or collapse. Once every direct child is finished, the already-present parent checkbox becomes enabled; completion never rolls up automatically.
 - A completed leaf leaves the active outline but its ancestors remain. Closing a completed parent exposes completion at the next level. Reopening any descendant reopens every ancestor while preserving completed siblings.
 - Collect all checked work in an expandable list and show its parent path as a restrained breadcrumb. Fully closed top-level directions move to Completed directions.
 - Priority controls are forbidden. Sequence communicates what comes first.
-- Whole directions move with explicit up/down controls; large panels are not draggable. Compact task reordering is limited to siblings within the same parent, with Alt+Arrow as its keyboard alternative. Cross-parent moves require a future explicit move command rather than ambiguous dragging.
+- Whole directions move with explicit up/down controls; large panels are not draggable. After a move, viewport position and focus follow the moved control so repeated clicks continue without reacquiring it. Compact task reordering is limited to siblings within the same parent, with Alt+Arrow as its keyboard alternative.
 - Do not prescribe a duration for an individual task. Focus time is observed by the Pomodoro, then attributed to work afterward.
 - AI-generated milestones and nested steps are proposals: display them as a multi-select list with one explicit “Add selected” action.
 - AI planning is a Beta sparkle action, never the main action. State that personal planning usually fits pace and preference better, and label every generated proposal as an AI draft.

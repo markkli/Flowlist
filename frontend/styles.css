@@ -612,6 +612,7 @@ label > span { display: block; margin-bottom: 5px; color: var(--muted); font-siz
 .task-completed:hover, .suggestion-select:hover { border-color: var(--forest); box-shadow: 0 0 0 3px color-mix(in srgb, var(--forest) 9%, transparent); }
 .task-completed:checked, .suggestion-select:checked { border-color: var(--forest); background: var(--forest); }
 .task-completed:checked::after, .suggestion-select:checked::after { opacity: 1; transform: rotate(45deg) scale(1); }
+.task-completed:disabled { border-color: color-mix(in srgb, var(--faint) 54%, transparent); background: transparent; box-shadow: none; cursor: default; opacity: .46; }
 .task-is-complete .task-title { color: var(--faint); text-decoration: line-through; text-decoration-thickness: 1px; text-decoration-color: color-mix(in srgb, var(--faint) 65%, transparent); }
 .task-title { min-width: 0; flex: 1; overflow-wrap: anywhere; font-size: 13px; line-height: 1.4; }
 .parent-task-row { min-height: 52px; font-weight: 620; }
@@ -1124,7 +1125,7 @@ label > span { display: block; margin-bottom: 5px; color: var(--muted); font-siz
 .plan-create-actions button.active { background: color-mix(in srgb, var(--surface-strong) 72%, transparent); color: var(--ink); }
 
 .roadmap-layout { grid-template-columns: 44px minmax(0, 1fr); gap: 18px; }
-.plan-index { top: 88px; padding: 8px 0; }
+.plan-index { top: 88px; z-index: 30; padding: 8px 0; overflow: visible; }
 .plan-index-list { position: relative; display: grid; justify-items: center; gap: 10px; padding: 7px 0; }
 .plan-index-list::before { display: none; }
 .plan-index-item {
@@ -1251,6 +1252,7 @@ label > span { display: block; margin-bottom: 5px; color: var(--muted); font-siz
 .task-chevron { width: 28px; height: 34px; flex: 0 0 28px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--faint); }
 .task-chevron:hover { background: var(--surface-muted); color: var(--ink); }
 .task-chevron svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; transition: transform .16s ease; }
+.task-chevron.is-placeholder { visibility: hidden; pointer-events: none; }
 .task-node.is-collapsed > .task-row .task-chevron svg { transform: rotate(-90deg); }
 .task-node.is-collapsed > [data-task-children] { display: none; }
 .task-meta { padding: 3px 7px; border-radius: 99px; background: color-mix(in srgb, var(--surface-muted) 62%, transparent); font-size: 9px; }
@@ -1292,17 +1294,18 @@ label > span { display: block; margin-bottom: 5px; color: var(--muted); font-siz
 }
 
 @media (max-width: 1050px) {
-  .roadmap-layout { grid-template-columns: 1fr; gap: 10px; }
-  .plan-index { position: sticky; top: 50px; z-index: 8; padding: 4px 0; overflow-x: auto; background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(14px); }
-  .plan-index-list { width: max-content; min-width: 100%; display: flex; justify-content: flex-start; gap: 8px; padding: 4px 10px; }
+  .roadmap-layout { grid-template-columns: 36px minmax(0,1fr); gap: 10px; }
+  .plan-index { position: sticky; top: 76px; z-index: 30; padding: 6px 0; overflow: visible; background: transparent; backdrop-filter: none; }
+  .plan-index-list { width: auto; min-width: 0; display: grid; justify-items: center; gap: 9px; padding: 5px 0; }
   .plan-index-list::before { display: none; }
-  .plan-index-item { flex: 0 0 30px; }
-  .plan-index-label { top: calc(100% + 6px); left: 50%; transform: translate(-50%, 4px); }
-  .plan-index-item:hover .plan-index-label, .plan-index-item:focus-visible .plan-index-label { transform: translate(-50%, 0); }
+  .plan-index-item { width: 30px; min-width: 30px; flex: none; }
+  .plan-index-label { top: 50%; left: calc(100% + 9px); transform: translate(5px, -50%); }
+  .plan-index-item:hover .plan-index-label, .plan-index-item:focus-visible .plan-index-label { transform: translate(0, -50%); }
   .new-goal { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 820px) {
+  .plan-index { top: 112px; }
   .plan-page-heading { min-height: 0; align-items: flex-start; flex-direction: column; padding: 22px; }
   .plan-create-actions { width: 100%; flex-wrap: wrap; }
   .plan-create-actions > span { width: 100%; }
@@ -1338,6 +1341,7 @@ label > span { display: block; margin-bottom: 5px; color: var(--muted); font-siz
 }
 
 @media (max-width: 520px) {
+  .roadmap-layout { grid-template-columns: 30px minmax(0,1fr); gap: 7px; }
   .plan-create-actions { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 3px; padding: 3px; border-radius: 9px; background: color-mix(in srgb, var(--surface-muted) 48%, transparent); }
   .plan-create-actions > span { display: none; }
   .plan-create-actions button { min-height: 44px; padding: 0 4px; }

@@ -8,7 +8,7 @@ The Plan page is a working outline, not a dashboard of nested cards. It should m
 
 ## Desktop Structure
 
-- Use a 44px sticky vertical dot group beside one readable column of direction panels. Do not connect the dots with a rule.
+- Use a sticky vertical dot group between the app sidebar and one readable column of direction panels at all breakpoints. Do not turn it horizontal, connect the dots with a rule, or allow direction cards to cover its labels.
 - The active dot follows the visible direction. Hover and keyboard focus enlarge it and reveal type/name in a floating label; clicking scrolls directly to the direction.
 - Keep Project, Learning, and Task as separate but low-emphasis creation actions in the atmospheric page heading. Each reveals one compact composer.
 - Each goal header contains its editable title, overall progress, and context actions that reveal only on hover/focus. Learning directions expose a restrained AI Beta sparkle.
@@ -16,11 +16,11 @@ The Plan page is a working outline, not a dashboard of nested cards. It should m
 ## Task Hierarchy
 
 - Render unfinished work and every ancestor required to understand it. Finishing a leaf must never erase its parent context.
-- Parent progress counts direct children. When every direct child is checked, show “Ready to close” and expose the parent checkbox.
+- Every row has a fixed disclosure column and fixed completion column. A leaf uses an invisible disclosure placeholder. A parent checkbox remains visible but disabled until every direct child is checked; then show “Ready to close” and enable it.
 - Use indentation, spacing, and type weight for hierarchy; do not use horizontal row dividers, vertical guide lines, tinted background bands, or nested bordered task cards.
 - Rename by clicking the title. Reveal Add substep, AI Beta, Remove, and reorder on hover/focus; keep equivalent touch-safe access.
 - Expand/collapse applies to parent nodes and persists locally.
-- Whole directions use visible-on-hover up/down controls because dragging a large card is imprecise. Compact task drag reorder works only within a sibling group; Alt+Up/Down is the keyboard alternative.
+- Whole directions use visible-on-hover up/down controls because dragging a large card is imprecise. Reposition the viewport after each move so the same arrow remains beneath the pointer and retains keyboard focus. Compact task drag reorder works only within a sibling group; Alt+Up/Down is the keyboard alternative.
 - Confirm deletion because removing a parent may also remove descendants.
 
 ## Completed Work
@@ -40,6 +40,6 @@ The Plan page is a working outline, not a dashboard of nested cards. It should m
 
 ## Responsive Behavior
 
-- Below the desktop breakpoint, convert the dot index into a sticky horizontal group above the goal stack, still without a connecting rule.
+- Below the desktop breakpoint, narrow the vertical dot column but keep it sticky beside the goal stack.
 - At compact widths, group the three creation actions into a quiet segmented strip, preserve 44px touch targets, and allow row controls to remain operable without relying on hover.
 - No horizontal scrolling at 375px.

@@ -748,18 +748,27 @@ async function loadGoals() {
     moveDown.disabled = goalIndex === activeGoals.length - 1;
     moveUp.setAttribute("aria-label", `Move ${goalDisplayTitle(goal)} up`);
     moveDown.setAttribute("aria-label", `Move ${goalDisplayTitle(goal)} down`);
-    const moveDirection = async (delta) => {
+    const moveDirection = async (delta, trigger) => {
+      const anchorTop = trigger.getBoundingClientRect().top;
+      const selector = delta < 0 ? ".goal-move-up" : ".goal-move-down";
       moveUp.disabled = true;
       moveDown.disabled = true;
       try {
         await moveGoalBy(goal.id, delta);
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        const movedButton = document.querySelector(`article[data-goal-id="${goal.id}"] ${selector}`);
+        if (movedButton) {
+          const distance = movedButton.getBoundingClientRect().top - anchorTop;
+          window.scrollBy(0, distance);
+          movedButton.focus({ preventScroll: true });
+        }
       } catch (error) {
         await loadGoals();
         showToast("Could not move this direction.", true);
       }
     };
-    moveUp.addEventListener("click", () => moveDirection(-1));
-    moveDown.addEventListener("click", () => moveDirection(1));
+    moveUp.addEventListener("click", (event) => moveDirection(-1, event.currentTarget));
+    moveDown.addEventListener("click", (event) => moveDirection(1, event.currentTarget));
 
     taskForm.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -955,17 +964,23 @@ function renderTask(task, allTasks, container, goalType = "project") {
       });
     });
   } else {
-    checkbox.remove();
+    checkbox.disabled = true;
+    checkbox.setAttribute("aria-label", `Complete the smaller steps before closing ${task.title}`);
+    checkbox.title = "Complete the smaller steps first";
   }
 
   if (isLeaf) {
-    chevron.remove();
+    chevron.classList.remove("hidden");
+    chevron.classList.add("is-placeholder");
+    chevron.disabled = true;
     progress.remove();
   } else {
     const completedChildren = children.filter((child) => child.completed).length;
     progress.textContent = readyToClose ? "Ready to close" : `${completedChildren} of ${children.length}`;
     if (!activeChildren.length) {
-      chevron.remove();
+      chevron.classList.remove("hidden");
+      chevron.classList.add("is-placeholder");
+      chevron.disabled = true;
     } else {
       chevron.classList.remove("hidden");
       const collapsed = collapsedTaskIds.has(task.id);
