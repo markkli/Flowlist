@@ -86,6 +86,22 @@ def goal_is_ready_to_close(db: Session, goal: GoalModel) -> bool:
     return bool(roots) and all(task.completed for task in roots)
 
 
+def task_plan_key(
+    task: TaskModel,
+    tasks_by_id: dict[int, TaskModel],
+    goal_positions: dict[int, int],
+) -> tuple[int, tuple[tuple[int, int], ...]]:
+    """Sort a task by the visible direction and sibling order in the Plan view."""
+    path = [(task.position, task.id)]
+    parent_id = task.parent_id
+    while parent_id is not None:
+        parent = tasks_by_id[parent_id]
+        path.append((parent.position, parent.id))
+        parent_id = parent.parent_id
+    path.reverse()
+    return goal_positions.get(task.goal_id, 0), tuple(path)
+
+
 def clean_history_title(value: str, max_length: int = 100) -> str:
     """Normalize user/AI copy without destroying intentional acronym casing."""
     title = " ".join(value.split()).strip(" \t\n\r\"'`.,;:!?-–—")
@@ -306,15 +322,21 @@ def breakdown_learning_goal(
 @app.get("/next-focus", response_model=schemas.NextFocus)
 def get_next_focus(db: Session = Depends(get_db)):
     all_tasks = db.scalars(select(TaskModel)).all()
+    tasks_by_id = {task.id: task for task in all_tasks}
+    goal_positions = {
+        goal.id: goal.position for goal in db.scalars(select(GoalModel)).all()
+    }
     parent_ids = {task.parent_id for task in all_tasks if task.parent_id is not None}
     candidates = [
         task for task in all_tasks if not task.completed and task.id not in parent_ids
     ]
     if not candidates:
         raise HTTPException(status_code=404, detail="No unfinished focus task found")
-    # Roadmap order is the plan: the oldest unfinished leaf is the next focus.
-    # Nested steps do not carry a separate, competing priority system.
-    next_task = min(candidates, key=lambda task: task.id)
+    # The visible Plan order is the default suggestion; there is no hidden priority score.
+    next_task = min(
+        candidates,
+        key=lambda task: task_plan_key(task, tasks_by_id, goal_positions),
+    )
     return {"task": next_task, "goal": next_task.goal}
 
 
@@ -326,6 +348,10 @@ def list_focus_options(db: Session = Depends(get_db)):
     candidates = [
         task for task in all_tasks if not task.completed and task.id not in parent_ids
     ]
+    tasks_by_id = {task.id: task for task in all_tasks}
+    goal_positions = {
+        goal.id: goal.position for goal in db.scalars(select(GoalModel)).all()
+    }
     recent_rows = db.execute(
         select(
             FocusSessionTaskModel.task_id,
@@ -349,7 +375,7 @@ def list_focus_options(db: Session = Depends(get_db)):
         key=lambda task: (
             0 if task.id in last_session_ids else 1,
             -last_session_ids.get(task.id, 0),
-            task.id,
+            task_plan_key(task, tasks_by_id, goal_positions),
         )
     )
     return [

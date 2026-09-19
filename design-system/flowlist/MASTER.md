@@ -2,7 +2,7 @@
 
 **Direction:** Native Mac forest utility
 
-**Updated:** 2026-09-17
+**Updated:** 2026-09-18
 
 **Character:** Quiet, capable, natural, precise
 
@@ -10,7 +10,7 @@
 
 - Flowlist should feel like a focused desktop instrument, not a generic SaaS dashboard.
 - Use one visual surface per concept. Do not place bordered cards inside bordered cards.
-- Show hierarchy with order, indentation, dividers, and a subtle guide line.
+- Show hierarchy with order, indentation, spacing, and type weight. Do not substitute faint bands or wide tinted strips for divider lines.
 - Plan order communicates sequence. Do not add P1/P2/P3 labels to learning steps or tasks.
 - Nature imagery is a quiet atmospheric anchor, not decoration on every panel.
 - Keep language plain and direct. Avoid motivational filler and poetic UI copy.
@@ -52,19 +52,21 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 
 ### Plan
 
-- Use a compact sticky index on desktop so people can jump between directions; wrap it above the outline on smaller screens.
+- Use a compact vertical dot navigator on desktop with no connecting line. The active dot glows and grows; hover or keyboard focus reveals the direction label. On smaller screens it becomes a horizontal dot group.
 - A goal is one panel containing its heading, controls, active outline, and completed archive.
-- Creation is progressive: “New direction” reveals the direction composer, while “Add step” reveals a focused inline prompt. Do not keep empty forms open by default.
-- Each task is a 48px minimum row separated by a one-pixel divider.
-- Child steps are indented 22px and connected by a subtle vertical guide.
-- Leaf steps show completion. Add and remove are direct icon actions; edit and AI drafting remain secondary menu actions.
-- Parent steps show progress as completed children over total children.
-- Remove completed leaf tasks from the active outline. Collect them in an expandable checked list and show their parent path as a restrained breadcrumb.
+- Keep Project, Learning, and Task creation individually reachable in the page header, but style them as quiet text actions rather than three competing primary buttons. Each opens one compact composer.
+- Task rows have no horizontal divider or tinted background band. Use whitespace, indentation, and type weight to express grouping.
+- Child steps are indented without connector lines or shaded containers.
+- Leaf steps show completion. Rename by selecting the title. Add, AI draft, delete, and reorder appear on hover/focus; on touch layouts they remain available with 44px targets.
+- Parent steps show direct-child progress and can expand or collapse. Once every direct child is finished, the parent becomes explicitly checkable; completion never rolls up automatically.
+- A completed leaf leaves the active outline but its ancestors remain. Closing a completed parent exposes completion at the next level. Reopening any descendant reopens every ancestor while preserving completed siblings.
+- Collect all checked work in an expandable list and show its parent path as a restrained breadcrumb. Fully closed top-level directions move to Completed directions.
 - Priority controls are forbidden. Sequence communicates what comes first.
+- Whole directions move with explicit up/down controls; large panels are not draggable. Compact task reordering is limited to siblings within the same parent, with Alt+Arrow as its keyboard alternative. Cross-parent moves require a future explicit move command rather than ambiguous dragging.
 - Do not prescribe a duration for an individual task. Focus time is observed by the Pomodoro, then attributed to work afterward.
 - AI-generated milestones and nested steps are proposals: display them as a multi-select list with one explicit “Add selected” action.
-- AI planning is a Beta secondary action inside the overflow menu, never the main action. State that personal planning usually fits pace and preference better, and label every generated proposal as an AI draft.
-- Treat the plan as a compact outline, not a stack of nested cards. Parent rows use a branch marker and progress copy; leaf rows use a restrained circular completion control.
+- AI planning is a Beta sparkle action, never the main action. State that personal planning usually fits pace and preference better, and label every generated proposal as an AI draft.
+- Treat the plan as a compact outline, not a stack of nested cards or a diagram made from intersecting lines.
 - Keep plan content to a readable desktop measure rather than stretching each task across the entire window.
 
 ### Learning Path Questions

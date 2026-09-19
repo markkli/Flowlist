@@ -6,7 +6,6 @@ const CYCLE_STATE_KEY = "flowlist-pomodoro-cycle";
 const RITUAL_STATE_KEY = "flowlist-focus-ritual";
 const DEFAULT_TIMER_SETTINGS = { focus: 25, break: 5, rounds: 4, longBreak: 15 };
 
-const celebratedGoals = new Set();
 let timerHandle = null;
 let toastTimer = null;
 let activeTimer = null;
@@ -86,13 +85,28 @@ function escapeHtml(value) {
   return element.innerHTML;
 }
 
-function showToast(message, isError = false) {
+function showToast(message, isError = false, action = null) {
   const toast = document.getElementById("app-toast");
-  toast.textContent = message;
+  toast.replaceChildren();
+  const copy = document.createElement("span");
+  copy.textContent = message;
+  toast.appendChild(copy);
+  if (action) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = action.label || "Undo";
+    button.addEventListener("click", async () => {
+      clearTimeout(toastTimer);
+      toast.classList.remove("visible");
+      await action.run();
+    });
+    toast.appendChild(button);
+  }
   toast.classList.toggle("error", isError);
+  toast.classList.toggle("has-action", Boolean(action));
   toast.classList.add("visible");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove("visible"), 2800);
+  toastTimer = setTimeout(() => toast.classList.remove("visible"), action ? 5200 : 2800);
 }
 
 function trapFocus(event, container) {
@@ -152,7 +166,6 @@ let activeGoalCreateType = "project";
 let planGoalsCache = [];
 const goalTasksCache = new Map();
 let planSectionObserver = null;
-let draggingGoalId = null;
 let draggingTaskId = null;
 
 function loadCollapsedTaskIds() {
@@ -547,14 +560,14 @@ function setPlanIndexActive(goalId) {
 }
 
 function renderPlanIndex(goals) {
-  planIndexCount.textContent = String(goals.length);
   planIndexList.innerHTML = goals.length ? "" : '<p class="plan-index-empty">No directions yet.</p>';
   goals.forEach((goal, index) => {
     const item = document.createElement("button");
     item.type = "button";
     item.className = "plan-index-item";
     item.dataset.goalId = goal.id;
-    item.innerHTML = `<span class="plan-index-item-copy"><small>${escapeHtml(goalTypeLabel(goal.goal_type))}</small><strong>${escapeHtml(goalDisplayTitle(goal))}</strong></span><span class="plan-index-progress" data-index-progress="${goal.id}">—</span>`;
+    item.setAttribute("aria-label", `Jump to ${goalDisplayTitle(goal)}`);
+    item.innerHTML = `<span class="plan-index-dot" aria-hidden="true"></span><span class="plan-index-label"><small>${escapeHtml(goalTypeLabel(goal.goal_type))}</small><strong>${escapeHtml(goalDisplayTitle(goal))}</strong></span>`;
     item.addEventListener("click", () => {
       document.querySelector(`article[data-goal-id="${goal.id}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
       setPlanIndexActive(goal.id);
@@ -581,89 +594,173 @@ function setStepComposer(form, open) {
   if (open) requestAnimationFrame(() => form.querySelector('input[type="text"]')?.focus());
 }
 
+function setupInlineEdit({ trigger, form, input, save }) {
+  const close = () => {
+    form.classList.add("hidden");
+    trigger.classList.remove("hidden");
+  };
+  trigger.addEventListener("click", () => {
+    trigger.classList.add("hidden");
+    form.classList.remove("hidden");
+    input.value = trigger.textContent.trim();
+    requestAnimationFrame(() => {
+      input.focus();
+      input.select();
+    });
+  });
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      close();
+    }
+  });
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const value = input.value.trim();
+    if (!value || value === trigger.textContent.trim()) return close();
+    await save(value);
+  });
+  input.addEventListener("blur", () => {
+    requestAnimationFrame(() => {
+      if (!form.contains(document.activeElement)) close();
+    });
+  });
+}
+
+async function reorderGoals(sourceId, targetId) {
+  const activeIds = planGoalsCache
+    .filter((goal) => !goal.completed || goal.goal_type === "standalone")
+    .map((goal) => goal.id);
+  const from = activeIds.indexOf(sourceId);
+  const to = activeIds.indexOf(targetId);
+  if (from < 0 || to < 0 || from === to) return;
+  activeIds.splice(to, 0, activeIds.splice(from, 1)[0]);
+  let activeIndex = 0;
+  const ids = planGoalsCache.map((goal) => (
+    goal.completed && goal.goal_type !== "standalone"
+      ? goal.id
+      : activeIds[activeIndex++]
+  ));
+  await api("/goals/reorder", { method: "POST", body: JSON.stringify({ ordered_ids: ids }) });
+  await loadGoals();
+}
+
+async function moveGoalBy(goalId, delta) {
+  const activeIds = planGoalsCache
+    .filter((goal) => !goal.completed || goal.goal_type === "standalone")
+    .map((goal) => goal.id);
+  const index = activeIds.indexOf(goalId);
+  const target = index + delta;
+  if (index < 0 || target < 0 || target >= activeIds.length) return;
+  await reorderGoals(goalId, activeIds[target]);
+}
+
+function renderCompletedDirections(goals) {
+  completedDirections.classList.toggle("hidden", goals.length === 0);
+  completedDirectionsCount.textContent = String(goals.length);
+  completedDirectionsList.innerHTML = "";
+  goals.forEach((goal) => {
+    const row = document.createElement("article");
+    row.className = "completed-direction-row";
+    row.innerHTML = `<span><small>${escapeHtml(goalTypeLabel(goal.goal_type))}</small><strong>${escapeHtml(goalDisplayTitle(goal))}</strong></span><button class="text-btn" type="button">Reopen</button>`;
+    row.querySelector("button").addEventListener("click", async () => {
+      await api(`/goals/${goal.id}`, { method: "PATCH", body: JSON.stringify({ completed: false }) });
+      await loadGoals();
+      showToast("Direction reopened.");
+    });
+    completedDirectionsList.appendChild(row);
+  });
+}
+
 async function loadGoals() {
   const goals = await api("/goals");
+  planGoalsCache = goals;
+  const activeGoals = goals.filter((goal) => !goal.completed || goal.goal_type === "standalone");
+  const finishedGoals = goals.filter((goal) => goal.completed && goal.goal_type !== "standalone");
   goalsContainer.innerHTML = "";
-  renderPlanIndex(goals);
-  if (!goals.length) {
+  renderPlanIndex(activeGoals);
+  renderCompletedDirections(finishedGoals);
+  if (!activeGoals.length) {
     goalsContainer.innerHTML = '<section class="plan-empty panel"><p class="kicker">An open page</p><h2>Choose one direction to begin.</h2><p>Projects hold outcomes, learning holds a path, and Tasks catches everything smaller.</p></section>';
     return;
   }
   const taskLoads = [];
-  for (const goal of goals) {
+  for (const [goalIndex, goal] of activeGoals.entries()) {
     const node = goalTemplate.content.cloneNode(true);
     const section = node.querySelector("article");
     section.dataset.goalId = goal.id;
     section.dataset.goalType = goal.goal_type || "project";
     section.id = `goal-${goal.id}`;
     node.querySelector(".goal-type-label").textContent = goalTypeLabel(goal.goal_type);
-    node.querySelector(".goal-title").textContent = goalDisplayTitle(goal);
+    const goalTitle = node.querySelector(".goal-title");
+    const goalTitleForm = node.querySelector(".goal-title-form");
+    const goalTitleInput = node.querySelector(".goal-edit-title");
+    goalTitle.textContent = goalDisplayTitle(goal);
+    if (goal.goal_type === "standalone") {
+      goalTitle.disabled = true;
+      goalTitleForm.remove();
+    } else {
+      setupInlineEdit({
+        trigger: goalTitle,
+        form: goalTitleForm,
+        input: goalTitleInput,
+        save: async (title) => {
+          await api(`/goals/${goal.id}`, { method: "PATCH", body: JSON.stringify({ title }) });
+          await loadGoals();
+          showToast("Direction renamed.");
+        },
+      });
+    }
     const description = node.querySelector(".goal-description");
     description.textContent = goal.description || "";
     description.classList.toggle("hidden", !goal.description);
 
     const goalBreakdown = node.querySelector(".break-down-goal");
     const goalSuggestions = node.querySelector(".goal-suggestion-list");
-    const menuDivider = node.querySelector(".goal-menu-popover .menu-divider");
     if (goal.goal_type !== "learning") {
       goalBreakdown.remove();
-      menuDivider.remove();
     } else {
       goalBreakdown.addEventListener("click", () => {
-        section.querySelector(".goal-menu")?.removeAttribute("open");
         openLearningWizard(goal, goalBreakdown, goalSuggestions);
       });
     }
 
-    const goalEdit = node.querySelector(".goal-edit-form");
-    const goalMenu = node.querySelector(".goal-menu");
     const taskForm = node.querySelector(".task-form");
     const goalAddStep = node.querySelector(".goal-add-step");
     if (goal.goal_type === "standalone") {
-      goalAddStep.querySelector("span").textContent = "Add task";
+      goalAddStep.setAttribute("aria-label", "Add task");
       taskForm.querySelector(".step-composer-label").textContent = "New task";
       taskForm.querySelector("input").placeholder = "What needs doing?";
     }
     goalAddStep.addEventListener("click", () => setStepComposer(taskForm, taskForm.classList.contains("hidden")));
     taskForm.querySelector(".cancel-step-composer").addEventListener("click", () => setStepComposer(taskForm, false));
 
-    goalEdit.querySelector(".goal-edit-title").value = goal.title;
-    goalEdit.querySelector(".goal-edit-description").value = goal.description || "";
-    goalEdit.querySelector(".goal-edit-type").value = goal.goal_type || "project";
-    node.querySelector(".edit-goal").addEventListener("click", () => {
-      goalMenu.removeAttribute("open");
-      goalEdit.style.display = goalEdit.style.display === "none" ? "grid" : "none";
-      if (goalEdit.style.display === "grid") goalEdit.querySelector(".goal-edit-title").focus();
-    });
-    goalEdit.querySelector(".goal-edit-cancel").addEventListener("click", () => {
-      goalEdit.style.display = "none";
-    });
-    goalEdit.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const title = goalEdit.querySelector(".goal-edit-title").value.trim();
-      if (!title) return;
-      try {
-        await api(`/goals/${goal.id}`, {
-          method: "PATCH",
-          body: JSON.stringify({
-            title,
-            description: goalEdit.querySelector(".goal-edit-description").value.trim() || null,
-            goal_type: goalEdit.querySelector(".goal-edit-type").value,
-          }),
-        });
-        await loadGoals();
-        showToast("Direction updated.");
-      } catch (error) {
-        showToast("Could not update this direction.", true);
-      }
-    });
     node.querySelector(".delete-goal").addEventListener("click", async () => {
-      goalMenu.removeAttribute("open");
       if (!window.confirm(`Remove “${goalDisplayTitle(goal)}” and every step inside it?`)) return;
       await api(`/goals/${goal.id}`, { method: "DELETE" });
       await loadGoals();
       showToast("Direction removed.");
     });
+
+    const moveUp = node.querySelector(".goal-move-up");
+    const moveDown = node.querySelector(".goal-move-down");
+    moveUp.disabled = goalIndex === 0;
+    moveDown.disabled = goalIndex === activeGoals.length - 1;
+    moveUp.setAttribute("aria-label", `Move ${goalDisplayTitle(goal)} up`);
+    moveDown.setAttribute("aria-label", `Move ${goalDisplayTitle(goal)} down`);
+    const moveDirection = async (delta) => {
+      moveUp.disabled = true;
+      moveDown.disabled = true;
+      try {
+        await moveGoalBy(goal.id, delta);
+      } catch (error) {
+        await loadGoals();
+        showToast("Could not move this direction.", true);
+      }
+    };
+    moveUp.addEventListener("click", () => moveDirection(-1));
+    moveDown.addEventListener("click", () => moveDirection(1));
+
     taskForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       const input = event.target.querySelector('input[type="text"]');
@@ -685,16 +782,9 @@ async function loadGoals() {
 }
 
 function childrenOf(task, allTasks) {
-  return allTasks.filter((item) => item.parent_id === task.id).sort((a, b) => a.id - b.id);
-}
-
-function descendantLeaves(task, allTasks) {
-  const children = childrenOf(task, allTasks);
-  return children.length ? children.flatMap((child) => descendantLeaves(child, allTasks)) : [task];
-}
-
-function hasIncompleteLeaf(task, allTasks) {
-  return descendantLeaves(task, allTasks).some((leaf) => !leaf.completed);
+  return allTasks
+    .filter((item) => item.parent_id === task.id)
+    .sort((a, b) => (a.position - b.position) || (a.id - b.id));
 }
 
 function taskParentPath(task, allTasks) {
@@ -708,8 +798,37 @@ function taskParentPath(task, allTasks) {
   return path;
 }
 
+function siblingsOf(task, allTasks) {
+  return allTasks
+    .filter((item) => item.goal_id === task.goal_id && item.parent_id === task.parent_id)
+    .sort((a, b) => (a.position - b.position) || (a.id - b.id));
+}
+
+async function reorderTasks(task, target, allTasks) {
+  if (task.parent_id !== target.parent_id || task.goal_id !== target.goal_id) return;
+  const ids = siblingsOf(task, allTasks).map((item) => item.id);
+  const from = ids.indexOf(task.id);
+  const to = ids.indexOf(target.id);
+  if (from < 0 || to < 0 || from === to) return;
+  ids.splice(to, 0, ids.splice(from, 1)[0]);
+  await api("/tasks/reorder", { method: "POST", body: JSON.stringify({ ordered_ids: ids }) });
+  await loadTasks(task.goal_id);
+}
+
+async function moveTaskBy(task, allTasks, delta) {
+  const ids = siblingsOf(task, allTasks).map((item) => item.id);
+  const index = ids.indexOf(task.id);
+  const target = index + delta;
+  if (index < 0 || target < 0 || target >= ids.length) return;
+  [ids[index], ids[target]] = [ids[target], ids[index]];
+  await api("/tasks/reorder", { method: "POST", body: JSON.stringify({ ordered_ids: ids }) });
+  await loadTasks(task.goal_id);
+}
+
 function renderCompletedTasks(section, tasks) {
-  const completed = leafTasks(tasks).filter((task) => task.completed);
+  const completed = tasks
+    .filter((task) => task.completed)
+    .sort((a, b) => (a.depth - b.depth) || (a.position - b.position) || (a.id - b.id));
   const completedSection = section.querySelector(".completed-tasks");
   const completedList = section.querySelector(".completed-task-list");
   completedSection.classList.toggle("hidden", completed.length === 0);
@@ -741,34 +860,35 @@ async function loadTasks(goalId) {
   const list = section.querySelector(".goal-task-list");
   list.innerHTML = "";
   tasks
-    .filter((task) => task.parent_id === null && hasIncompleteLeaf(task, tasks))
-    .sort((a, b) => a.id - b.id)
+    .filter((task) => task.parent_id === null && !task.completed)
+    .sort((a, b) => (a.position - b.position) || (a.id - b.id))
     .forEach((task) => renderTask(task, tasks, list, section.dataset.goalType));
+  goalTasksCache.set(goalId, tasks);
   const leaves = leafTasks(tasks);
   const completed = leaves.filter((task) => task.completed).length;
-  const remaining = leaves.length - completed;
   const itemNoun = section.dataset.goalType === "standalone" ? "tasks" : "steps";
   section.querySelector(".goal-progress-copy").textContent = leaves.length
     ? `${completed} of ${leaves.length} ${itemNoun} complete`
     : section.dataset.goalType === "standalone" ? "No tasks yet" : "No steps yet";
   section.querySelector(".goal-progress-value").style.width = `${leaves.length ? (completed / leaves.length) * 100 : 0}%`;
-  section.querySelector(".active-task-count").textContent = remaining ? `${remaining} remaining` : "All clear";
-  section.querySelector(".goal-empty-state").classList.toggle("hidden", remaining !== 0);
+  const activeRoots = tasks.filter((task) => task.parent_id === null && !task.completed);
+  section.querySelector(".goal-empty-state").classList.toggle("hidden", activeRoots.length !== 0);
   renderCompletedTasks(section, tasks);
-  const indexProgress = document.querySelector(`[data-index-progress="${goalId}"]`);
-  if (indexProgress) indexProgress.textContent = leaves.length ? `${completed}/${leaves.length}` : "New";
-  checkGoalComplete(goalId, tasks);
-}
-
-function checkGoalComplete(goalId, tasks) {
-  const leaves = leafTasks(tasks);
-  const complete = leaves.length > 0 && leaves.every((task) => task.completed);
-  if (!complete) return celebratedGoals.delete(goalId);
-  if (celebratedGoals.has(goalId)) return;
-  celebratedGoals.add(goalId);
-  const title = document.querySelector(`article[data-goal-id="${goalId}"] .goal-title`)?.textContent;
-  document.getElementById("celebration-goal-title").textContent = title;
-  document.getElementById("celebration-overlay").classList.remove("hidden");
+  const goalComplete = section.querySelector(".goal-complete");
+  const goalType = section.dataset.goalType;
+  const readyToClose = goalType !== "standalone"
+    && tasks.some((task) => task.parent_id === null)
+    && tasks.filter((task) => task.parent_id === null).every((task) => task.completed);
+  goalComplete.classList.toggle("hidden", !readyToClose);
+  if (readyToClose) {
+    goalComplete.onclick = async () => {
+      const goal = planGoalsCache.find((item) => item.id === goalId);
+      await api(`/goals/${goalId}`, { method: "PATCH", body: JSON.stringify({ completed: true }) });
+      await loadGoals();
+      document.getElementById("celebration-goal-title").textContent = goalDisplayTitle(goal);
+      document.getElementById("celebration-overlay").classList.remove("hidden");
+    };
+  }
 }
 
 document.getElementById("celebration-dismiss").addEventListener("click", () => {
@@ -777,70 +897,91 @@ document.getElementById("celebration-dismiss").addEventListener("click", () => {
 
 function renderTask(task, allTasks, container, goalType = "project") {
   const children = childrenOf(task, allTasks);
-  const activeChildren = children.filter((child) => hasIncompleteLeaf(child, allTasks));
+  const activeChildren = children.filter((child) => !child.completed);
   const isLeaf = children.length === 0;
+  const readyToClose = !isLeaf && children.every((child) => child.completed);
   const node = taskTemplate.content.cloneNode(true);
   const taskNode = node.querySelector(".task-node");
   const taskRow = node.querySelector(".task-row");
   const checkbox = node.querySelector(".task-completed");
   const title = node.querySelector(".task-title");
   const progress = node.querySelector(".task-progress");
-  const edit = node.querySelector(".edit-task");
   const editForm = node.querySelector(".task-edit-form");
+  const editInput = node.querySelector(".task-edit-title");
   const add = node.querySelector(".add-subtask");
   const breakdown = node.querySelector(".break-down");
-  const menu = node.querySelector(".task-menu");
   const subtaskForm = node.querySelector(".subtask-form");
   const subtaskList = node.querySelector(".subtask-list");
   const suggestions = node.querySelector(".suggestion-list");
   const remove = node.querySelector(".delete-task");
+  const chevron = node.querySelector(".task-chevron");
+  const reorderHandle = node.querySelector(".task-reorder-handle");
 
+  taskNode.dataset.taskId = task.id;
+  taskNode.dataset.parentId = task.parent_id ?? "root";
   taskNode.dataset.depth = task.depth;
   taskRow.classList.add(isLeaf ? "leaf-task-row" : "parent-task-row");
+  taskRow.classList.toggle("ready-to-close", readyToClose);
   title.textContent = task.title;
-  editForm.querySelector(".task-edit-title").value = task.title;
-  edit.addEventListener("click", () => {
-    menu.removeAttribute("open");
-    editForm.style.display = editForm.style.display === "none" ? "grid" : "none";
-  });
-  editForm.querySelector(".task-edit-cancel").addEventListener("click", () => {
-    editForm.style.display = "none";
-  });
-  editForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const editedTitle = editForm.querySelector(".task-edit-title").value.trim();
-    if (!editedTitle) return;
-    try {
+  setupInlineEdit({
+    trigger: title,
+    form: editForm,
+    input: editInput,
+    save: async (editedTitle) => {
       await api(`/tasks/${task.id}`, {
         method: "PATCH",
         body: JSON.stringify({ title: editedTitle }),
       });
-      loadTasks(task.goal_id);
-      showToast("Task updated");
-    } catch (error) {
-      showToast("Could not update this task.", true);
-    }
+      await loadTasks(task.goal_id);
+      showToast("Task renamed.");
+    },
   });
 
-  if (isLeaf) {
-    checkbox.checked = task.completed;
-    checkbox.setAttribute("aria-label", `${task.completed ? "Reopen" : "Complete"} ${task.title}`);
-    taskRow.classList.toggle("task-is-complete", task.completed);
+  if (isLeaf || readyToClose) {
+    checkbox.checked = false;
+    checkbox.setAttribute("aria-label", `${readyToClose ? "Close section" : "Complete task"}: ${task.title}`);
     checkbox.addEventListener("change", async () => {
-      await api(`/tasks/${task.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ completed: checkbox.checked }),
+      if (!checkbox.checked) return;
+      taskRow.classList.add("is-completing");
+      await new Promise((resolve) => setTimeout(resolve, 170));
+      await api(`/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({ completed: true }) });
+      await loadTasks(task.goal_id);
+      showToast(readyToClose ? "Section closed." : "Task completed.", false, {
+        label: "Undo",
+        run: async () => {
+          await api(`/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({ completed: false }) });
+          await loadTasks(task.goal_id);
+        },
       });
-      loadTasks(task.goal_id);
     });
   } else {
     checkbox.remove();
-    const branchMarker = document.createElement("span");
-    branchMarker.className = "task-branch-marker";
-    branchMarker.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4v12m0-6h8m-3-3 3 3-3 3"/></svg>';
-    taskRow.insertBefore(branchMarker, title);
-    const leaves = descendantLeaves(task, allTasks);
-    progress.textContent = `${leaves.filter((leaf) => leaf.completed).length}/${leaves.length} done`;
+  }
+
+  if (isLeaf) {
+    chevron.remove();
+    progress.remove();
+  } else {
+    const completedChildren = children.filter((child) => child.completed).length;
+    progress.textContent = readyToClose ? "Ready to close" : `${completedChildren} of ${children.length}`;
+    if (!activeChildren.length) {
+      chevron.remove();
+    } else {
+      chevron.classList.remove("hidden");
+      const collapsed = collapsedTaskIds.has(task.id);
+      taskNode.classList.toggle("is-collapsed", collapsed);
+      chevron.setAttribute("aria-expanded", String(!collapsed));
+      chevron.setAttribute("aria-label", `${collapsed ? "Expand" : "Collapse"} ${task.title}`);
+      chevron.addEventListener("click", () => {
+        const willCollapse = !taskNode.classList.contains("is-collapsed");
+        taskNode.classList.toggle("is-collapsed", willCollapse);
+        chevron.setAttribute("aria-expanded", String(!willCollapse));
+        chevron.setAttribute("aria-label", `${willCollapse ? "Expand" : "Collapse"} ${task.title}`);
+        if (willCollapse) collapsedTaskIds.add(task.id);
+        else collapsedTaskIds.delete(task.id);
+        saveCollapsedTaskIds();
+      });
+    }
   }
 
   remove.setAttribute("aria-label", `Remove ${task.title}`);
@@ -871,7 +1012,6 @@ function renderTask(task, allTasks, container, goalType = "project") {
       showToast("Substep added.");
     });
     breakdown.addEventListener("click", async () => {
-      menu.removeAttribute("open");
       const originalMarkup = breakdown.innerHTML;
       breakdown.textContent = "Generating…";
       breakdown.disabled = true;
@@ -892,6 +1032,39 @@ function renderTask(task, allTasks, container, goalType = "project") {
     });
   }
 
+  reorderHandle.addEventListener("pointerdown", () => { taskNode.draggable = true; });
+  reorderHandle.addEventListener("pointerup", () => { taskNode.draggable = false; });
+  reorderHandle.addEventListener("keydown", async (event) => {
+    if (!event.altKey || !["ArrowUp", "ArrowDown"].includes(event.key)) return;
+    event.preventDefault();
+    await moveTaskBy(task, allTasks, event.key === "ArrowUp" ? -1 : 1);
+  });
+  taskNode.addEventListener("dragstart", (event) => {
+    draggingTaskId = task.id;
+    event.dataTransfer.effectAllowed = "move";
+    taskNode.classList.add("is-dragging");
+  });
+  taskNode.addEventListener("dragend", () => {
+    draggingTaskId = null;
+    taskNode.draggable = false;
+    taskNode.classList.remove("is-dragging");
+    document.querySelectorAll(".task-node.drag-target").forEach((item) => item.classList.remove("drag-target"));
+  });
+  taskRow.addEventListener("dragover", (event) => {
+    const source = allTasks.find((item) => item.id === draggingTaskId);
+    if (!source || source.parent_id !== task.parent_id) return;
+    event.preventDefault();
+    taskNode.classList.add("drag-target");
+  });
+  taskRow.addEventListener("dragleave", () => taskNode.classList.remove("drag-target"));
+  taskRow.addEventListener("drop", async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    taskNode.classList.remove("drag-target");
+    const source = allTasks.find((item) => item.id === draggingTaskId);
+    if (source) await reorderTasks(source, task, allTasks);
+  });
+
   container.appendChild(node);
   activeChildren.forEach((child) => renderTask(child, allTasks, subtaskList, goalType));
 }
@@ -900,7 +1073,7 @@ document.getElementById("goal-form").addEventListener("submit", async (event) =>
   event.preventDefault();
   const input = document.getElementById("goal-title");
   if (!input.value.trim()) return;
-  const type = document.querySelector('input[name="goal-type"]:checked').value;
+  const type = activeGoalCreateType;
   const submit = event.submitter;
   submit.disabled = true;
   try {

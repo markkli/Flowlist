@@ -18,6 +18,10 @@ os.environ.pop("OPENAI_API_KEY", None)
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from database import Base, engine  # noqa: E402
+# database.py loads the developer .env for normal app startup. Remove the key
+# again so tests exercise deterministic local fallbacks unless they explicitly
+# monkeypatch an AI helper.
+os.environ.pop("OPENAI_API_KEY", None)
 from main import app  # noqa: E402
 
 
@@ -547,3 +551,4 @@ def test_plan_order_is_persistent_for_goals_and_sibling_tasks():
     assert [
         task["title"] for task in client.get(f"/goals/{first_goal['id']}/tasks").json()
     ] == ["B", "A"]
+    assert client.get("/next-focus").json()["task"]["id"] == second_task["id"]

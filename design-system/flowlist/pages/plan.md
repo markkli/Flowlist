@@ -1,6 +1,6 @@
 # Plan Page Override
 
-**Updated:** 2026-09-17
+**Updated:** 2026-09-18
 
 ## Purpose
 
@@ -8,34 +8,38 @@ The Plan page is a working outline, not a dashboard of nested cards. It should m
 
 ## Desktop Structure
 
-- Use a narrow sticky direction index beside one readable column of goal panels.
-- The index shows type, name, and completed/total progress. Its active state follows the visible goal.
-- Keep “New direction” in the page heading and reveal its composer only on request.
-- Each goal header contains title, overall progress, a visible Add step action, and one overflow menu.
+- Use a 44px sticky vertical dot group beside one readable column of direction panels. Do not connect the dots with a rule.
+- The active dot follows the visible direction. Hover and keyboard focus enlarge it and reveal type/name in a floating label; clicking scrolls directly to the direction.
+- Keep Project, Learning, and Task as separate but low-emphasis creation actions in the atmospheric page heading. Each reveals one compact composer.
+- Each goal header contains its editable title, overall progress, and context actions that reveal only on hover/focus. Learning directions expose a restrained AI Beta sparkle.
 
 ## Task Hierarchy
 
-- Render only unfinished leaves and the parent branches needed to understand them in the active outline.
-- Parent progress counts descendant leaves, not only direct children.
-- Use indentation and a single guide line for hierarchy; never nest bordered task cards.
-- Keep Add substep and Remove visible as quiet icon buttons. Keep Edit and AI drafting in the overflow menu.
+- Render unfinished work and every ancestor required to understand it. Finishing a leaf must never erase its parent context.
+- Parent progress counts direct children. When every direct child is checked, show “Ready to close” and expose the parent checkbox.
+- Use indentation, spacing, and type weight for hierarchy; do not use horizontal row dividers, vertical guide lines, tinted background bands, or nested bordered task cards.
+- Rename by clicking the title. Reveal Add substep, AI Beta, Remove, and reorder on hover/focus; keep equivalent touch-safe access.
+- Expand/collapse applies to parent nodes and persists locally.
+- Whole directions use visible-on-hover up/down controls because dragging a large card is imprecise. Compact task drag reorder works only within a sibling group; Alt+Up/Down is the keyboard alternative.
 - Confirm deletion because removing a parent may also remove descendants.
 
 ## Completed Work
 
-- Place finished leaves in an expandable Completed section at the bottom of their goal.
-- Rows use checked controls, crossed titles, and breadcrumbs made from their parent branches.
-- Reopening a completed item returns it to the active outline immediately.
+- Place all checked nodes in an expandable Completed section at the bottom of their direction.
+- Rows use checked controls, crossed titles, and breadcrumbs made from ancestor titles.
+- Reopening an item returns it and its ancestor chain to the active outline while preserving completed siblings.
+- A direction becomes closable only after every top-level node is manually closed. Closed directions move to a separate Completed directions section.
+- Completion uses a brief cause-and-effect fade and an Undo toast.
 
 ## AI Drafting
 
-- “Generate learning path” lives in the goal overflow menu and is marked Beta.
-- “Generate smaller steps” lives in a task overflow menu and is marked Beta.
+- “Generate learning path” is a restrained sparkle action in the learning-direction header and is marked Beta in its tooltip/wizard.
+- “Generate smaller steps” uses the same sparkle action on eligible task rows.
 - Copy must explain that AI output is a draft and that a personally considered plan will usually fit pace and preferences better.
 - Never insert generated work automatically. Show a multi-select proposal list and require Add selected.
 
 ## Responsive Behavior
 
-- Below the desktop breakpoint, move the index above the goal stack and let its items wrap.
-- At compact widths, stack the page action, preserve 44px touch targets, and move row actions onto a second aligned line rather than crushing the task title.
+- Below the desktop breakpoint, convert the dot index into a sticky horizontal group above the goal stack, still without a connecting rule.
+- At compact widths, group the three creation actions into a quiet segmented strip, preserve 44px touch targets, and allow row controls to remain operable without relying on hover.
 - No horizontal scrolling at 375px.
