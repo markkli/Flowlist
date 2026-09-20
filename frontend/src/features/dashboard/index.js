@@ -2,31 +2,22 @@ import { api, timezoneQuery } from '../../shared/api';
 import { escapeHtml } from '../../shared/dom';
 import { initQueue } from './queue';
 export function initDashboard({ setDateCopy, showToast }) {
-function leafTasks(tasks) {
-  const parents = new Set(tasks.map(task => task.parent_id));
-  const ordered = [];
-  function visit(parentId) {
-    tasks.filter(task => task.parent_id === parentId).sort((a,b) => a.position - b.position || a.id - b.id).forEach(task => { if (!parents.has(task.id)) ordered.push(task); else visit(task.id); });
-  }
-  visit(null); return ordered;
-}
 function localDateKey(date) { return [date.getFullYear(), String(date.getMonth()+1).padStart(2,'0'), String(date.getDate()).padStart(2,'0')].join('-'); }
 
 function renderGoalsSummary(goalsWithTasks) {
   const container = document.getElementById("dashboard-goals");
   container.innerHTML = "";
   goalsWithTasks.filter(({ goal }) => goal.goal_type !== "standalone").slice(0, 4).forEach(({ goal, tasks }) => {
-    const leaves = leafTasks(tasks);
-    const done = leaves.filter((task) => task.completed).length;
-    const percent = leaves.length ? (done / leaves.length) * 100 : 0;
+    const done = tasks.filter((task) => task.completed).length;
+    const percent = tasks.length ? (done / tasks.length) * 100 : 0;
     const row = document.createElement("div");
     row.className = "goal-line";
     const isTaskList = goal.goal_type === "standalone";
     const goalName = isTaskList ? "Tasks" : goal.title;
-    const detail = leaves.length
-      ? `${leaves.length - done} ${isTaskList ? "tasks" : "steps"} remaining`
+    const detail = tasks.length
+      ? `${tasks.length - done} ${isTaskList ? "tasks" : "steps"} remaining`
       : isTaskList ? "No tasks yet" : "No steps yet";
-    row.innerHTML = `<div><div class="goal-name">${escapeHtml(goalName)}</div><div class="goal-detail">${detail}</div></div><div class="mini-progress"><div class="progress-track"><div class="progress-value" style="width:${percent}%"></div></div><small>${done}/${leaves.length}</small></div>`;
+    row.innerHTML = `<div><div class="goal-name">${escapeHtml(goalName)}</div><div class="goal-detail">${detail}</div></div><div class="mini-progress"><div class="progress-track"><div class="progress-value" style="width:${percent}%"></div></div><small>${done}/${tasks.length}</small></div>`;
     container.appendChild(row);
   });
   if (!goalsWithTasks.some(({goal}) => goal.goal_type !== "standalone")) {

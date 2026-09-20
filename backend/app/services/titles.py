@@ -1,5 +1,6 @@
 import logging
 import re
+from sqlalchemy import update
 from app.ai import suggest_focus_title
 from app.database import SessionLocal
 from app.models import FocusSessionModel, TaskModel
@@ -53,9 +54,10 @@ def improve_focus_title(session_id: int, summary: str | None, contexts: list[str
         if looks_like_gibberish(title):
             return
         with SessionLocal() as db:
-            session = db.get(FocusSessionModel, session_id)
-            if session and session.deleted_at is None:
-                session.title = title
-                db.commit()
+            db.execute(update(FocusSessionModel).where(
+                FocusSessionModel.id == session_id, FocusSessionModel.deleted_at.is_(None),
+                FocusSessionModel.revision == 0,
+            ).values(title=title))
+            db.commit()
     except Exception:
         logging.getLogger(__name__).info("Optional focus title unavailable; kept local title")

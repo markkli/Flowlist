@@ -253,9 +253,6 @@ export function initQueue({ showToast, onChange }) {
       mark.setAttribute('aria-hidden', 'true');
       mark.innerHTML = '<svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9 3h6v4H9zm0 9h6m-6 4h4"/></svg>';
       empty.append(mark, element('h3', '', 'Make room for what matters.'), element('p', '', 'Choose a few tasks from Plan. They’ll stay here until you finish or remove them.'));
-      const choose = button('Choose tasks', 'secondary-btn');
-      choose.addEventListener('click', () => openPicker(choose));
-      empty.append(choose);
       agenda.append(empty);
       return;
     }
@@ -368,7 +365,8 @@ export function initQueue({ showToast, onChange }) {
   function positionRowMenu() {
     if (!menuTrigger) return;
     const rect = menuTrigger.getBoundingClientRect();
-    if (rect.bottom < 0 || rect.top > innerHeight) return closeMenu();
+    const clip = agenda.getBoundingClientRect();
+    if (rect.bottom < Math.max(0,clip.top) || rect.top > Math.min(innerHeight,clip.bottom)) return closeMenu();
     const menuRect = rowMenu.getBoundingClientRect();
     rowMenu.style.left = `${Math.max(8, Math.min(rect.right - menuRect.width, innerWidth - menuRect.width - 8))}px`;
     rowMenu.style.top = `${rect.bottom + menuRect.height + 8 > innerHeight ? Math.max(8, rect.top - menuRect.height - 5) : rect.bottom + 5}px`;

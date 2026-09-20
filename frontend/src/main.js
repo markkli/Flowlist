@@ -100,7 +100,7 @@ window.addEventListener('unhandledrejection', event => {
   event.preventDefault();
   showToast(event.reason?.message || 'Could not finish that action. Please try again.', true);
 });
-document.addEventListener('keydown', event => { if (!timer.handleKey(event)) plan.handleKey(event); });
+document.addEventListener('keydown', event => { if (!historyView.handleKey(event) && !timer.handleKey(event)) plan.handleKey(event); });
 setDateCopy();
 switchView(location.hash.slice(1));
 if (['goals','history'].includes(location.hash.slice(1))) dashboard.loadDashboard().catch(error => showToast(error.message,true));

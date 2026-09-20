@@ -1,0 +1,106 @@
+import { escapeHtml } from '../../shared/dom';
+export const asDate = value => new Date(/(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : `${value}Z`);
+export const dayKey = date => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+export function monday(date = new Date()) { const result = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12); result.setDate(result.getDate() - (result.getDay()+6)%7); return result; }
+export function nextDay(date, count = 1) { const result = new Date(date); result.setDate(result.getDate()+count); return result; }
+export const timeLabel = date => date.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+export function rangeLabel(start, end) {
+  const clockChanged = start.getTimezoneOffset() !== end.getTimezoneOffset();
+  const options = {hour:'numeric', minute:'2-digit', ...(clockChanged ? {timeZoneName:'short'} : {})};
+  const endDay = dayKey(start) !== dayKey(end) ? `${end.toLocaleDateString([], {month:'short',day:'numeric'})} · ` : '';
+  return `${start.toLocaleTimeString([],options)}–${endDay}${end.toLocaleTimeString([],options)}`;
+}
+export const duration = seconds => seconds < 60 ? `${seconds}s` : `${Math.floor(seconds/60)} min${seconds % 60 ? ` ${seconds%60}s` : ''}`;
+
+export function segmentsFor(sessions, dates) {
+  const visible = new Set(dates);
+  const segments = [];
+  for (const session of sessions) for (const block of session.blocks || []) {
+    let cursor = asDate(block.started_at);
+    const end = asDate(block.ended_at);
+    while (cursor < end) {
+      const midnight = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate()+1);
+      const until = new Date(Math.min(end.getTime(), midnight.getTime()));
+      if (visible.has(dayKey(cursor))) {
+        const startMinute = cursor.getHours()*60 + cursor.getMinutes() + cursor.getSeconds()/60;
+        let endMinute = until.getTime() === midnight.getTime() ? 1440 : until.getHours()*60 + until.getMinutes() + until.getSeconds()/60;
+        // A repeated DST hour has two real instants at the same wall-clock time.
+        // Keep a visible block and use absolute times for duration and details.
+        if (endMinute <= startMinute) endMinute = Math.min(1440, startMinute+(until-cursor)/60000);
+        segments.push({session, block, date:dayKey(cursor), start:new Date(cursor), end:until, startMinute, endMinute, seconds:Math.round((until-cursor)/1000)});
+      }
+      cursor = until;
+    }
+  }
+  return segments.sort((a,b) => a.start-b.start || a.session.id-b.session.id);
+}
+
+export function renderTimeline(container, data, openRecord) {
+  const segments = segmentsFor(data.sessions, data.days.map(day => day.date));
+  const startHour = segments.length ? Math.max(0, Math.floor(Math.min(...segments.map(x=>x.startMinute))/60)-1) : 8;
+  const endHour = segments.length ? Math.min(24, Math.ceil(Math.max(...segments.map(x=>x.endMinute))/60)+1) : 18;
+  const hours = Math.max(3,endHour-startHour);
+  const scale = 52/60;
+  container.replaceChildren();
+  const clockChange = data.days.some(day => {
+    const start = new Date(`${day.date}T00:00:00`);
+    return start.getTimezoneOffset() !== nextDay(start).getTimezoneOffset();
+  });
+  const grid = document.createElement('div'); grid.className=`history-week-grid${segments.length ? '' : ' is-empty'}`;
+  grid.classList.toggle('as-agenda',clockChange);
+  grid.style.setProperty('--hours', String(hours));
+  const axis = document.createElement('div'); axis.className='history-time-axis'; axis.setAttribute('aria-hidden','true');
+  axis.innerHTML = '<div class="history-day-heading"></div>';
+  for(let hour=startHour; hour < startHour+hours; hour++) {
+    const label = document.createElement('span'); label.textContent=`${String(hour).padStart(2,'0')}:00`; label.style.top=`${64+(hour-startHour)*52}px`; axis.appendChild(label);
+  }
+  grid.appendChild(axis);
+  for(const day of data.days) {
+    const date = new Date(`${day.date}T12:00:00`);
+    const column = document.createElement('section'); column.className='history-day';
+    const heading = document.createElement('h3'); heading.className='history-day-heading';
+    heading.innerHTML=`<span>${escapeHtml(date.toLocaleDateString([], {weekday:'short'}))}</span><strong${day.date === dayKey(new Date()) ? ' class="is-today"' : ''}>${date.getDate()}</strong><small>${day.minutes ? `${day.minutes} min` : day.seconds ? '<1 min' : '—'}</small>`;
+    column.appendChild(heading);
+    const body = document.createElement('div'); body.className='history-day-body';
+    const entries = segments.filter(x=>x.date===day.date);
+    column.classList.toggle('is-empty',!entries.length);
+    // Group intersecting visual intervals so short blocks remain clickable and
+    // overlapping rituals never cover one another.
+    const clusters = [];
+    for(const entry of entries) {
+      entry.top=(entry.startMinute-startHour*60)*scale;
+      entry.height=Math.max(44,(entry.endMinute-entry.startMinute)*scale);
+      let cluster=clusters.at(-1);
+      if(!cluster || entry.top>=cluster.end) { cluster={end:0,entries:[],lanes:[]}; clusters.push(cluster); }
+      let lane=cluster.lanes.findIndex(end=>end<=entry.top);
+      if(lane<0) lane=cluster.lanes.length;
+      cluster.lanes[lane]=entry.top+entry.height;
+      entry.lane=lane; cluster.entries.push(entry); cluster.end=Math.max(cluster.end,entry.top+entry.height);
+    }
+    for(const cluster of clusters) for(const entry of cluster.entries) {
+      const button = document.createElement('button'); button.type='button'; button.className='history-block';
+      const label = `${rangeLabel(entry.start,entry.end)} · ${duration(entry.seconds)} · ${entry.session.task_title}`;
+      button.setAttribute('aria-label',label); button.title=label;
+      button.style.top=`${entry.top}px`; button.style.height=`${entry.height}px`;
+      button.style.left=`calc(${entry.lane/cluster.lanes.length*100}% + 3px)`;
+      button.style.width=`calc(${100/cluster.lanes.length}% - 6px)`;
+      button.classList.toggle('is-short',entry.height<62);
+      button.innerHTML=`<span class="history-block-time">${escapeHtml(timeLabel(entry.start))}<span> · ${duration(entry.seconds)}</span></span><strong>${escapeHtml(entry.session.task_title)}</strong>`;
+      button.addEventListener('click',()=>openRecord(entry.session,button));
+      body.appendChild(button);
+    }
+    if(!entries.length) { const empty=document.createElement('p');empty.className='history-day-empty';empty.textContent=day.session_ids?.length ? 'Record below' : 'No focus blocks';body.appendChild(empty); }
+    column.appendChild(body);grid.appendChild(column);
+  }
+  if(clockChange) {
+    const note=document.createElement('p');note.className='history-week-empty';
+    note.textContent='This week includes a clock change. Blocks are shown in time order with their actual durations.';
+    container.appendChild(note);
+  }
+  container.appendChild(grid);
+  if(!segments.length) {
+    const message=document.createElement('p');message.className='history-week-empty';
+    message.textContent='No recorded focus blocks this week. New rituals will appear here with their actual focus times.';
+    container.appendChild(message);
+  }
+}

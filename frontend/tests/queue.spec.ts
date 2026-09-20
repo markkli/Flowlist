@@ -224,3 +224,11 @@ test('queue picker remains scrollable and save is reachable in short landscape w
   await save.click();
   await expect(picker(page)).toBeHidden();
 });
+
+test('empty queue offers one Choose tasks action', async ({page}) => {
+  await mockQueueApi(page, []);
+  await page.goto('/#dashboard');
+  await expect(page.getByRole('button',{name:'Choose tasks',exact:true})).toHaveCount(1);
+  await page.getByRole('button',{name:'Choose tasks',exact:true}).click();
+  await expect(picker(page)).toBeVisible();
+});

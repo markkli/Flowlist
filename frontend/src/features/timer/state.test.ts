@@ -25,6 +25,7 @@ describe('ritual accounting', () => {
   });
   it('keeps the same id for retrying a long ritual', () => {
     let state=freshRitual(defaults,0);
+    delete state.startedAt; delete state.blocks; // legacy aggregate-only draft
     state.elapsedSeconds=900*60;
     state=advance(state,0,true);
     expect(payload(state).actual_minutes).toBe(900);
@@ -35,5 +36,35 @@ describe('ritual accounting', () => {
     expect(validSettings({...defaults,rounds:2.5})).toBe(false);
     expect(validSettings({...defaults,focus:Infinity})).toBe(false);
     expect(validSettings(null)).toBe(false);
+  });
+});
+
+
+describe('recorded block times', () => {
+  it('keeps actual focus intervals apart from breaks and delayed saving', () => {
+    let state = freshRitual(defaults, Date.parse('2026-09-18T23:50:00Z'));
+    state = advance(state, state.deadline);
+    state = advance(state, state.deadline);
+    state = advance(state, state.deadline - 15 * 60000, true);
+    const body = payload(state);
+    expect(body.blocks).toEqual([
+      {started_at:'2026-09-18T23:50:00.000Z', ended_at:'2026-09-19T00:15:00.000Z'},
+      {started_at:'2026-09-19T00:20:00.000Z', ended_at:'2026-09-19T00:30:00.000Z'},
+    ]);
+    expect(body.actual_minutes).toBe(35);
+    expect(body.ended_at).toBe('2026-09-19T00:30:00.000Z');
+    expect(payload(structuredClone(state))).toEqual(body);
+  });
+  it('stops a sleeping focus interval at its deadline and does not invent future blocks', () => {
+    const state = advance(freshRitual(defaults, 0), 8 * 60 * 60000, true);
+    expect(payload(state).blocks).toEqual([{started_at:'1970-01-01T00:00:00.000Z', ended_at:'1970-01-01T00:25:00.000Z'}]);
+  });
+  it('floors minutes once across short intervals, and supports immediate ending', () => {
+    let state = advance(freshRitual(defaults, 0), 35000);
+    state = advance(state, 40000);
+    state = advance(state, 75000, true);
+    expect(payload(state).actual_minutes).toBe(1);
+    expect(payload(state).blocks).toHaveLength(2);
+    expect(payload(advance(freshRitual(defaults, 0), 0, true)).blocks).toEqual([]);
   });
 });

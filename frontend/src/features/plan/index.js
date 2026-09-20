@@ -1,13 +1,20 @@
 import { api } from '../../shared/api';
 import { escapeHtml, trapFocus, syncDialogs } from '../../shared/dom';
 import './plan.css';
-const MAX_DEPTH = 3;
+const MAX_DEPTH = 2;
 function leafTasks(tasks) { const parents = new Set(tasks.map(task => task.parent_id)); return tasks.filter(task => !parents.has(task.id)); }
 export function initPlan({ showToast }) {
 const goalsContainer = document.getElementById("goals");
 const goalTemplate = document.getElementById("goal-template");
 const taskTemplate = document.getElementById("task-template");
 const planIndexList = document.getElementById("plan-index-list");
+const planIndex = planIndexList.closest('.plan-index');
+const planView = document.getElementById('view-goals');
+document.querySelector('.app-shell').append(planIndex);
+const indexTooltip = document.createElement('span');
+indexTooltip.className = 'plan-index-tooltip hidden';
+indexTooltip.setAttribute('aria-hidden','true');
+planIndex.append(indexTooltip);
 const goalComposer = document.getElementById("goal-composer");
 const completedDirections = document.getElementById("completed-directions");
 const completedDirectionsList = document.getElementById("completed-directions-list");
@@ -17,10 +24,38 @@ const COLLAPSED_GOALS_KEY = "flowlist-collapsed-directions";
 let activeGoalCreateType = "project";
 let planGoalsCache = [];
 let learningWizardState = null;
-let planSectionObserver = null;
 let draggingTaskId = null;
 let menuSequence = 0;
 let queuedTaskIds = new Set();
+const planTasks = new Map();
+
+function updatePlanOverview() {
+  const activeGoals = planGoalsCache.filter(goal => !goal.completed);
+  const directions = activeGoals.filter(goal => goal.goal_type !== 'standalone').length;
+  const open = [...planTasks.values()].flat().filter(task => !task.completed).length;
+  document.getElementById('plan-overview').textContent = `${directions} ${directions === 1 ? 'direction' : 'directions'} · ${open} open ${open === 1 ? 'task' : 'tasks'}`;
+}
+
+function updatePlanNavigation() {
+  const visible = !planView.classList.contains('hidden') && planIndexList.children.length > 1
+    && document.documentElement.scrollHeight > innerHeight + 100;
+  planIndex.classList.toggle('hidden', !visible);
+  planView.classList.toggle('has-plan-index', visible);
+  if (!visible) return;
+  const sections = [...goalsContainer.querySelectorAll('article[data-goal-id]')];
+  const anchor = innerHeight * .3;
+  const current = sections.filter(item => item.getBoundingClientRect().top <= anchor).at(-1) || sections[0];
+  if (current) setPlanIndexActive(current.dataset.goalId);
+}
+let navigationFrame;
+function scheduleNavigationUpdate() {
+  cancelAnimationFrame(navigationFrame);
+  navigationFrame = requestAnimationFrame(updatePlanNavigation);
+}
+new ResizeObserver(scheduleNavigationUpdate).observe(planView);
+new MutationObserver(scheduleNavigationUpdate).observe(planView, {attributes:true,attributeFilter:['class']});
+window.addEventListener('resize', scheduleNavigationUpdate);
+window.addEventListener('scroll', scheduleNavigationUpdate, {passive:true});
 
 function setupMenu(trigger, menu, label) {
   menu.id = `plan-menu-${++menuSequence}`;
@@ -359,25 +394,22 @@ function renderPlanIndex(goals) {
     item.dataset.goalId = goal.id;
     item.setAttribute("aria-label", `Jump to ${goalDisplayTitle(goal)}`);
     item.innerHTML = `<span class="plan-index-dot" aria-hidden="true"></span><span class="plan-index-label"><small>${escapeHtml(goalTypeLabel(goal.goal_type))}</small><strong>${escapeHtml(goalDisplayTitle(goal))}</strong></span>`;
+    const showLabel = () => {
+      indexTooltip.textContent = goalDisplayTitle(goal);
+      indexTooltip.style.top = `${item.getBoundingClientRect().top - planIndex.getBoundingClientRect().top + 22}px`;
+      indexTooltip.classList.remove('hidden');
+    };
+    item.addEventListener('mouseenter', showLabel);
+    item.addEventListener('focus', showLabel);
+    item.addEventListener('mouseleave', () => indexTooltip.classList.add('hidden'));
+    item.addEventListener('blur', () => indexTooltip.classList.add('hidden'));
     item.addEventListener("click", () => {
-      document.querySelector(`article[data-goal-id="${goal.id}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.querySelector(`article[data-goal-id="${goal.id}"]`)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: "start" });
       setPlanIndexActive(goal.id);
     });
     planIndexList.appendChild(item);
     if (index === 0) setPlanIndexActive(goal.id);
   });
-}
-
-function observePlanSections() {
-  planSectionObserver?.disconnect();
-  if (!("IntersectionObserver" in window)) return;
-  planSectionObserver = new IntersectionObserver((entries) => {
-    const visible = entries
-      .filter((entry) => entry.isIntersecting)
-      .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-    if (visible) setPlanIndexActive(visible.target.dataset.goalId);
-  }, { rootMargin: "-18% 0px -62% 0px", threshold: [0, 0.2, 0.55] });
-  goalsContainer.querySelectorAll("article[data-goal-id]").forEach((section) => planSectionObserver.observe(section));
 }
 
 function setStepComposer(form, open) {
@@ -471,6 +503,8 @@ async function loadGoals() {
   const [goals, queue] = await Promise.all([api("/goals"), api("/queue")]);
   queuedTaskIds = new Set(Array.isArray(queue) ? queue.map(({task}) => task.id) : []);
   planGoalsCache = goals;
+  planTasks.clear();
+  updatePlanOverview();
   const activeGoals = goals.filter((goal) => !goal.completed || goal.goal_type === "standalone");
   const finishedGoals = goals.filter((goal) => goal.completed && goal.goal_type !== "standalone");
   goalsContainer.innerHTML = "";
@@ -623,8 +657,9 @@ async function loadGoals() {
     goalsContainer.appendChild(node);
     taskLoads.push(loadTasks(goal.id));
   }
-  observePlanSections();
+  scheduleNavigationUpdate();
   await Promise.all(taskLoads);
+  scheduleNavigationUpdate();
 }
 
 function childrenOf(task, allTasks) {
@@ -677,7 +712,15 @@ async function moveTaskBy(task, allTasks, delta) {
 
 function renderCompletedTasks(section, tasks) {
   const completed = tasks
-    .filter((task) => task.completed)
+    .filter(task => {
+      if (!task.completed) return false;
+      let parent = tasks.find(item => item.id === task.parent_id);
+      while (parent) {
+        if (!parent.completed) return false; // Finished children stay beside their active parent.
+        parent = tasks.find(item => item.id === parent.parent_id);
+      }
+      return true;
+    })
     .sort((a, b) => (a.depth - b.depth) || (a.position - b.position) || (a.id - b.id));
   const completedSection = section.querySelector(".completed-tasks");
   const completedList = section.querySelector(".completed-task-list");
@@ -705,6 +748,8 @@ function renderCompletedTasks(section, tasks) {
 
 async function loadTasks(goalId) {
   const tasks = await api(`/goals/${goalId}/tasks`);
+  planTasks.set(goalId, tasks);
+  updatePlanOverview();
   const section = document.querySelector(`article[data-goal-id="${goalId}"]`);
   if (!section) return;
   const list = section.querySelector(".goal-task-list");
@@ -714,10 +759,10 @@ async function loadTasks(goalId) {
     .sort((a, b) => (a.position - b.position) || (a.id - b.id))
     .forEach((task) => renderTask(task, tasks, list, section.dataset.goalType));
   const leaves = leafTasks(tasks);
-  const completed = leaves.filter((task) => task.completed).length;
+  const completed = tasks.filter((task) => task.completed).length;
   const itemNoun = section.dataset.goalType === "standalone" ? "tasks" : "steps";
-  section.querySelector(".goal-progress-copy").textContent = leaves.length
-    ? `${completed} / ${leaves.length} complete`
+  section.querySelector(".goal-progress-copy").textContent = tasks.length
+    ? `${completed} / ${tasks.length} complete`
     : `No ${itemNoun} yet`;
   const activeRoots = tasks.filter((task) => task.parent_id === null && !task.completed);
   section.querySelector(".goal-empty-state").classList.toggle("hidden", activeRoots.length !== 0);
@@ -728,9 +773,9 @@ async function loadTasks(goalId) {
     && tasks.some((task) => task.parent_id === null)
     && tasks.filter((task) => task.parent_id === null).every((task) => task.completed);
   goalComplete.classList.toggle("hidden", !readyToClose);
-  const allLeavesDone = leaves.length > 0 && completed === leaves.length && goalType !== 'standalone';
+  const allLeavesDone = leaves.length > 0 && leaves.every(task => task.completed) && goalType !== 'standalone';
   section.querySelector('.goal-status').classList.toggle('hidden', !allLeavesDone);
-  section.querySelector('.goal-status-copy').textContent = readyToClose ? 'Everything is complete.' : 'Tasks finished. Close the remaining sections below.';
+  section.querySelector('.goal-status-copy').textContent = readyToClose ? 'Everything is complete.' : 'Subtasks finished. Check each parent task when it feels complete.';
   section.querySelector('.goal-empty-state').textContent = tasks.length ? 'All clear. Add another step whenever you need one.' : goalType === 'standalone' ? 'A place for the small things. Add your first task.' : 'Add a step when you’re ready to begin.';
   if (readyToClose) {
     goalComplete.onclick = async () => {
@@ -749,7 +794,6 @@ document.getElementById("celebration-dismiss").addEventListener("click", () => {
 
 function renderTask(task, allTasks, container, goalType = "project") {
   const children = childrenOf(task, allTasks);
-  const activeChildren = children.filter((child) => !child.completed);
   const isLeaf = children.length === 0;
   const readyToClose = !isLeaf && children.every((child) => child.completed);
   const node = taskTemplate.content.cloneNode(true);
@@ -790,59 +834,66 @@ function renderTask(task, allTasks, container, goalType = "project") {
     },
   });
 
-  if (isLeaf || readyToClose) {
-    checkbox.checked = false;
-    checkbox.setAttribute("aria-label", `${readyToClose ? "Close section" : "Complete task"}: ${task.title}`);
-    checkbox.addEventListener("change", async () => {
-      if (!checkbox.checked) return;
-      checkbox.disabled = true;
-      taskRow.classList.add("is-completing");
-      try {
-      await new Promise((resolve) => setTimeout(resolve, 170));
-      await api(`/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({ completed: true }) });
+  taskRow.classList.toggle('task-is-complete', task.completed);
+  checkbox.checked = task.completed;
+  checkbox.setAttribute('aria-label', `${task.completed ? 'Reopen task' : 'Complete task'}: ${task.title}`);
+  if (!isLeaf) checkbox.title = 'Completing this task also completes its subtasks';
+  checkbox.addEventListener('change', async () => {
+    const completing = checkbox.checked;
+    const visibleControls = [...document.querySelectorAll(`#goal-${task.goal_id} .goal-task-list .task-completed`)].filter(control => control.offsetParent !== null);
+    const previousIndex = visibleControls.indexOf(checkbox);
+    const restoreFocus = () => {
+      const section = document.getElementById(`goal-${task.goal_id}`);
+      const replacement = section?.querySelector(`[data-task-id="${task.id}"] > .task-row .task-completed`);
+      const remaining = [...(section?.querySelectorAll('.goal-task-list .task-completed') || [])].filter(control => control.offsetParent !== null);
+      const target = replacement && replacement.offsetParent !== null ? replacement : remaining[Math.min(previousIndex,remaining.length - 1)] || section?.querySelector('.goal-add-step');
+      target?.focus({preventScroll:true});
+    };
+    const subtreeIds = new Set([task.id]);
+    const collectChildren = parent => childrenOf(parent, allTasks).forEach(child => { subtreeIds.add(child.id); collectChildren(child); });
+    collectChildren(task);
+    const previouslyOpenIds = allTasks.filter(item => subtreeIds.has(item.id) && !item.completed).map(item => item.id);
+    checkbox.disabled = true;
+    taskRow.classList.add('is-completing');
+    try {
+      await api(`/tasks/${task.id}`, {method:'PATCH', body:JSON.stringify({completed:completing})});
       await loadTasks(task.goal_id);
-      showToast(readyToClose ? "Section closed." : "Task completed.", false, {
-        label: "Undo",
+      restoreFocus();
+      showToast(completing ? (isLeaf ? 'Task completed.' : 'Task and subtasks completed.') : 'Task reopened.', false, {
+        label:'Undo',
         run: async () => {
-          await api(`/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({ completed: false }) });
+          if (completing) {
+            for (const id of previouslyOpenIds) await api(`/tasks/${id}`, {method:'PATCH',body:JSON.stringify({completed:false})});
+          } else await api(`/tasks/${task.id}`, {method:'PATCH',body:JSON.stringify({completed:true})});
           await loadTasks(task.goal_id);
+          restoreFocus();
         },
       });
-      } catch(error) { checkbox.checked = false; taskRow.classList.remove("is-completing"); showToast(error.message,true); }
-      finally { checkbox.disabled = false; }
-    });
-  } else {
-    // An unfinished section is a disclosure row. Show its completion control
-    // only when its children are done, without reserving a second leading slot.
-    checkbox.remove();
-  }
+    } catch(error) { checkbox.checked = task.completed; taskRow.classList.remove('is-completing'); showToast(error.message,true); }
+    finally { checkbox.disabled = false; }
+  });
 
   if (isLeaf) {
     chevron.remove();
     progress.remove();
   } else {
-    const completedChildren = children.filter((child) => child.completed).length;
-    progress.textContent = readyToClose ? "Ready to close" : `${completedChildren} / ${children.length} steps complete`;
-    if (!activeChildren.length) {
-      chevron.remove();
-    } else {
-      chevron.classList.remove("hidden");
-      subtaskList.id = `task-children-${task.id}`;
-      chevron.setAttribute('aria-controls', subtaskList.id);
-      const collapsed = collapsedTaskIds.has(task.id);
-      taskNode.classList.toggle("is-collapsed", collapsed);
-      chevron.setAttribute("aria-expanded", String(!collapsed));
-      chevron.setAttribute("aria-label", `${collapsed ? "Expand" : "Collapse"} ${task.title}`);
-      chevron.addEventListener("click", () => {
-        const willCollapse = !taskNode.classList.contains("is-collapsed");
-        taskNode.classList.toggle("is-collapsed", willCollapse);
-        chevron.setAttribute("aria-expanded", String(!willCollapse));
-        chevron.setAttribute("aria-label", `${willCollapse ? "Expand" : "Collapse"} ${task.title}`);
-        if (willCollapse) collapsedTaskIds.add(task.id);
-        else collapsedTaskIds.delete(task.id);
-        saveCollapsedTaskIds();
-      });
-    }
+    const completedChildren = children.filter(child => child.completed).length;
+    progress.textContent = `${completedChildren} / ${children.length} subtasks complete`;
+    chevron.classList.remove('hidden');
+    subtaskList.id = `task-children-${task.id}`;
+    chevron.setAttribute('aria-controls', subtaskList.id);
+    const collapsed = collapsedTaskIds.has(task.id);
+    taskNode.classList.toggle('is-collapsed', collapsed);
+    chevron.setAttribute('aria-expanded', String(!collapsed));
+    chevron.setAttribute('aria-label', `${collapsed ? 'Expand' : 'Collapse'} ${task.title}`);
+    chevron.addEventListener('click', () => {
+      const willCollapse = !taskNode.classList.contains('is-collapsed');
+      taskNode.classList.toggle('is-collapsed', willCollapse);
+      chevron.setAttribute('aria-expanded', String(!willCollapse));
+      chevron.setAttribute('aria-label', `${willCollapse ? 'Expand' : 'Collapse'} ${task.title}`);
+      if (willCollapse) collapsedTaskIds.add(task.id); else collapsedTaskIds.delete(task.id);
+      saveCollapsedTaskIds();
+    });
   }
 
   remove.setAttribute("aria-label", `Remove ${task.title}`);
@@ -853,7 +904,7 @@ function renderTask(task, allTasks, container, goalType = "project") {
     showToast("Task removed.");
   });
 
-  if (task.depth >= MAX_DEPTH || goalType === "standalone") {
+  if (task.depth >= MAX_DEPTH || goalType === "standalone" || task.completed) {
     add.remove();
     breakdown.remove();
     subtaskForm.remove();
@@ -910,7 +961,7 @@ function renderTask(task, allTasks, container, goalType = "project") {
   setupMenu(node.querySelector('.task-more'), node.querySelector('.task-menu'), task.title);
   node.querySelector('.rename-task').addEventListener('click', () => title.click());
   const queueButton = node.querySelector('.queue-task');
-  if (!isLeaf) queueButton.remove();
+  if (!isLeaf || task.completed) queueButton.remove();
   else {
     const updateQueueLabel = () => { queueButton.textContent = queuedTaskIds.has(task.id) ? 'Remove from focus queue' : 'Add to focus queue'; };
     updateQueueLabel();
@@ -930,7 +981,7 @@ function renderTask(task, allTasks, container, goalType = "project") {
   for (const [selector, delta] of [['.task-move-up', -1], ['.task-move-down', 1]]) {
     const button = node.querySelector(selector);
     const target = siblings.findIndex(item => item.id === task.id) + delta;
-    button.disabled = target < 0 || target >= siblings.length;
+    button.disabled = task.completed || target < 0 || target >= siblings.length;
     button.addEventListener('click', () => moveTaskBy(task, allTasks, delta));
   }
   reorderHandle.addEventListener("pointerdown", () => { taskNode.draggable = true; });
@@ -967,7 +1018,7 @@ function renderTask(task, allTasks, container, goalType = "project") {
   });
 
   container.appendChild(node);
-  activeChildren.forEach((child) => renderTask(child, allTasks, subtaskList, goalType));
+  children.forEach((child) => renderTask(child, allTasks, subtaskList, goalType));
 }
 
 document.getElementById("goal-form").addEventListener("submit", async (event) => {

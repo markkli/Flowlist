@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 from app import schemas
 from app.database import get_db
-from app.models import FocusSessionModel, FocusSessionTaskModel, TaskModel
+from app.models import FocusSessionModel, FocusSessionTaskModel, FocusBlockModel, TaskModel
 from app.services.plan import complete_task
 from app.services.titles import build_focus_title, improve_focus_title
 
@@ -41,6 +41,8 @@ def log_session(session: schemas.FocusSessionCreate, background: BackgroundTasks
         planned_minutes=session.planned_minutes,
         actual_minutes=session.actual_minutes,
         completed=session.completed,
+        started_at=session.started_at, ended_at=session.ended_at,
+        blocks=[FocusBlockModel(**block.model_dump()) for block in (session.blocks or [])],
     )
     db.add(new_session)
     try:
@@ -78,7 +80,7 @@ def list_sessions(limit: int = Query(50, ge=1, le=100), before_id: int | None = 
     return db.scalars(
         select(FocusSessionModel)
         .where(FocusSessionModel.deleted_at.is_not(None) if deleted else FocusSessionModel.deleted_at.is_(None), FocusSessionModel.id < before_id if before_id else True)
-        .options(selectinload(FocusSessionModel.attributions))
+        .options(selectinload(FocusSessionModel.attributions), selectinload(FocusSessionModel.blocks))
         .order_by(FocusSessionModel.id.desc()).limit(limit)
     ).all()
 
@@ -102,4 +104,12 @@ def restore_session(session_id: int, db: Session = Depends(get_db)):
     session.deleted_at = None
     db.commit()
     db.refresh(session)
+    return session
+
+
+@router.get("/sessions/{session_id}", response_model=schemas.FocusSession)
+def get_session(session_id: int, db: Session = Depends(get_db)):
+    session = db.get(FocusSessionModel, session_id)
+    if session is None or session.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Focus record not found")
     return session

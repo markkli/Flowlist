@@ -53,10 +53,10 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 ### Plan
 
 - Follow [the Plan page specification](pages/plan.md) for its authoritative layout and interaction details.
-- Use named direction navigation: a sticky list on wide desktop and a compact horizontal strip on narrower screens.
-- Keep direction headers content-sized with title, concise counts, Add, and More. Secondary actions must not force a toolbar row.
-- Leaves have a checkbox; unfinished sections have disclosure and progress. Once direct children are finished, a section exposes its completion checkbox. Shared Tasks has no hierarchy placeholders.
-- Preserve manual parent completion, ancestor reopening, completed archives, and AI draft selection before insertion.
+- Use a fixed, narrow vertical rail on long plans. Hide it when the whole plan fits; show direction labels only on hover or focus. Never use horizontal direction chips.
+- Use an atmospheric forest page cover related to the Pomodoro panel, followed by a quiet creation toolbar. Direction headers stay content-sized with title, concise counts, Add, and More.
+- Every task has a checkbox. Parents additionally have a disclosure arrow. Allow only tasks plus one subtask level; explicit parent completion cascades down, while child completion never rolls up. Finished subtasks stay inline beneath an open parent.
+- Preserve explicit parent completion, ancestor reopening, completed archives, and AI draft selection before insertion. Ritual checkout offers every unfinished level; parent selection cascades to subtasks.
 - Reordering remains within sibling groups, with keyboard/menu alternatives to dragging. Plan order and the manually chosen focus queue order are independent.
 - Use feature-owned styles in `frontend/src/features/plan/plan.css`; avoid adding conflicting Plan rules to the global stylesheet.
 
@@ -81,6 +81,7 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 - Every deliberate Start begins a fresh ritual at round one. A long break follows every configured set of rounds, after which the round count begins again while the ritual continues.
 - Keep “Add to plan” available during focus and breaks in a nested modal that does not pause or dismiss the running timer. It captures one task into the shared Tasks list or an existing active project/learning objective; creating an entirely new direction stays in the full Plan view.
 - Every attribution row has separate “Worked on” and “Finished” controls. Finishing implies worked-on; the session duration is still counted only once. No selected tasks means General focus.
+- Missing-task capture starts with a task name and Add task. State that it creates a Plan task marked Worked on; keep the destination behind a Save to disclosure, defaulting to Tasks. Do not discard a typed, unadded task on ritual save.
 - The end-of-ritual dialog accepts an optional reflection and can create missing work in Tasks, an existing group, or a new project/learning objective before attribution.
 - Preserve every reflection. Save a local history title immediately; longer reflections and multi-task sets may receive an optional title update after saving. AI failure never prevents saving or removes the note.
 - The task queue is a persistent shortlist chosen by the user, independent of Plan order. Choose tasks / Edit queue opens a searchable picker with selection and order controls. Each row offers completion, title/context, and a quiet menu for movement or membership removal. Finished tasks disappear; Undo restores them. The queue has no daily reset.
@@ -91,6 +92,8 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 
 ### History
 
+- Follow [the History specification](pages/history.md) for the weekly timeline, record editing, and export.
+- Record focus intervals separately from save time. Never fabricate times for older records.
 - Each focus session is one record even when it was attributed to several tasks.
 - Show which tasks were worked on and which were finished.
 - Provide a compact, explicitly labelled delete control on every record, followed by Undo. A deleted-records view supports later restoration. Deletion updates statistics but never reopens completed tasks.
@@ -115,7 +118,7 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 - Every icon-only control has an accessible label.
 - Use consistent inline SVG icons; no emoji icons.
 - Verify light and dark modes at 375, 768, 1024, and 1440px.
-- Verify keyboard focus, empty states, long task names, three hierarchy levels, and no horizontal overflow.
+- Verify keyboard focus, empty states, long task names, two task levels, and no horizontal overflow.
 
 ## Reliability and Recovery
 
@@ -124,5 +127,9 @@ Use warm accent sparingly. Forest is the main action and progress color. Borders
 - Preserve the current block, accumulated time, reflection, and task selections through refresh. Show unsaved rituals in the bottom bar.
 - Keep session saves retryable without duplicate records. Show actionable errors and retain form values.
 - Use the browser timezone consistently for activity and streaks, align the heatmap to Monday, and show a true weekly sidebar count.
-- Distinguish finished tasks from sections awaiting manual closure in progress labels.
+- Progress counts both parents and subtasks, so unchecked parents never appear as a fully complete direction.
 - Keep Plan headers compact at narrow widths. Preserve the established forest palette and system typography.
+
+## Brand assets
+
+Use `/brand/flowlist-mark.svg` for the ambient, flowing F app mark and `/favicon.svg` for its small-size variant. Use a deep petrol tile, a restrained mint glow, and a crisp flowing silhouette. Keep the ambient color treatment inside the mark; the app retains its forest palette.

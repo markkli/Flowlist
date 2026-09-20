@@ -36,7 +36,19 @@ test.beforeEach(async ({page}) => {
     if(path==='/tasks/reorder') {
       route.request().postDataJSON().ordered_ids.forEach((id:number, i:number)=>{tasks.find(t=>t.id===id)!.position=i;});
     }
-    if(/^\/tasks\/\d+$/.test(path) && method==='PATCH') Object.assign(tasks.find(t=>t.id===Number(path.split('/')[2]))!,route.request().postDataJSON());
+    if(/^\/tasks\/\d+$/.test(path) && method==='PATCH') {
+      const target=tasks.find(t=>t.id===Number(path.split('/')[2]))!;
+      const changes=route.request().postDataJSON();
+      Object.assign(target,changes);
+      if(changes.completed===true) {
+        const complete=(id:number)=>tasks.filter(t=>t.parent_id===id).forEach(t=>{t.completed=true;complete(t.id);});
+        complete(target.id);
+      }
+      if(changes.completed===false) {
+        let parent=tasks.find(t=>t.id===target.parent_id);
+        while(parent) {parent.completed=false;parent=tasks.find(t=>t.id===parent!.parent_id);}
+      }
+    }
     if(path==='/focus-options' || path==='/sessions') json=[];
     await route.fulfill({json});
   });
@@ -111,10 +123,10 @@ test('leaving an unchanged title does not steal focus from its action menu', asy
 test('drafting smaller steps shows visible progress outside the closed menu', async ({page}) => {
   let finish!: () => void;
   const pending=new Promise<void>(resolve=>{finish=resolve;});
-  await page.route('**/api/tasks/2/breakdown',async route=>{await pending; await route.fulfill({json:[{title:'Review index design'}]});});
+  await page.route('**/api/tasks/1/breakdown',async route=>{await pending; await route.fulfill({json:[{title:'Review index design'}]});});
   await page.goto('/#goals');
-  await page.getByRole('button',{name:'Actions for Build an index',exact:true}).click();
-  await page.getByRole('menu',{name:'Actions for Build an index',exact:true}).getByRole('menuitem',{name:/Draft smaller steps/}).click();
+  await page.getByRole('button',{name:'Actions for Learn retrieval',exact:true}).click();
+  await page.getByRole('menu',{name:'Actions for Learn retrieval',exact:true}).getByRole('menuitem',{name:/Draft smaller steps/}).click();
   await expect(page.getByText('Drafting smaller steps…',{exact:true})).toBeVisible();
   finish();
   await expect(page.getByText('Review index design',{exact:true})).toBeVisible();
@@ -131,6 +143,85 @@ test('leaf tasks can join the queue from Plan and parents cannot', async ({page}
   await expect(page.locator('#app-toast')).toContainText('Added to your focus queue');
   await page.getByRole('button',{name:'Today',exact:true}).click();
   await expect(page.locator('.agenda-title')).toHaveText('Build an index');
+});
+
+test('each task keeps a checkbox; completing children leaves the parent open with its disclosure', async ({page}) => {
+  await page.goto('/#goals');
+  const parent=page.getByRole('checkbox',{name:'Complete task: Learn retrieval',exact:true});
+  await expect(parent).toBeVisible();
+  await expect(page.getByRole('button',{name:'Collapse Learn retrieval',exact:true})).toBeVisible();
+  await page.getByRole('checkbox',{name:'Complete task: Build an index',exact:true}).check();
+  await expect(page.getByRole('checkbox',{name:'Reopen task: Build an index',exact:true})).toBeFocused();
+  await page.getByRole('checkbox',{name:'Complete task: Evaluate results',exact:true}).check();
+  await expect(parent).not.toBeChecked();
+  await expect(page.getByRole('checkbox',{name:'Reopen task: Build an index',exact:true})).toBeChecked();
+  await expect(page.getByRole('checkbox',{name:'Reopen task: Evaluate results',exact:true})).toBeChecked();
+  await page.getByRole('button',{name:'Collapse Learn retrieval',exact:true}).click();
+  await expect(parent).toBeVisible();
+  await expect(page.getByRole('checkbox',{name:'Reopen task: Build an index',exact:true})).toBeHidden();
+});
+
+test('completing a parent cascades down and Undo preserves previously finished children', async ({page}) => {
+  await page.goto('/#goals');
+  await page.getByRole('checkbox',{name:'Complete task: Build an index',exact:true}).check();
+  await page.getByRole('checkbox',{name:'Complete task: Learn retrieval',exact:true}).check();
+  await expect(page.locator('#goal-1 .goal-task-list > .task-node')).toHaveCount(0);
+  await expect(page.locator('#goal-1 .completed-count')).toHaveText('3');
+  await page.getByRole('button',{name:'Undo',exact:true}).click();
+  await expect(page.getByRole('checkbox',{name:'Complete task: Learn retrieval',exact:true})).not.toBeChecked();
+  await expect(page.getByRole('checkbox',{name:'Complete task: Learn retrieval',exact:true})).toBeFocused();
+  await expect(page.getByRole('checkbox',{name:'Reopen task: Build an index',exact:true})).toBeChecked();
+  await expect(page.getByRole('checkbox',{name:'Complete task: Evaluate results',exact:true})).not.toBeChecked();
+});
+
+test('a subtask cannot create a third level', async ({page}) => {
+  await page.goto('/#goals');
+  await page.getByRole('button',{name:'Actions for Build an index',exact:true}).click();
+  const menu=page.getByRole('menu',{name:'Actions for Build an index',exact:true});
+  await expect(menu.getByRole('menuitem',{name:/Add a smaller step|Draft smaller steps/})).toHaveCount(0);
+});
+
+test('floating navigation stays fixed, uses minimal space, and hides on short plans and other views', async ({page}) => {
+  await page.setViewportSize({width:768,height:600});
+  await page.goto('/#goals');
+  const rail=page.getByRole('navigation',{name:'Jump to a direction'});
+  await expect(rail).toBeVisible();
+  const initial=(await rail.boundingBox())!;
+  expect(initial.width).toBeLessThanOrEqual(44);
+  await page.evaluate(()=>window.scrollBy(0,220));
+  await expect.poll(async()=>Math.abs((await rail.boundingBox())!.y-initial.y)).toBeLessThan(2);
+  await page.getByRole('button',{name:'Jump to Tasks',exact:true}).focus();
+  await expect(page.locator('.plan-index-tooltip')).toHaveText('Tasks');
+  await expect(page.locator('.plan-index-tooltip')).toBeVisible();
+  await page.getByRole('button',{name:'Today',exact:true}).click();
+  await expect(rail).toBeHidden();
+  await page.setViewportSize({width:1440,height:1600});
+  await page.getByRole('button',{name:'Plan',exact:true}).click();
+  await expect(rail).toBeHidden();
+});
+
+test('a tall direction stays active until the next direction reaches the reading position', async ({page}) => {
+  await page.setViewportSize({width:768,height:600});
+  await page.route('**/api/goals/1/tasks',route=>route.fulfill({json:Array.from({length:35},(_,i)=>({id:100+i,goal_id:1,parent_id:null,depth:1,title:`Step ${i+1}`,completed:false,position:i}))}));
+  await page.goto('/#goals');
+  await expect(page.locator('#goal-1 .task-row')).toHaveCount(35);
+  await page.locator('#goal-1').evaluate(el=>{const box=el.getBoundingClientRect();window.scrollTo(0,scrollY+box.bottom-500);});
+  await expect(page.getByRole('button',{name:'Jump to AI engineering',exact:true})).toHaveAttribute('aria-current','location');
+  expect((await page.locator('#goal-2').boundingBox())!.y).toBeGreaterThan(180);
+});
+
+test('an overflowing navigator can reach its first and last direction', async ({page}) => {
+  await page.setViewportSize({width:768,height:600});
+  await page.route('**/api/goals',route=>route.fulfill({json:Array.from({length:20},(_,i)=>({id:i+1,title:`Direction ${i+1}`,goal_type:'project',completed:false,position:i}))}));
+  await page.goto('/#goals');
+  const rail=page.getByRole('navigation',{name:'Jump to a direction'});
+  await expect(rail).toBeVisible();
+  const first=rail.getByRole('button',{name:'Jump to Direction 1',exact:true});
+  expect((await first.boundingBox())!.y).toBeGreaterThanOrEqual((await rail.boundingBox())!.y);
+  const last=rail.getByRole('button',{name:'Jump to Direction 20',exact:true});
+  await last.scrollIntoViewIfNeeded();
+  const box=(await last.boundingBox())!,container=(await rail.boundingBox())!;
+  expect(box.y+box.height).toBeLessThanOrEqual(container.y+container.height);
 });
 
 for (const width of [375,768,1440]) {

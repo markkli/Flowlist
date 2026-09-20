@@ -63,6 +63,12 @@ class FocusSessionModel(Base):
     actual_minutes: Mapped[int]
     completed: Mapped[bool]
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    started_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    ended_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    revision: Mapped[int] = mapped_column(default=0, server_default="0")
+    blocks: Mapped[list["FocusBlockModel"]] = relationship(
+        cascade="all, delete-orphan", order_by="FocusBlockModel.started_at"
+    )
 
     attributions: Mapped[list["FocusSessionTaskModel"]] = relationship(
         back_populates="session",
@@ -107,3 +113,11 @@ class FocusSessionTaskModel(Base):
     task: Mapped["TaskModel | None"] = relationship(
         back_populates="session_attributions"
     )
+
+
+class FocusBlockModel(Base):
+    __tablename__ = "focus_blocks"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    session_id: Mapped[int] = mapped_column(ForeignKey("focus_sessions.id", ondelete="CASCADE"), index=True)
+    started_at: Mapped[datetime] = mapped_column(index=True)
+    ended_at: Mapped[datetime] = mapped_column(index=True)

@@ -1,24 +1,36 @@
 /* Plan owns its outline, controls, and responsive layout here. */
-.plan-page-heading { min-height: 0; margin: 0 0 26px; padding: 6px 0; gap: 20px; align-items: center; }
-.plan-page-heading h1 { font-size: 32px; }
-.plan-page-heading .page-description { margin-top: 6px; }
-.plan-create-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.plan-create-actions > span { margin-right: 6px; color: var(--muted); font-size: 12px; }
-.plan-create-actions button { min-height: 44px; padding: 0 13px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--ink); font-size: 12px; font-weight: 560; }
-.plan-create-actions button:hover, .plan-create-actions button.active { background: var(--surface-strong); border-color: var(--border-strong); }
-.roadmap-layout { display: grid; grid-template-columns: 160px minmax(0,1fr); gap: 26px; align-items: start; }
+#view-goals { --plan-cover-ink: #1f3022; --plan-cover-muted: #435442; }
+[data-theme="dark"] #view-goals { --plan-cover-ink: #f0eee3; --plan-cover-muted: #d0d5bf; }
+.plan-page-heading { display: block; overflow: hidden; position: relative; margin: 0 0 24px; padding: 0; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); box-shadow: 0 12px 32px rgba(26,41,22,.07); }
+.plan-cover { position: relative; isolation: isolate; min-height: 190px; display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding: 32px; color: var(--plan-cover-ink); }
+.plan-atmosphere { position: absolute; inset: 0; z-index: -2; width: 100%; height: 100%; object-fit: cover; object-position: 50% 56%; filter: saturate(.5) brightness(1.1); }
+.plan-cover::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg,rgba(237,239,222,.97),rgba(223,230,207,.74) 50%,rgba(207,218,191,.22)),linear-gradient(0deg,rgba(217,225,201,.8),transparent 65%); }
+[data-theme="dark"] .plan-atmosphere { filter: saturate(.65) brightness(.65); }
+[data-theme="dark"] .plan-cover::before { background: linear-gradient(90deg,rgba(22,34,21,.97),rgba(29,43,27,.8) 48%,rgba(25,41,22,.35)),linear-gradient(0deg,rgba(23,36,22,.85),transparent 70%); }
+.plan-cover .kicker { color: var(--plan-cover-muted); font-size: 10px; letter-spacing: .18em; margin-bottom: 13px; }
+.plan-page-heading h1 { margin: 0; font-size: clamp(34px,4vw,48px); letter-spacing: -.06em; font-weight: 650; }
+.plan-page-heading .page-description { margin-top: 10px; color: var(--plan-cover-muted); font-size: 14px; }
+.plan-overview { margin: 0 0 3px; flex: 0 0 auto; padding: 6px 10px; border: 1px solid color-mix(in srgb,var(--plan-cover-muted) 22%,transparent); border-radius: 99px; background: color-mix(in srgb,var(--surface) 65%,transparent); color: var(--plan-cover-ink); backdrop-filter: blur(12px); font-size: 11px; font-variant-numeric: tabular-nums; }
+.plan-create-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 62px; padding: 8px 22px; border-top: 1px solid var(--border); background: color-mix(in srgb,var(--surface-strong) 70%,var(--surface)); }
+.plan-create-actions > span { margin-right: 12px; color: var(--muted); font-size: 12px; }
+.plan-create-actions button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 14px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--ink); font-size: 12px; font-weight: 560; }
+.plan-create-actions button svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; color: var(--forest); }
+.plan-create-actions button:hover, .plan-create-actions button.active { background: var(--surface-muted); border-color: var(--border); }
+.roadmap-layout { display: block; }
+.has-plan-index .roadmap-layout { margin-right: 28px; }
+.has-plan-index .plan-page-heading { margin-right: 28px; }
 .plan-main { min-width: 0; display: grid; gap: 16px; }
-.plan-index { position: sticky; top: 83px; min-width: 0; padding-top: 10px; }
-.plan-index-heading { margin: 0 10px 10px; color: var(--muted); font-size: 11px; font-weight: 650; }
-.plan-index-list { display: grid; gap: 3px; }
-.plan-index-item { min-width: 0; min-height: 44px; width: 100%; display: flex; align-items: center; gap: 9px; padding: 8px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); text-align: left; }
-.plan-index-item:hover, .plan-index-item.active { background: color-mix(in srgb,var(--surface) 80%,transparent); color: var(--ink); }
-.plan-index-dot { flex: 0 0 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--faint); }
-.plan-index-item.active .plan-index-dot { background: var(--forest); }
-.plan-index-label { min-width: 0; }
-.plan-index-label small { display: none; }
-.plan-index-label strong { display: block; font-size: 12px; line-height: 1.5; font-weight: 500; overflow-wrap: anywhere; }
-.plan-index-empty { margin: 0 10px; font-size: 12px; color: var(--muted); }
+.plan-index { position: fixed; z-index: 24; top: 50%; right: max(3px,env(safe-area-inset-right)); transform: translateY(-50%); width: 44px; max-height: calc(100dvh - 220px); }
+.plan-index-list { display: grid; align-content: start; max-height: inherit; overflow-y: auto; scrollbar-width: none; overflow-x: clip; padding: 5px 0; border-radius: 99px; background: color-mix(in srgb,var(--bg) 84%,transparent); backdrop-filter: blur(10px); }
+.plan-index-list::-webkit-scrollbar { display: none; }
+.plan-index-item { min-width: 0; width: 44px; height: 44px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--muted); }
+.plan-index-item:focus-visible { outline-offset: -4px; }
+.plan-index-dot { width: 12px; height: 3px; border-radius: 99px; background: var(--faint); transition: width .16s ease, background .16s ease; }
+.plan-index-item:hover .plan-index-dot, .plan-index-item.active .plan-index-dot { width: 22px; background: var(--forest); }
+.plan-index-item.active .plan-index-dot { height: 4px; }
+.plan-index-label { display: none; }
+.plan-index-tooltip { position: absolute; right: 48px; width: max-content; max-width: min(240px,calc(100vw - 72px)); padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-strong); color: var(--ink); box-shadow: var(--shadow-1); text-align: left; pointer-events: none; transform: translateY(-50%); font-size: 12px; }
+.plan-index-empty { display: none; }
 .goal-stack { display: grid; gap: 16px; min-width: 0; }
 .goal-card { position: relative; min-width: 0; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); scroll-margin-top: 80px; }
 .goal-card-head { display: flex; align-items: center; gap: 8px; padding: 14px 16px 14px 8px; }
@@ -44,13 +56,18 @@
 .goal-card.is-collapsed .goal-body { display: none; }
 .goal-body { padding: 0 12px 8px; }
 .goal-status { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; margin: 0 8px 10px; padding: 8px 12px; border-radius: 7px; background: color-mix(in srgb,var(--forest) 7%,transparent); color: var(--forest); font-size: 12px; }
-.goal-status .goal-complete { min-height: 36px; padding: 0 6px; color: var(--forest); font-size: 12px; }
+.goal-status .goal-complete { min-height: 44px; padding: 0 6px; color: var(--forest); font-size: 12px; }
 .goal-outline { min-width: 0; }
 .task-list { list-style: none; margin: 0; padding: 0; }
 .goal-empty-state { margin: 0; padding: 12px 8px 14px; color: var(--muted); font-size: 13px; }
 .task-node { min-width: 0; }
+.goal-task-list:has(.parent-task-row) { padding-left: 28px; }
+.parent-task-row { position: relative; }
+.parent-task-row > .task-chevron { position: absolute; left: -30px; width: 30px; }
 .task-row { display: flex; align-items: center; min-height: 48px; gap: 0; padding: 2px 0; border-radius: 7px; transition: background .16s ease; }
 .task-row:hover, .task-row:focus-within { background: var(--row-hover); }
+.task-is-complete .task-title { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--faint); }
+.task-is-complete .task-meta { color: var(--muted); }
 .task-copy { flex: 1; min-width: 0; padding: 5px 4px; }
 .task-title { width: 100%; font-size: 14px; line-height: 1.5; }
 .parent-task-row .task-title { font-weight: 600; }
@@ -120,20 +137,18 @@
 .plan-menu .danger { color: var(--danger); }
 .plan-menu hr { width: 100%; height: 1px; margin: 4px 0; border: 0; background: var(--border); }
 .plan-menu .beta-badge { white-space: nowrap; }
-@media (max-width: 1150px) {
-  .roadmap-layout { grid-template-columns: minmax(0,1fr); gap: 12px; }
-  .plan-index { position: static; padding: 0; }
-  .plan-index-heading { display: none; }
-  .plan-index-list { display: flex; gap: 6px; overflow-x: auto; padding: 3px 2px 9px; }
-  .plan-index-item { width: auto; flex: 0 0 auto; max-width: 220px; border: 1px solid var(--border); }
-  .plan-index-label strong { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-  .plan-page-heading { flex-wrap: wrap; gap: 16px; }
-}
 @media (max-width: 600px) {
-  .plan-page-heading { margin-bottom: 14px; }
-  .plan-page-heading h1 { font-size: 28px; }
-  .plan-create-actions { width: 100%; }
-  .plan-create-actions button { flex: 1; }
+  .plan-page-heading { margin-bottom: 18px; border-radius: 14px; }
+  .plan-cover { min-height: 186px; display: block; padding: 25px 22px 20px; }
+  .plan-page-heading h1 { font-size: 36px; }
+  .plan-page-heading .page-description { margin-top: 8px; font-size: 13px; }
+  .plan-overview { display: inline-block; margin-top: 16px; padding: 0; border: 0; background: none; backdrop-filter: none; color: var(--plan-cover-muted); font-size: 11px; }
+  .plan-create-actions { width: 100%; flex-wrap: nowrap; padding: 6px; gap: 0; min-height: 57px; }
+  .plan-create-actions button { flex: 1; padding: 0 6px; gap: 6px; font-size: 12px; }
+  .plan-create-actions button svg { width: 16px; height: 16px; }
+  .has-plan-index .roadmap-layout { margin-right: 24px; }
+  .has-plan-index .plan-page-heading { margin-right: 24px; }
+  .goal-card { scroll-margin-top: 160px; }
   .plan-create-actions > span { display: none; }
   .goal-card-head { padding: 12px 6px 12px 2px; gap: 2px; }
   .goal-card h2 { font-size: 17px; }

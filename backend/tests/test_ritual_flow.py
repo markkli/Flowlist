@@ -61,6 +61,7 @@ def test_pomodoro_attribution_updates_task_and_stats():
     assert session.json()["task_title"] == "Outline chapter"
     assert session.json()["attributions"] == [
         {
+            "id": session.json()["attributions"][0]["id"],
             "task_id": task["id"],
             "task_title": "Outline chapter",
             "goal_title": "Write thesis",
@@ -294,7 +295,7 @@ def test_project_cannot_use_learning_breakdown():
     assert response.status_code == 400
 
 
-def test_focus_options_prefer_recent_unfinished_work():
+def test_focus_options_keep_plan_order_and_expose_recent_focus_metadata():
     client = TestClient(app)
     goal = client.post("/goals", json={"title": "Build Flowlist"}).json()
     first = client.post(
@@ -314,11 +315,11 @@ def test_focus_options_prefer_recent_unfinished_work():
     )
 
     options = client.get("/focus-options").json()
-    assert [option["id"] for option in options] == [recent["id"], first["id"]]
-    assert options[0]["last_focused_at"] is not None
+    assert [option["id"] for option in options] == [first["id"], recent["id"]]
+    assert options[1]["last_focused_at"] is not None
 
 
-def test_focus_options_break_same_second_ties_by_latest_session():
+def test_focus_options_stay_in_plan_order_after_same_second_sessions():
     client = TestClient(app)
     goal = client.post("/goals", json={"title": "Build Flowlist"}).json()
     first = client.post(
@@ -341,7 +342,7 @@ def test_focus_options_break_same_second_ties_by_latest_session():
 
     options = client.get("/focus-options").json()
 
-    assert [option["id"] for option in options] == [latest["id"], first["id"]]
+    assert [option["id"] for option in options] == [first["id"], latest["id"]]
 
 
 def test_session_history_survives_task_deletion():
@@ -482,6 +483,7 @@ def test_goal_deletion_preserves_attribution_snapshot():
     assert history[0]["id"] == session["id"]
     assert history[0]["task_title"] == "Outline chapter"
     assert history[0]["attributions"][0] == {
+        "id": session["attributions"][0]["id"],
         "task_id": None,
         "task_title": "Outline chapter",
         "goal_title": "Write thesis",
@@ -489,7 +491,7 @@ def test_goal_deletion_preserves_attribution_snapshot():
     }
 
 
-def test_nested_completion_rolls_up_only_after_explicit_section_approval():
+def test_children_do_not_complete_parent_and_reopening_reopens_ancestors():
     client = TestClient(app)
     goal = client.post(
         "/goals", json={"title": "Learn retrieval", "goal_type": "learning"}
@@ -504,11 +506,10 @@ def test_nested_completion_rolls_up_only_after_explicit_section_approval():
         f"/tasks/{section['id']}/subtasks", json={"title": "Build a demo"}
     ).json()
 
-    assert client.patch(
-        f"/tasks/{section['id']}", json={"completed": True}
-    ).status_code == 409
     client.patch(f"/tasks/{first['id']}", json={"completed": True})
     client.patch(f"/tasks/{second['id']}", json={"completed": True})
+    tasks = {task["id"]: task for task in client.get(f"/goals/{goal['id']}/tasks").json()}
+    assert tasks[section["id"]]["completed"] is False
     assert client.patch(
         f"/tasks/{section['id']}", json={"completed": True}
     ).status_code == 200
@@ -554,16 +555,14 @@ def test_plan_order_is_persistent_for_goals_and_sibling_tasks():
     assert client.get("/next-focus").json()["task"]["id"] == second_task["id"]
 
 
-def test_session_cannot_bypass_parent_completion_validation():
+def test_session_parent_completion_also_completes_children():
     client = TestClient(app)
     goal, parent = create_goal_and_task(client)
-    child = client.post(f"/tasks/{parent['id']}/subtasks", json={"title": "Unfinished child"}).json()
+    client.post(f"/tasks/{parent['id']}/subtasks", json={"title": "Unfinished child"})
     response = client.post('/sessions', json={"planned_minutes":25, "actual_minutes":25, "completed":True, "tasks":[{"task_id":parent['id'], "completed":True}]})
-    assert response.status_code == 409
-    assert client.get('/sessions').json() == []
-    assert all(not task['completed'] for task in client.get(f"/goals/{goal['id']}/tasks").json())
-    response = client.post('/sessions', json={"planned_minutes":25, "actual_minutes":25, "completed":True, "tasks":[{"task_id":parent['id'], "completed":True}, {"task_id":child['id'], "completed":True}]})
     assert response.status_code == 200
+    assert len(client.get('/sessions').json()) == 1
+    assert all(task['completed'] for task in client.get(f"/goals/{goal['id']}/tasks").json())
 
 
 @pytest.mark.parametrize('field', ['title', 'completed'])

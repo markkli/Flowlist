@@ -1,30 +1,29 @@
 from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 from app import schemas
 from app.database import get_db
 from app.models import FocusSessionModel, GoalModel
 from app.api.queue import queue_items
+from app.services.history import zone_for, session_days
 
 router = APIRouter()
 
 
 def activity_data(db: Session, timezone_name: str):
-    try:
-        zone = ZoneInfo(timezone_name)
-    except (ZoneInfoNotFoundError, ValueError):
-        raise HTTPException(status_code=422, detail="Unknown timezone")
+    zone = zone_for(timezone_name)
     days = {}
     total_minutes = 0
     count = 0
-    for created, minutes in db.execute(select(FocusSessionModel.created_at, FocusSessionModel.actual_minutes).where(FocusSessionModel.deleted_at.is_(None))):
-        local_day = created.replace(tzinfo=timezone.utc).astimezone(zone).date()
-        row = days.setdefault(local_day, {"sessions": 0, "minutes": 0})
-        row["sessions"] += 1
-        row["minutes"] += minutes
-        total_minutes += minutes
+    sessions = db.scalars(select(FocusSessionModel).where(FocusSessionModel.deleted_at.is_(None)).options(selectinload(FocusSessionModel.blocks))).all()
+    for session in sessions:
+        for day, totals in session_days(session, zone).items():
+            row = days.setdefault(day, {"sessions": 0, "minutes": 0, "ids": set()})
+            row["sessions"] += 1
+            row["minutes"] += totals["minutes"]
+            row["ids"].add(session.id)
+        total_minutes += session.actual_minutes
         count += 1
     today = datetime.now(zone).date()
     cursor = today if days.get(today, {}).get("minutes", 0) > 0 else today - timedelta(days=1)
@@ -36,8 +35,8 @@ def activity_data(db: Session, timezone_name: str):
     start = week_start - timedelta(weeks=15)
     return {
         "stats": {"current_streak": streak, "total_sessions": count, "total_minutes": total_minutes},
-        "week_sessions": sum(value["sessions"] for day, value in days.items() if week_start <= day <= today),
-        "activity": [{"date": day.isoformat(), **value} for day, value in sorted(days.items()) if start <= day <= today],
+        "week_sessions": len(set().union(*(value["ids"] for day, value in days.items() if week_start <= day <= today))),
+        "activity": [{"date": day.isoformat(), "sessions": value["sessions"], "minutes": value["minutes"]} for day, value in sorted(days.items()) if start <= day <= today],
     }
 
 

@@ -1,9 +1,10 @@
-import type { SessionPayload, Selection } from '../../shared/types';
+import type { SessionPayload, Selection, FocusBlockInput } from '../../shared/types';
 export const RITUAL_KEY = 'flowlist-ritual-v2';
 export interface TimerSettings { focus: number; break: number; rounds: number; longBreak: number }
 export const defaults: TimerSettings = { focus: 25, break: 5, rounds: 4, longBreak: 15 };
 export type Phase = 'focus' | 'break' | 'awaiting-attribution' | 'saving' | 'saved';
 export interface Ritual {
+  startedAt?: number; endedAt?: number; blocks?: FocusBlockInput[];
   id: string; phase: Phase; elapsedSeconds: number; round: number; settings: TimerSettings;
   deadline: number; blockSeconds: number; breakKind: 'short' | 'long'; minimized: boolean;
   summary: string; selections: Selection[]; draftTask: string; draftDestination: string; draftGroup: string; draftGroupType: string;
@@ -13,15 +14,24 @@ export function validSettings(value: unknown): value is TimerSettings {
   return !!v && [v.focus, v.break, v.rounds, v.longBreak].every(Number.isInteger) && v.focus >= 5 && v.focus <= 120 && v.break >= 1 && v.break <= 60 && v.rounds >= 2 && v.rounds <= 8 && v.longBreak >= 5 && v.longBreak <= 90;
 }
 export function freshRitual(settings: TimerSettings, now = Date.now()): Ritual {
-  return { id: crypto.randomUUID(), phase: 'focus', elapsedSeconds: 0, round: 1, settings: {...settings}, deadline: now + settings.focus * 60000, blockSeconds: settings.focus * 60, breakKind: 'short', minimized: false, summary: '', selections: [], draftTask: '', draftDestination: '__tasks__', draftGroup: '', draftGroupType: 'project' };
+  return { startedAt: now, blocks: [], id: crypto.randomUUID(), phase: 'focus', elapsedSeconds: 0, round: 1, settings: {...settings}, deadline: now + settings.focus * 60000, blockSeconds: settings.focus * 60, breakKind: 'short', minimized: false, summary: '', selections: [], draftTask: '', draftDestination: '__tasks__', draftGroup: '', draftGroupType: 'project' };
 }
 export function remaining(state: Ritual, now = Date.now()): number { return Math.max(0, Math.ceil((state.deadline - now) / 1000)); }
 /** Only the current focus block is credited after sleep; never invent unattended future rounds. */
 export function advance(state: Ritual, now = Date.now(), end = false): Ritual {
   const next = structuredClone(state);
   if (!['focus','break'].includes(next.phase)) return next;
-  if (next.phase === 'focus') next.elapsedSeconds += Math.max(0, Math.min(next.blockSeconds, next.blockSeconds - remaining(next, now)));
-  if (end) { next.phase = 'awaiting-attribution'; next.minimized = false; return next; }
+  const blockStart = next.deadline - next.blockSeconds * 1000;
+  now = Math.max(now, blockStart);
+  if (next.phase === 'focus') {
+    const seconds = Math.max(0, Math.min(next.blockSeconds, next.blockSeconds - remaining(next, now)));
+    next.elapsedSeconds += seconds;
+    if (next.blocks && seconds > 0) next.blocks.push({
+      started_at: new Date(blockStart).toISOString(),
+      ended_at: new Date(blockStart + seconds * 1000).toISOString(),
+    });
+  }
+  if (end) { next.endedAt = now; next.phase = 'awaiting-attribution'; next.minimized = false; return next; }
   if (next.phase === 'focus') {
     next.phase = 'break'; next.breakKind = next.round >= next.settings.rounds ? 'long' : 'short';
     next.blockSeconds = (next.breakKind === 'long' ? next.settings.longBreak : next.settings.break) * 60;
@@ -34,13 +44,19 @@ export function advance(state: Ritual, now = Date.now(), end = false): Ritual {
 }
 export function payload(state: Ritual): SessionPayload {
   const minutes = Math.floor(state.elapsedSeconds / 60);
-  return { client_id: state.id, planned_minutes: Math.max(1, minutes), actual_minutes: minutes, completed: true, summary: state.summary.trim() || null, tasks: state.selections };
+  const timing = state.startedAt !== undefined && state.endedAt !== undefined && state.blocks ? {
+    started_at: new Date(state.startedAt).toISOString(), ended_at: new Date(state.endedAt).toISOString(), blocks: state.blocks,
+  } : {};
+  return { ...timing, client_id: state.id, planned_minutes: Math.max(1, minutes), actual_minutes: minutes, completed: true, summary: state.summary.trim() || null, tasks: state.selections };
 }
 export function readRitual(storage: Storage = localStorage): Ritual | null {
   try {
     const value = JSON.parse(storage.getItem(RITUAL_KEY) || 'null') as Ritual | null;
     if (!value) return null;
     if (!value.id || !validSettings(value.settings) || !['focus','break','awaiting-attribution','saving','saved'].includes(value.phase) || !Number.isFinite(value.elapsedSeconds) || value.elapsedSeconds < 0 || !Number.isFinite(value.deadline) || !Number.isFinite(value.blockSeconds) || value.blockSeconds <= 0 || typeof value.summary !== "string" || !Array.isArray(value.selections) || !value.selections.every(item => Number.isInteger(item.task_id) && typeof item.completed === "boolean") || !Number.isInteger(value.round) || value.round < 1 || value.round > value.settings.rounds) return null;
+    if (value.blocks !== undefined && (!Number.isFinite(value.startedAt) || !Array.isArray(value.blocks) || !value.blocks.every(block =>
+      typeof block.started_at === 'string' && typeof block.ended_at === 'string' && Number.isFinite(Date.parse(block.started_at)) && Date.parse(block.ended_at) > Date.parse(block.started_at)
+    ))) return null;
     return value;
   } catch { return null; }
 }
@@ -51,6 +67,7 @@ export function migrateLegacy(settings: TimerSettings): Ritual | null {
     const old = JSON.parse(localStorage.getItem('flowlist-focus-ritual') || 'null');
     if (!timer && !old) return null;
     const state = freshRitual(settings);
+    delete state.startedAt; delete state.blocks;
     state.elapsedSeconds = Math.max(0, Number(old?.elapsed_seconds) || 0);
     if (timer && ['focus','break'].includes(timer.phase) && Number.isFinite(timer.deadline)) {
       state.phase = timer.phase; state.deadline = timer.deadline; state.blockSeconds = Number(timer.planned_seconds) || Number(timer.planned_minutes) * 60 || settings.focus * 60;

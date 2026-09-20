@@ -102,14 +102,22 @@ development, and PostgreSQL for the container stack remain in place.
   from the queue leaves it in Plan; completing it hides it and Undo restores it.
   Queue order is independent of Plan order and does not reset each day. Closed
   directions are excluded. There are no priorities or prescribed task durations.
-- Plan uses compact, collapsible outlines, named navigation, and action menus.
+- Plan uses compact, collapsible outlines, a floating navigator on long plans, and action menus.
   Flat tasks do not reserve hierarchy columns. Feature styles live alongside
   their view code in `frontend/src/features/plan/plan.css` and
   `frontend/src/features/dashboard/queue.css`.
-- Projects and learning objectives support three task levels. The shared Tasks
-  list stays flat, with no AI breakdown. Parent sections close only when all
-  direct children are complete. Reopening a child reopens its ancestor chain.
-  Session attribution uses the same completion rules as direct task edits.
+- Projects and learning objectives support tasks plus one subtask level. The
+  shared Tasks list stays flat. Every task has a checkbox; parents also have a
+  disclosure arrow. Explicitly completing a parent completes its descendants,
+  while completing its subtasks leaves the parent open. Reopening a child
+  reopens its ancestors. Finished subtasks remain visible under an open parent.
+- Ritual checkout includes tasks at every level and uses the same completion
+  rules. Parent completion selects its descendants; the ritual’s minutes are
+  still counted once. Progress counts both parent tasks and subtasks.
+- Migration `20260919_11` lifts legacy deeper tasks into their root task’s
+  subtask list, preserving IDs, titles, completion states, history, and queue
+  membership. It journals old structure for rollback and refuses to roll back
+  after conflicting structural edits. Back up the database before upgrading.
 - AI planning produces proposals that require explicit selection. Learning
   paths ask clarification questions first.
 - Start a ritual without choosing a task. Defaults are 25 minutes of focus,
@@ -133,10 +141,30 @@ development, and PostgreSQL for the container stack remain in place.
   The backend commits a fallback title immediately. Optional AI enrichment runs
   after the response with a bounded timeout; failure keeps the local title.
   This enrichment is best effort, not a durable job queue.
-- History loads in pages. Delete hides a record from totals and offers Undo;
+- History opens to a read-only weekly timeline in the browser's timezone, with
+  a daily list on narrow screens. New rituals retain each actual focus interval;
+  breaks are excluded, sleep recovery credits only the current interval, and
+  saving later does not move the work to the save date. Notes and task selections
+  describe the entire ritual, not an individual block.
+- Legacy records and pre-upgrade timer drafts retain their aggregate minutes
+  without invented intervals. They appear below the weekly grid by save date.
+  Migration `20260919_12` adds nullable ritual timestamps and a focus-block table;
+  it refuses downgrade once recorded intervals would be lost.
+- Open a block or record title to edit its reflection and task attribution.
+  Historical Finished labels do not change task state in Plan. Removed-task
+  snapshots are preserved; edits use revision checks to prevent silent overwrite.
+- **Export data** downloads versioned JSON containing Plan, queue, and all saved
+  history, including soft-deleted records and focus blocks. It excludes secrets,
+  browser settings, and unsaved rituals. This is a portable data export; there is
+  no import UI yet. Keep database backups for complete recovery.
+- All records loads in pages. Delete hides a record from totals and offers Undo;
   Show deleted records allows later restoration. Deletion never changes tasks.
   There is currently no permanent purge control.
-- Activity cells and streaks use the browser's IANA timezone, with Monday-aligned
+- Activity cells allocate recorded focus to the local days when it occurred,
+  splitting midnight crossings and rounding minutes once per ritual. Legacy
+  totals continue to use save date. Weekly ritual counts do not double-count
+  rituals spanning multiple days. Activity and streaks use the browser's IANA
+  timezone, with Monday-aligned
   weeks. Streaks require at least one focused minute that day. This week is a
   weekly count; the activity totals are lifetime figures.
 - Navigation uses URL fragments so refresh and browser Back preserve the view.

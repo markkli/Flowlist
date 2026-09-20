@@ -1,6 +1,7 @@
 import { api } from '../../shared/api';
 import { escapeHtml, trapFocus, syncDialogs as syncModal } from '../../shared/dom';
 import { RITUAL_KEY, defaults, validSettings, freshRitual, readRitual, migrateLegacy, advance, remaining, payload } from './state';
+import './attribution.css';
 
 export function initTimer({ showToast, loadGoals, loadDashboard }) {
 const formatTime = seconds => `${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
@@ -217,10 +218,28 @@ const sessionSummary = document.getElementById("session-summary");
 const attributionTaskBuilder = document.getElementById("attribution-task-builder");
 const attributionNewTask = document.getElementById("attribution-new-task");
 const attributionTaskDestination = document.getElementById("attribution-task-destination");
+const attributionOrganize = document.getElementById("attribution-organize");
+const attributionDestinationLabel = document.getElementById("attribution-destination-label");
+let addingTask = false;
+let attributionGoals = [];
+function syncDestinationLabel() {
+  attributionDestinationLabel.textContent = attributionTaskDestination.selectedOptions[0]?.textContent || 'Tasks';
+}
 const attributionNewGroup = document.getElementById("attribution-new-group");
 const attributionNewGroupName = document.getElementById("attribution-new-group-name");
 const attributionTaskError = document.getElementById("attribution-task-error");
 const attributionAddTask = document.getElementById("attribution-add-task");
+let attributionTasks = new Map();
+let attributionChildren = new Map();
+const hierarchyNote = document.createElement('p');
+hierarchyNote.id = 'attribution-hierarchy-note';
+hierarchyNote.className = 'attribution-hierarchy-note hidden';
+hierarchyNote.textContent = 'Finishing a parent includes its subtasks. Finishing subtasks keeps the parent open.';
+attributionOptions.previousElementSibling.before(hierarchyNote);
+const selectionStatus = document.createElement('p');
+selectionStatus.className = 'sr-only';
+selectionStatus.setAttribute('role', 'status');
+attributionOptions.after(selectionStatus);
 
 function currentAttributionSelections() {
   return new Map(
@@ -234,44 +253,119 @@ function currentAttributionSelections() {
   );
 }
 
-function renderAttributionOptions(options, selections = new Map()) {
-  attributionOptions.innerHTML = "";
-  options.forEach((option, index) => {
-    const row = document.createElement("div");
-    row.className = "attribution-task-row";
-    row.dataset.taskId = option.id;
-    row.innerHTML = `<div class="attribution-task-copy"><strong>${escapeHtml(option.title)}</strong><small>${escapeHtml(option.goal_title)}</small>${index === 0 ? `<em>${option.last_focused_at ? "Recent" : "Next"}</em>` : ""}</div><label class="attribution-toggle attribution-worked"><input class="attribution-worked-input" type="checkbox"><span class="toggle-box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8.5 2.5 2.5L12 5.5"/></svg></span><span class="sr-only">Worked on ${escapeHtml(option.title)}</span></label><label class="attribution-toggle attribution-finished"><input class="attribution-finished-input" type="checkbox"><span class="toggle-box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8.5 2.5 2.5L12 5.5"/></svg></span><span class="sr-only">Finished ${escapeHtml(option.title)}</span></label>`;
-    const selected = selections.get(option.id);
-    if (selected) {
-      row.querySelector(".attribution-worked-input").checked = selected.worked;
-      row.querySelector(".attribution-finished-input").checked = selected.finished;
-      row.classList.toggle("selected", selected.worked);
-      row.classList.toggle("finished", selected.finished);
-    }
-    attributionOptions.appendChild(row);
+function descendantTaskIds(taskId, visited = new Set()) {
+  visited.add(taskId);
+  const descendants = [];
+  for (const child of attributionChildren.get(taskId) || []) {
+    if (visited.has(child.id)) continue;
+    descendants.push(child.id, ...descendantTaskIds(child.id, visited));
+  }
+  return descendants;
+}
+
+function clearAncestorFinished(taskId, selections) {
+  const visited = new Set([taskId]);
+  let parentId = attributionTasks.get(taskId)?.parent_id;
+  while (parentId != null && !visited.has(parentId)) {
+    visited.add(parentId);
+    const selected = selections.get(parentId);
+    if (selected) selections.set(parentId, {...selected, finished: false});
+    parentId = attributionTasks.get(parentId)?.parent_id;
+  }
+}
+
+function applyAttributionSelections(selections) {
+  attributionOptions.querySelectorAll('.attribution-task-row').forEach(row => {
+    const selected = selections.get(Number(row.dataset.taskId)) || {worked: false, finished: false};
+    row.querySelector('.attribution-worked-input').checked = selected.worked || selected.finished;
+    row.querySelector('.attribution-finished-input').checked = selected.finished;
+    row.classList.toggle('selected', selected.worked || selected.finished);
+    row.classList.toggle('finished', selected.finished);
   });
+}
+
+function renderAttributionOptions(options, selections = new Map()) {
+  attributionOptions.innerHTML = '';
+  selectionStatus.textContent = '';
+  attributionTasks = new Map(options.map(option => [option.id, option]));
+  attributionChildren = new Map();
+  const groups = new Map();
+  for (const option of options) {
+    const groupKey = option.goal_id ?? option.goal_title;
+    if (!groups.has(groupKey)) groups.set(groupKey, []);
+    groups.get(groupKey).push(option);
+    if (option.parent_id != null && attributionTasks.get(option.parent_id)?.goal_id === option.goal_id) {
+      if (!attributionChildren.has(option.parent_id)) attributionChildren.set(option.parent_id, []);
+      attributionChildren.get(option.parent_id).push(option);
+    }
+  }
+  // A restored parent selection still includes any available descendants.
+  const restoredSelections = new Map(selections);
+  for (const [taskId, selected] of selections) {
+    if (!selected.finished) continue;
+    restoredSelections.set(taskId, {worked: true, finished: true});
+    for (const childId of descendantTaskIds(taskId)) restoredSelections.set(childId, {worked: true, finished: true});
+  }
+  let groupIndex = 0;
+  for (const group of groups.values()) {
+    const first = group[0];
+    const section = document.createElement('section');
+    const headingId = `attribution-group-${groupIndex++}`;
+    section.className = 'attribution-group';
+    section.setAttribute('aria-labelledby', headingId);
+    const kind = first.goal_type === 'learning' ? 'Learning' : first.goal_type === 'standalone' ? 'Task list' : 'Project';
+    section.innerHTML = `<header class="attribution-group-heading"><h3 id="${headingId}">${escapeHtml(first.goal_title)}</h3><span>${kind}</span></header><div class="attribution-group-tasks"></div>`;
+    const list = section.querySelector('.attribution-group-tasks');
+    const visited = new Set();
+    const appendTask = option => {
+      if (visited.has(option.id)) return;
+      visited.add(option.id);
+      const row = document.createElement('div');
+      const parent = attributionTasks.get(option.parent_id);
+      const children = attributionChildren.get(option.id) || [];
+      const contextId = `attribution-context-${option.id}`;
+      const context = parent ? `Subtask of ${parent.title}` : children.length ? `${children.length} ${children.length === 1 ? 'subtask' : 'subtasks'}` : '';
+      row.className = `attribution-task-row${parent || option.parent_id != null ? ' is-subtask' : ''}`;
+      row.dataset.taskId = option.id;
+      if (option.parent_id != null) row.dataset.parentId = option.parent_id;
+      const description = [headingId, context ? contextId : '', children.length ? hierarchyNote.id : ''].filter(Boolean).join(' ');
+      row.innerHTML = `<div class="attribution-task-copy"><strong>${escapeHtml(option.title)}</strong>${context ? `<small id="${contextId}">${escapeHtml(context)}</small>` : ''}</div><label class="attribution-toggle attribution-worked"><input class="attribution-worked-input" type="checkbox" aria-describedby="${description}"><span class="toggle-box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8.5 2.5 2.5L12 5.5"/></svg></span><span class="sr-only">Worked on ${escapeHtml(option.title)}</span></label><label class="attribution-toggle attribution-finished"><input class="attribution-finished-input" type="checkbox" aria-describedby="${description}"><span class="toggle-box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8.5 2.5 2.5L12 5.5"/></svg></span><span class="sr-only">Finished ${escapeHtml(option.title)}</span></label>`;
+      list.appendChild(row);
+      children.forEach(appendTask);
+    };
+    group.filter(option => !attributionTasks.has(option.parent_id)).forEach(appendTask);
+    // Retain every option even if an old draft refers to a missing parent.
+    group.forEach(appendTask);
+    attributionOptions.appendChild(section);
+  }
+  hierarchyNote.classList.toggle('hidden', attributionChildren.size === 0);
+  applyAttributionSelections(restoredSelections);
   if (!options.length) {
     attributionOptions.innerHTML = '<p class="attribution-empty">No unfinished tasks are available. This session will be saved as General focus.</p>';
   }
 }
 
 function renderAttributionDestinations(goals) {
+  attributionGoals = goals;
   const regularGoals = goals.filter((goal) => goal.goal_type !== "standalone" && !goal.completed);
   attributionTaskDestination.innerHTML = [
-    '<option value="__tasks__">Tasks · simple list</option>',
+    '<option value="__tasks__">Tasks</option>',
     ...regularGoals.map((goal) => `<option value="${goal.id}">${escapeHtml(goal.title)} · ${goal.goal_type === "learning" ? "Learning" : "Project"}</option>`),
-    '<option value="__new__">New project or learning objective…</option>',
+    '<option value="__new__">Create a new direction…</option>',
   ].join("");
   attributionNewGroup.classList.add("hidden");
+  syncDestinationLabel();
 }
 
 attributionTaskDestination.addEventListener("change", () => {
+  syncDestinationLabel();
   const creatingGroup = attributionTaskDestination.value === "__new__";
   attributionNewGroup.classList.toggle("hidden", !creatingGroup);
   if (creatingGroup) attributionNewGroupName.focus();
 });
 
 attributionAddTask.addEventListener("click", async () => {
+  if (addingTask || saving) return;
   const title = attributionNewTask.value.trim();
   if (!title) {
     attributionTaskError.textContent = "Name the task you want to add.";
@@ -279,6 +373,8 @@ attributionAddTask.addEventListener("click", async () => {
     return;
   }
   attributionTaskError.textContent = "";
+  addingTask = true;
+  saveSessionButton.disabled = true;
   attributionAddTask.disabled = true;
   attributionAddTask.textContent = "Adding…";
   try {
@@ -295,6 +391,7 @@ attributionAddTask.addEventListener("click", async () => {
         const groupTitle = attributionNewGroupName.value.trim();
         if (!groupTitle) {
           attributionTaskError.textContent = "Name the new project or learning objective.";
+          attributionOrganize.open = true;
           attributionNewGroupName.focus();
           return;
         }
@@ -304,6 +401,11 @@ attributionAddTask.addEventListener("click", async () => {
           body: JSON.stringify({ title: groupTitle, goal_type: groupType }),
         });
         goalId = goal.id;
+        // Retain the newly created direction if task creation needs a retry.
+        renderAttributionDestinations([...attributionGoals, goal]);
+        attributionTaskDestination.value = String(goalId);
+        syncDestinationLabel();
+        await persistDraft();
       }
       createdTask = await api(`/goals/${goalId}/tasks`, {
         method: "POST",
@@ -312,20 +414,32 @@ attributionAddTask.addEventListener("click", async () => {
     }
     const selections = currentAttributionSelections();
     selections.set(createdTask.id, { worked: true, finished: false });
-    const [options, goals] = await Promise.all([api("/focus-options"), api("/goals")]);
-    renderAttributionOptions(options, selections);
-    renderAttributionDestinations(goals);
+    // The POST result is authoritative. A follow-up read must not make a
+    // successful creation look failed and encourage duplicate tasks.
+    const goal = attributionGoals.find(item => item.id === createdTask.goal_id);
+    const option = {...createdTask, goal_title: goal?.title || 'Tasks', goal_type: goal?.goal_type || 'standalone', has_children: false};
+    optionsReady = true;
+    renderAttributionOptions([...attributionTasks.values(), option], selections);
+    renderAttributionDestinations(attributionGoals);
     attributionNewTask.value = "";
     attributionNewGroupName.value = "";
     attributionTaskBuilder.removeAttribute("open");
+    attributionOrganize.open = false;
     await persistDraft();
-    showToast("Task added and selected for this ritual.");
+    attributionOptions.querySelector(`[data-task-id="${createdTask.id}"] .attribution-worked-input`)?.focus();
+    showToast("Task added to Plan and marked as worked on.");
   } catch (error) {
     attributionTaskError.textContent = "Flowlist could not add that task. Try again.";
   } finally {
+    addingTask = false;
+    saveSessionButton.disabled = false;
     attributionAddTask.disabled = false;
-    attributionAddTask.textContent = "Add and select task";
+    attributionAddTask.textContent = "Add task";
   }
+});
+
+attributionNewTask.addEventListener('keydown', event => {
+  if (event.key === 'Enter') { event.preventDefault(); attributionAddTask.click(); }
 });
 
 async function openAttributionModal() {
@@ -356,8 +470,12 @@ async function openAttributionModal() {
     const missing = state.selections.filter(item => !options.some(option => option.id === item.task_id));
     if (missing.length) attributionError.textContent = 'Some selected tasks are no longer available. Review the selection before saving.';
     attributionTaskDestination.value = [...attributionTaskDestination.options].some(option => option.value === state.draftDestination) ? state.draftDestination : '__tasks__';
+    syncDestinationLabel();
+    attributionOrganize.open = attributionTaskDestination.value !== '__tasks__';
+    attributionTaskBuilder.open = Boolean(state.draftTask || state.draftGroup);
     attributionNewGroup.classList.toggle('hidden', attributionTaskDestination.value !== '__new__');
     document.querySelector(`input[name="attribution-group-type"][value="${state.draftGroupType === 'learning' ? 'learning' : 'project'}"]`).checked = true;
+    if (!missing.length) await persistDraft();
   } catch (error) {
     if (!pendingSession) return;
     renderAttributionOptions([]);
@@ -373,10 +491,18 @@ attributionOptions.addEventListener("change", (event) => {
   if (!row) return;
   const worked = row.querySelector(".attribution-worked-input");
   const finished = row.querySelector(".attribution-finished-input");
-  if (event.target === finished && finished.checked) worked.checked = true;
-  if (event.target === worked && !worked.checked) finished.checked = false;
-  row.classList.toggle("selected", worked.checked);
-  row.classList.toggle("finished", finished.checked);
+  const taskId = Number(row.dataset.taskId);
+  const selections = currentAttributionSelections();
+  selectionStatus.textContent = '';
+  if (event.target === finished && finished.checked) {
+    const descendants = descendantTaskIds(taskId);
+    for (const id of [taskId, ...descendants]) selections.set(id, {worked: true, finished: true});
+    if (descendants.length) selectionStatus.textContent = `${descendants.length} ${descendants.length === 1 ? 'subtask also marked' : 'subtasks also marked'} finished.`;
+  } else if ((event.target === finished && !finished.checked) || (event.target === worked && !worked.checked)) {
+    selections.set(taskId, {worked: worked.checked, finished: false});
+    clearAncestorFinished(taskId, selections);
+  }
+  applyAttributionSelections(selections);
   persistDraft();
 });
 
@@ -389,12 +515,21 @@ async function persistDraft() {
   await mutate(latest => latest?.id === id && latest.phase !== 'saved' ? {...latest, ...draft} : undefined);
 }
 const attributionForm = document.getElementById('session-attribution-form');
-attributionForm.addEventListener('input', persistDraft);
-attributionForm.addEventListener('change', persistDraft);
+const persistFormDraft = event => {
+  if (!attributionOptions.contains(event.target)) persistDraft();
+};
+attributionForm.addEventListener('input', persistFormDraft);
+attributionForm.addEventListener('change', persistFormDraft);
 function lockForm(locked) { attributionForm.querySelectorAll('input, textarea, select, button').forEach(el => { el.disabled = locked; }); }
 attributionForm.addEventListener('submit', async event => {
   event.preventDefault();
-  if (!pendingSession || saving) return;
+  if (!pendingSession || saving || addingTask) return;
+  if (attributionNewTask.value.trim()) {
+    attributionTaskBuilder.open = true;
+    attributionTaskError.textContent = 'Add this task first, or clear its name to save without it.';
+    attributionNewTask.focus();
+    return;
+  }
   await persistDraft();
   const id = pendingSession.client_id;
   saving = true; lockForm(true); saveSessionButton.textContent = 'Saving…'; attributionError.textContent = '';
@@ -413,13 +548,13 @@ attributionForm.addEventListener('submit', async event => {
   } finally { saving = false; lockForm(false); saveSessionButton.textContent = 'Save ritual'; }
 });
 async function closeAttribution() {
-  if (saving) return;
+  if (saving || addingTask) return;
   await persistDraft(); attributionOverlay.classList.add('hidden'); syncModal();
   document.getElementById('timer-mini-open').focus();
 }
 document.getElementById('attribution-later').addEventListener('click', closeAttribution);
 document.getElementById('discard-session').addEventListener('click', async () => {
-  if (saving || !window.confirm('Discard this unsaved ritual and its reflection?')) return;
+  if (saving || addingTask || !window.confirm('Discard this unsaved ritual and its reflection?')) return;
   const id = pendingSession?.client_id;
   await mutate(latest => latest?.id === id ? null : undefined);
   pendingSession = null; attributionOverlay.classList.add('hidden'); syncModal();
