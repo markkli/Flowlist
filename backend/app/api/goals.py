@@ -5,7 +5,6 @@ from app import schemas
 from app.database import get_db
 from app.models import GoalModel, TaskModel
 from app.services.plan import find_goal, next_goal_position, next_task_position, goal_is_ready_to_close
-from app.ai import AIConfigurationError, suggest_learning_questions, suggest_learning_tasks
 
 router = APIRouter()
 
@@ -127,31 +126,5 @@ def list_tasks(goal_id: int, db: Session = Depends(get_db)):
         .where(TaskModel.goal_id == goal_id)
         .order_by(TaskModel.position, TaskModel.id)
     ).all()
-
-
-@router.post("/goals/{goal_id}/breakdown/questions", response_model=list[schemas.ClarificationQuestion])
-def learning_breakdown_questions(goal_id: int, db: Session = Depends(get_db)):
-    goal = find_goal(db, goal_id)
-    if goal.goal_type != "learning":
-        raise HTTPException(status_code=400, detail="Only learning goals can be broken down.")
-    try:
-        return suggest_learning_questions(goal.title, goal.description)
-    except AIConfigurationError as error:
-        raise HTTPException(status_code=503, detail=str(error)) from error
-
-
-@router.post("/goals/{goal_id}/breakdown", response_model=list[schemas.SuggestedSubtask])
-def breakdown_learning_goal(
-    goal_id: int, request: schemas.LearningBreakdownRequest, db: Session = Depends(get_db)
-):
-    goal = find_goal(db, goal_id)
-    if goal.goal_type != "learning":
-        raise HTTPException(status_code=400, detail="Only learning goals can be broken down.")
-    try:
-        return suggest_learning_tasks(
-            goal.title, goal.description, [answer.model_dump() for answer in request.answers]
-        )
-    except AIConfigurationError as error:
-        raise HTTPException(status_code=503, detail=str(error)) from error
 
 

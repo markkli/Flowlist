@@ -1,14 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
   <title>Flowlist</title>
-  <defs>
-    <linearGradient id="tile" x1="8" y1="4" x2="56" y2="64" gradientUnits="userSpaceOnUse"><stop stop-color="#263D3C"/><stop offset="1" stop-color="#101D24"/></linearGradient>
-    <radialGradient id="ambient" cx="0" cy="0" r="1" gradientTransform="translate(43 12) rotate(112) scale(50)"><stop stop-color="#91D9C8" stop-opacity=".25"/><stop offset="1" stop-color="#91D9C8" stop-opacity="0"/></radialGradient>
-    <linearGradient id="flow" x1="42" y1="13" x2="19" y2="51" gradientUnits="userSpaceOnUse"><stop stop-color="#E8FFF4"/><stop offset=".55" stop-color="#BCE8D7"/><stop offset="1" stop-color="#79BCAF"/></linearGradient>
-  </defs>
-  <rect x="1" y="1" width="62" height="62" rx="18" fill="url(#tile)"/>
-  <rect x="1" y="1" width="62" height="62" rx="18" fill="url(#ambient)"/>
-  <rect x="1.5" y="1.5" width="61" height="61" rx="17.5" stroke="#CEEFE0" stroke-opacity=".16"/>
-  <!-- A continuous rising flow forms the stem and crown of an open F. -->
-  <path d="M16 49 23 25C25.3 17.1 31 13 39.2 13H50L47.7 21H39C34.7 21 32.2 23.1 30.9 27.5L25.8 45C24.4 49.7 21.1 51.2 16 49Z" fill="url(#flow)"/>
-  <path d="M32.3 29H45.4L43.1 37H30Z" fill="url(#flow)"/>
+  <rect x="1" y="1" width="62" height="62" rx="15" fill="#242622"/>
+  <rect x="6.5" y="6.5" width="51" height="51" rx="10" stroke="#C3B393" stroke-opacity=".5"/>
+  <path d="M18 17H46L47 27H45C43.8 20.8 41.6 19 36 19H29V31H33C37 31 38.7 29.5 39 26H41V38H39C38.7 34.5 37 33 33 33H29V43C29 46 30.4 46.5 34 47V49H18V47C21.6 46.5 23 46 23 43V23C23 20 21.6 19.5 18 19V17Z" fill="#F1EBDD"/>
+  <path d="M36 47H46" stroke="#C3B393" stroke-width="1.5" stroke-linecap="round"/>
 </svg>

@@ -143,7 +143,7 @@ function renderPlanCaptureDestinations(goals) {
   planCaptureDestination.innerHTML = [
     '<option value="__tasks__">Tasks · shared list</option>',
     ...activeDirections.map(
-      (goal) => `<option value="${goal.id}">${escapeHtml(goal.title)} · ${goal.goal_type === "learning" ? "Learning" : "Project"}</option>`,
+      (goal) => `<option value="${goal.id}">${escapeHtml(goal.title)} · Project</option>`,
     ),
   ].join("");
 }
@@ -159,7 +159,7 @@ async function setPlanCaptureOpen(open) {
       renderPlanCaptureDestinations(await api("/goals"));
     } catch (error) {
       renderPlanCaptureDestinations([]);
-      planCaptureError.textContent = "Existing directions could not be loaded. You can still add to Tasks.";
+      planCaptureError.textContent = "Existing projects could not be loaded. You can still add to Tasks.";
     }
     requestAnimationFrame(() => planCaptureName.focus());
   } else {
@@ -313,7 +313,7 @@ function renderAttributionOptions(options, selections = new Map()) {
     const headingId = `attribution-group-${groupIndex++}`;
     section.className = 'attribution-group';
     section.setAttribute('aria-labelledby', headingId);
-    const kind = first.goal_type === 'learning' ? 'Learning' : first.goal_type === 'standalone' ? 'Task list' : 'Project';
+    const kind = first.goal_type === 'standalone' ? 'Task list' : 'Project';
     section.innerHTML = `<header class="attribution-group-heading"><h3 id="${headingId}">${escapeHtml(first.goal_title)}</h3><span>${kind}</span></header><div class="attribution-group-tasks"></div>`;
     const list = section.querySelector('.attribution-group-tasks');
     const visited = new Set();
@@ -350,8 +350,8 @@ function renderAttributionDestinations(goals) {
   const regularGoals = goals.filter((goal) => goal.goal_type !== "standalone" && !goal.completed);
   attributionTaskDestination.innerHTML = [
     '<option value="__tasks__">Tasks</option>',
-    ...regularGoals.map((goal) => `<option value="${goal.id}">${escapeHtml(goal.title)} · ${goal.goal_type === "learning" ? "Learning" : "Project"}</option>`),
-    '<option value="__new__">Create a new direction…</option>',
+    ...regularGoals.map((goal) => `<option value="${goal.id}">${escapeHtml(goal.title)} · Project</option>`),
+    '<option value="__new__">Create a new project…</option>',
   ].join("");
   attributionNewGroup.classList.add("hidden");
   syncDestinationLabel();
@@ -390,12 +390,12 @@ attributionAddTask.addEventListener("click", async () => {
       if (destination === "__new__") {
         const groupTitle = attributionNewGroupName.value.trim();
         if (!groupTitle) {
-          attributionTaskError.textContent = "Name the new project or learning objective.";
+          attributionTaskError.textContent = "Name the new project.";
           attributionOrganize.open = true;
           attributionNewGroupName.focus();
           return;
         }
-        const groupType = document.querySelector('input[name="attribution-group-type"]:checked').value;
+        const groupType = 'project';
         const goal = await api("/goals", {
           method: "POST",
           body: JSON.stringify({ title: groupTitle, goal_type: groupType }),
@@ -474,7 +474,6 @@ async function openAttributionModal() {
     attributionOrganize.open = attributionTaskDestination.value !== '__tasks__';
     attributionTaskBuilder.open = Boolean(state.draftTask || state.draftGroup);
     attributionNewGroup.classList.toggle('hidden', attributionTaskDestination.value !== '__new__');
-    document.querySelector(`input[name="attribution-group-type"][value="${state.draftGroupType === 'learning' ? 'learning' : 'project'}"]`).checked = true;
     if (!missing.length) await persistDraft();
   } catch (error) {
     if (!pendingSession) return;
@@ -511,7 +510,7 @@ async function persistDraft() {
   if (!pendingSession || saving) return;
   const id = pendingSession.client_id;
   const tasks = !optionsReady ? (state?.selections || []) : [...currentAttributionSelections()].filter(([,value]) => value.worked).map(([task_id,value]) => ({task_id, completed:value.finished}));
-  const draft = {summary: sessionSummary.value, selections:tasks, draftTask:attributionNewTask.value, draftDestination:attributionTaskDestination.value, draftGroup:attributionNewGroupName.value, draftGroupType:document.querySelector('input[name="attribution-group-type"]:checked').value};
+  const draft = {summary: sessionSummary.value, selections:tasks, draftTask:attributionNewTask.value, draftDestination:attributionTaskDestination.value, draftGroup:attributionNewGroupName.value, draftGroupType:'project'};
   await mutate(latest => latest?.id === id && latest.phase !== 'saved' ? {...latest, ...draft} : undefined);
 }
 const attributionForm = document.getElementById('session-attribution-form');

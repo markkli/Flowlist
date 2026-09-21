@@ -5,7 +5,6 @@ from app import schemas
 from app.database import get_db
 from app.models import FocusSessionModel, FocusSessionTaskModel, GoalModel, TaskModel
 from app.services.plan import find_goal, find_task, next_task_position, reopen_task_lineage, task_plan_key, complete_task
-from app.ai import AIConfigurationError, suggest_subtasks
 
 router = APIRouter()
 MAX_DEPTH = 2
@@ -111,23 +110,6 @@ def create_subtask(
     db.commit()
     db.refresh(new_task)
     return new_task
-
-
-@router.post("/tasks/{task_id}/breakdown", response_model=list[schemas.SuggestedSubtask])
-def breakdown_task(task_id: int, db: Session = Depends(get_db)):
-    task = find_task(db, task_id)
-    if task.goal.goal_type == "standalone":
-        raise HTTPException(status_code=400, detail="The Tasks list does not support AI breakdown")
-    if task.parent_id is not None or task.depth >= MAX_DEPTH:
-        raise HTTPException(
-            status_code=400,
-            detail="Subtasks cannot contain another level. Add a sibling subtask instead.",
-        )
-    goal = find_goal(db, task.goal_id)
-    try:
-        return suggest_subtasks(goal.title, task.title)
-    except AIConfigurationError as error:
-        raise HTTPException(status_code=503, detail=str(error)) from error
 
 
 @router.post("/tasks/reorder", response_model=list[schemas.Task])

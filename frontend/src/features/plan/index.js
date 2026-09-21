@@ -1,5 +1,5 @@
 import { api } from '../../shared/api';
-import { escapeHtml, trapFocus, syncDialogs } from '../../shared/dom';
+import { escapeHtml, syncDialogs } from '../../shared/dom';
 import './plan.css';
 const MAX_DEPTH = 2;
 function leafTasks(tasks) { const parents = new Set(tasks.map(task => task.parent_id)); return tasks.filter(task => !parents.has(task.id)); }
@@ -23,7 +23,6 @@ const COLLAPSED_TASKS_KEY = "flowlist-collapsed-plan-sections";
 const COLLAPSED_GOALS_KEY = "flowlist-collapsed-directions";
 let activeGoalCreateType = "project";
 let planGoalsCache = [];
-let learningWizardState = null;
 let draggingTaskId = null;
 let menuSequence = 0;
 let queuedTaskIds = new Set();
@@ -33,7 +32,7 @@ function updatePlanOverview() {
   const activeGoals = planGoalsCache.filter(goal => !goal.completed);
   const directions = activeGoals.filter(goal => goal.goal_type !== 'standalone').length;
   const open = [...planTasks.values()].flat().filter(task => !task.completed).length;
-  document.getElementById('plan-overview').textContent = `${directions} ${directions === 1 ? 'direction' : 'directions'} · ${open} open ${open === 1 ? 'task' : 'tasks'}`;
+  document.getElementById('plan-overview').textContent = `${directions} ${directions === 1 ? 'project' : 'projects'} · ${open} open ${open === 1 ? 'task' : 'tasks'}`;
 }
 
 function updatePlanNavigation() {
@@ -133,8 +132,7 @@ function setGoalComposerOpen(open, goalType = activeGoalCreateType) {
     button.setAttribute("aria-expanded", String(open && button.dataset.goalCreate === goalType));
   });
   const labels = {
-    project: ["New project", "What are you building?", "e.g. Launch portfolio"],
-    learning: ["New learning objective", "What do you want to understand?", "e.g. Learn AI engineering"],
+    project: ["New project", "What would you like to work toward?", "e.g. Learn photography or launch a website"],
     standalone: ["New task", "What needs doing?", "e.g. Pay electricity bill"],
   };
   const [kicker, heading, placeholder] = labels[goalType];
@@ -153,221 +151,7 @@ document.querySelectorAll("[data-goal-create]").forEach((button) => {
 });
 document.getElementById("cancel-goal-composer").addEventListener("click", () => setGoalComposerOpen(false));
 
-const learningOverlay = document.getElementById("learning-path-overlay");
-const learningWizard = learningOverlay.querySelector(".learning-wizard");
-const learningLoading = document.getElementById("learning-wizard-loading");
-const learningQuestion = document.getElementById("learning-wizard-question");
-const learningGoalName = document.getElementById("learning-goal-name");
-const learningQuestionCount = document.getElementById("learning-question-count");
-const learningProgressPercent = document.getElementById("learning-progress-percent");
-const learningProgressFill = document.getElementById("learning-progress-fill");
-const learningWizardTitle = document.getElementById("learning-wizard-title");
-const learningAnswer = document.getElementById("learning-wizard-answer");
-const learningWizardError = document.getElementById("learning-wizard-error");
-const learningWizardBack = document.getElementById("learning-wizard-back");
-const learningWizardNext = document.getElementById("learning-wizard-next");
-const learningWizardClose = document.getElementById("learning-wizard-close");
-
-function renderLearningSuggestions(goal, proposed, goalSuggestions) {
-  goalSuggestions.innerHTML = proposed.length
-    ? '<li class="suggestion-toolbar"><span><b class="beta-badge">AI draft</b> Keep only the milestones that fit your pace.</span><button class="secondary-btn suggestion-add-selected" type="button">Add selected</button></li>'
-    : "";
-  goalSuggestions.style.display = proposed.length ? "grid" : "none";
-  proposed.forEach((suggestion, index) => {
-    const item = document.createElement("li");
-    item.className = "task-row suggestion-row";
-    item.innerHTML = `<input type="checkbox" class="suggestion-select" data-index="${index}" aria-label="Select ${escapeHtml(suggestion.title)}"><span class="task-title">${escapeHtml(suggestion.title)}</span>`;
-    goalSuggestions.appendChild(item);
-  });
-  goalSuggestions.querySelector(".suggestion-add-selected")?.addEventListener("click", async () => {
-    const selected = [...goalSuggestions.querySelectorAll(".suggestion-select:checked")]
-      .map((input) => proposed[Number(input.dataset.index)]);
-    if (!selected.length) {
-      showToast("Select at least one milestone first.", true);
-      return;
-    }
-    const addButton = goalSuggestions.querySelector(".suggestion-add-selected");
-    addButton.disabled = true;
-    try {
-      for (const suggestion of selected) await api(`/goals/${goal.id}/tasks`, {
-        method: "POST",
-        body: JSON.stringify({ title: suggestion.title }),
-      });
-      goalSuggestions.style.display = "none";
-      loadTasks(goal.id);
-      showToast(`${selected.length} milestone${selected.length === 1 ? "" : "s"} added to the plan.`);
-    } catch (error) {
-      addButton.disabled = false;
-      showToast("Could not add the selected milestones. Try again.", true);
-    }
-  });
-}
-
-function closeLearningWizard() {
-  const previousTrigger = learningWizardState?.trigger;
-  const returnTarget = learningWizardState?.returnTarget;
-  learningWizardState = null;
-  learningOverlay.classList.add("hidden");
-  learningOverlay.removeAttribute("aria-busy");
-  syncDialogs();
-  if (previousTrigger?.isConnected) {
-    previousTrigger.disabled = false;
-    (returnTarget?.isConnected ? returnTarget : previousTrigger).focus();
-  }
-}
-
-function renderLearningQuestion() {
-  if (!learningWizardState) return;
-  const { questions, answers, index } = learningWizardState;
-  const question = questions[index];
-  const percent = Math.round(((index + 1) / questions.length) * 100);
-  learningLoading.hidden = true;
-  learningQuestion.hidden = false;
-  learningOverlay.removeAttribute("aria-busy");
-  learningQuestionCount.textContent = `Question ${index + 1} of ${questions.length}`;
-  learningProgressPercent.textContent = `${percent}%`;
-  learningProgressFill.style.transform = `scaleX(${percent / 100})`;
-  learningWizardTitle.textContent = question.question;
-  learningAnswer.value = answers[index] || "";
-  learningAnswer.removeAttribute("aria-invalid");
-  learningWizardError.textContent = "";
-  learningWizardBack.disabled = index === 0;
-  learningWizardNext.disabled = false;
-  learningWizardNext.textContent = index === questions.length - 1 ? "Generate draft" : "Continue";
-  requestAnimationFrame(() => learningAnswer.focus());
-}
-
-async function openLearningWizard(goal, trigger, goalSuggestions) {
-  const state = {
-    goal,
-    trigger,
-    returnTarget: trigger.closest(".goal-card")?.querySelector(".goal-more") || trigger,
-    goalSuggestions,
-    questions: [],
-    answers: [],
-    index: 0,
-  };
-  learningWizardState = state;
-  trigger.disabled = true;
-  learningGoalName.textContent = goal.title;
-  learningLoading.hidden = false;
-  learningQuestion.hidden = true;
-  learningOverlay.classList.remove("hidden");
-  learningOverlay.setAttribute("aria-busy", "true");
-  syncDialogs();
-  learningWizard.focus();
-  try {
-    const questions = await api(`/goals/${goal.id}/breakdown/questions`, { method: "POST" });
-    if (learningWizardState !== state) return;
-    if (!questions.length) throw new Error("No clarification questions returned");
-    state.questions = questions;
-    state.answers = Array(questions.length).fill("");
-    renderLearningQuestion();
-  } catch (error) {
-    if (learningWizardState !== state) return;
-    closeLearningWizard();
-    showToast(
-      error.status === 503
-        ? "AI breakdown needs an OPENAI_API_KEY."
-        : "Could not prepare the questions. Try again.",
-      true
-    );
-  }
-}
-
-learningWizardNext.addEventListener("click", async () => {
-  if (!learningWizardState) return;
-  const state = learningWizardState;
-  const answer = learningAnswer.value.trim();
-  if (!answer) {
-    learningWizardError.textContent = "Add an answer before continuing.";
-    learningAnswer.setAttribute("aria-invalid", "true");
-    learningAnswer.focus();
-    return;
-  }
-  state.answers[state.index] = answer;
-  if (state.index < state.questions.length - 1) {
-    state.index += 1;
-    renderLearningQuestion();
-    return;
-  }
-  learningWizardNext.disabled = true;
-  learningWizardNext.textContent = "Generating…";
-  learningOverlay.setAttribute("aria-busy", "true");
-  try {
-    const answers = state.questions.map((question, index) => ({
-      id: question.id,
-      answer: state.answers[index],
-    }));
-    const proposed = await api(`/goals/${state.goal.id}/breakdown`, {
-      method: "POST",
-      body: JSON.stringify({ answers }),
-    });
-    if (learningWizardState !== state) return;
-    renderLearningSuggestions(state.goal, proposed, state.goalSuggestions);
-    closeLearningWizard();
-    showToast("AI draft ready. Keep only what fits.");
-  } catch (error) {
-    if (learningWizardState !== state) return;
-    learningOverlay.removeAttribute("aria-busy");
-    learningWizardError.textContent = error.status === 503
-      ? "The AI service is not configured."
-      : "Flowlist could not generate the path. Check your connection and try again.";
-    learningWizardNext.disabled = false;
-    learningWizardNext.textContent = "Try again";
-  }
-});
-
-learningWizardBack.addEventListener("click", () => {
-  if (!learningWizardState || learningWizardState.index === 0) return;
-  learningWizardState.answers[learningWizardState.index] = learningAnswer.value.trim();
-  learningWizardState.index -= 1;
-  renderLearningQuestion();
-});
-learningAnswer.addEventListener("input", () => {
-  learningWizardError.textContent = "";
-  learningAnswer.removeAttribute("aria-invalid");
-});
-learningWizardClose.addEventListener("click", closeLearningWizard);
-learningOverlay.addEventListener("click", (event) => {
-  if (event.target === learningOverlay) closeLearningWizard();
-});
-
-function renderTaskSuggestions(task, proposed, suggestions) {
-  suggestions.innerHTML = proposed.length
-    ? '<li class="suggestion-toolbar"><span><b class="beta-badge">AI draft</b> Select every smaller step that actually helps.</span><button class="secondary-btn suggestion-add-selected" type="button">Add selected</button></li>'
-    : "";
-  proposed.forEach((suggestion, index) => {
-    const item = document.createElement("li");
-    item.className = "task-row suggestion-row";
-    item.innerHTML = `<input type="checkbox" class="suggestion-select" data-index="${index}" aria-label="Select ${escapeHtml(suggestion.title)}"><span class="task-title">${escapeHtml(suggestion.title)}</span>`;
-    suggestions.appendChild(item);
-  });
-  suggestions.querySelector(".suggestion-add-selected")?.addEventListener("click", async () => {
-    const selected = [...suggestions.querySelectorAll(".suggestion-select:checked")]
-      .map((input) => proposed[Number(input.dataset.index)]);
-    if (!selected.length) {
-      showToast("Select at least one step first.", true);
-      return;
-    }
-    const addButton = suggestions.querySelector(".suggestion-add-selected");
-    addButton.disabled = true;
-    try {
-      for (const suggestion of selected) await api(`/tasks/${task.id}/subtasks`, {
-        method: "POST",
-        body: JSON.stringify({ title: suggestion.title }),
-      });
-      loadTasks(task.goal_id);
-      showToast(`${selected.length} step${selected.length === 1 ? "" : "s"} added.`);
-    } catch (error) {
-      addButton.disabled = false;
-      showToast("Could not add the selected steps. Try again.", true);
-    }
-  });
-}
-
 function goalTypeLabel(goalType) {
-  if (goalType === "learning") return "Learning";
   if (goalType === "standalone") return "Tasks";
   return "Project";
 }
@@ -386,7 +170,7 @@ function setPlanIndexActive(goalId) {
 }
 
 function renderPlanIndex(goals) {
-  planIndexList.innerHTML = goals.length ? "" : '<p class="plan-index-empty">No directions yet.</p>';
+  planIndexList.innerHTML = goals.length ? "" : '<p class="plan-index-empty">No projects yet.</p>';
   goals.forEach((goal, index) => {
     const item = document.createElement("button");
     item.type = "button";
@@ -493,7 +277,7 @@ function renderCompletedDirections(goals) {
     row.querySelector("button").addEventListener("click", async () => {
       await api(`/goals/${goal.id}`, { method: "PATCH", body: JSON.stringify({ completed: false }) });
       await loadGoals();
-      showToast("Direction reopened.");
+      showToast("Project reopened.");
     });
     completedDirectionsList.appendChild(row);
   });
@@ -511,7 +295,7 @@ async function loadGoals() {
   renderPlanIndex(activeGoals);
   renderCompletedDirections(finishedGoals);
   if (!activeGoals.length) {
-    goalsContainer.innerHTML = '<section class="plan-empty panel"><p class="kicker">An open page</p><h2>Choose one direction to begin.</h2><p>Projects hold outcomes, learning holds a path, and Tasks catches everything smaller.</p></section>';
+    goalsContainer.innerHTML = '<section class="plan-empty panel"><p class="kicker">An open page</p><h2>Start with a project or a task.</h2><p>Projects give an idea room for tasks and subtasks. Tasks is a simple list for everything else.</p></section>';
     return;
   }
   const taskLoads = [];
@@ -540,7 +324,7 @@ async function loadGoals() {
           await api(`/goals/${goal.id}`, { method: "PATCH", body: JSON.stringify({ title }) });
           await loadGoals();
           document.querySelector(`#goal-${goal.id} .goal-title`)?.focus();
-          showToast("Direction renamed.");
+          showToast("Project renamed.");
         },
       });
     }
@@ -580,17 +364,6 @@ async function loadGoals() {
       });
     }
 
-    const goalBreakdown = node.querySelector(".break-down-goal");
-    const goalSuggestions = node.querySelector(".goal-suggestion-list");
-    if (goal.goal_type !== "learning") {
-      goalBreakdown.remove();
-    } else {
-      goalBreakdown.addEventListener("click", () => {
-        expandGoal();
-        openLearningWizard(goal, goalBreakdown, goalSuggestions);
-      });
-    }
-
     const taskForm = node.querySelector(".task-form");
     const goalAddStep = node.querySelector(".goal-add-step");
     if (goal.goal_type === "standalone") {
@@ -609,7 +382,7 @@ async function loadGoals() {
       if (!window.confirm(`Remove “${goalDisplayTitle(goal)}” and every step inside it?`)) return;
       await api(`/goals/${goal.id}`, { method: "DELETE" });
       await loadGoals();
-      showToast("Direction removed.");
+      showToast("Project removed.");
     });
 
     const moveUp = node.querySelector(".goal-move-up");
@@ -634,7 +407,7 @@ async function loadGoals() {
         }
       } catch (error) {
         await loadGoals();
-        showToast("Could not move this direction.", true);
+        showToast("Could not move this project.", true);
       }
     };
     moveUp.addEventListener("click", (event) => moveDirection(-1, event.currentTarget));
@@ -805,10 +578,8 @@ function renderTask(task, allTasks, container, goalType = "project") {
   const editForm = node.querySelector(".task-edit-form");
   const editInput = node.querySelector(".task-edit-title");
   const add = node.querySelector(".add-subtask");
-  const breakdown = node.querySelector(".break-down");
   const subtaskForm = node.querySelector(".subtask-form");
   const subtaskList = node.querySelector(".subtask-list");
-  const suggestions = node.querySelector(".suggestion-list");
   const remove = node.querySelector(".delete-task");
   const chevron = node.querySelector(".task-chevron");
   const reorderHandle = node.querySelector(".task-reorder-handle");
@@ -906,7 +677,6 @@ function renderTask(task, allTasks, container, goalType = "project") {
 
   if (task.depth >= MAX_DEPTH || goalType === "standalone" || task.completed) {
     add.remove();
-    breakdown.remove();
     subtaskForm.remove();
   } else {
     add.setAttribute("aria-label", `Add a smaller step under ${task.title}`);
@@ -926,35 +696,6 @@ function renderTask(task, allTasks, container, goalType = "project") {
       });
       await loadTasks(task.goal_id);
       showToast("Substep added.");
-    });
-    breakdown.addEventListener("click", async () => {
-      taskNode.classList.remove('is-collapsed'); collapsedTaskIds.delete(task.id); saveCollapsedTaskIds();
-      chevron.setAttribute('aria-expanded','true'); chevron.setAttribute('aria-label', `Collapse ${task.title}`);
-      const originalMarkup = breakdown.innerHTML;
-      breakdown.textContent = "Generating…";
-      breakdown.disabled = true;
-      taskRow.setAttribute('aria-busy', 'true');
-      const loading = document.createElement('p');
-      loading.className = 'task-generation-status';
-      loading.setAttribute('role', 'status');
-      loading.textContent = 'Drafting smaller steps…';
-      taskRow.after(loading);
-      try {
-        const proposed = await api(`/tasks/${task.id}/breakdown`, { method: "POST" });
-        renderTaskSuggestions(task, proposed, suggestions);
-      } catch (error) {
-        showToast(
-          error.status === 503
-            ? "AI breakdown needs an OPENAI_API_KEY."
-            : "Could not generate steps.",
-          true
-        );
-      } finally {
-        breakdown.innerHTML = originalMarkup;
-        breakdown.disabled = false;
-        taskRow.removeAttribute('aria-busy');
-        loading.remove();
-      }
     });
   }
 
@@ -1052,11 +793,5 @@ document.getElementById("goal-form").addEventListener("submit", async (event) =>
 });
 
 
-  return { loadGoals, handleKey(event) {
-    if (learningOverlay.classList.contains('hidden')) return false;
-    if (event.key === 'Escape') { event.preventDefault(); closeLearningWizard(); }
-    else if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') { event.preventDefault(); learningWizardNext.click(); }
-    else trapFocus(event, learningWizard);
-    return true;
-  }};
+  return { loadGoals, handleKey() { return false; }};
 }

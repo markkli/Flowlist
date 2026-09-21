@@ -241,15 +241,15 @@ def test_task_creation_has_no_prescribed_duration():
     assert "estimated_minutes" not in task
 
 
-def test_learning_goal_preserves_its_type():
+def test_learning_goal_is_normalized_to_project():
     client = TestClient(app)
     created = client.post(
         "/goals", json={"title": "AI engineering", "goal_type": "learning"}
     )
 
     assert created.status_code == 200
-    assert created.json()["goal_type"] == "learning"
-    assert client.get("/goals").json()[0]["goal_type"] == "learning"
+    assert created.json()["goal_type"] == "project"
+    assert client.get("/goals").json()[0]["goal_type"] == "project"
 
 
 def test_next_focus_is_empty_when_no_unfinished_leaf_exists():
@@ -260,39 +260,13 @@ def test_next_focus_is_empty_when_no_unfinished_leaf_exists():
     assert response.json()["detail"] == "No unfinished focus task found"
 
 
-def test_learning_breakdown_asks_questions_then_returns_learning_path(monkeypatch):
+def test_learning_is_a_compatible_alias_for_project_and_planning_ai_is_removed():
     client = TestClient(app)
-    goal = client.post(
-        "/goals", json={"title": "AI engineering", "goal_type": "learning"}
-    ).json()
-    monkeypatch.setattr(
-        "app.api.goals.suggest_learning_questions",
-        lambda title, description: [
-            {"id": "level", "question": "What is your current level?"}
-        ],
-    )
-
-    questions = client.post(f"/goals/{goal['id']}/breakdown/questions")
-    assert questions.status_code == 200
-    monkeypatch.setattr(
-        "app.api.goals.suggest_learning_tasks",
-        lambda title, description, answers: [{"title": "Build a small model"}],
-    )
-    response = client.post(
-        f"/goals/{goal['id']}/breakdown",
-        json={"answers": [{"id": "level", "answer": "Comfortable with Python"}]},
-    )
-
-    assert response.status_code == 200
-    assert response.json() == [{"title": "Build a small model"}]
-
-
-def test_project_cannot_use_learning_breakdown():
-    client = TestClient(app)
-    goal = client.post("/goals", json={"title": "Launch a portfolio"}).json()
-
-    response = client.post(f"/goals/{goal['id']}/breakdown/questions")
-    assert response.status_code == 400
+    goal = client.post("/goals", json={"title": "AI engineering", "goal_type": "learning"}).json()
+    assert goal["goal_type"] == "project"
+    assert client.get(f"/goals/{goal['id']}").json()["goal_type"] == "project"
+    assert client.post(f"/goals/{goal['id']}/breakdown/questions").status_code == 404
+    assert client.post(f"/goals/{goal['id']}/breakdown", json={"answers": []}).status_code == 404
 
 
 def test_focus_options_keep_plan_order_and_expose_recent_focus_metadata():
@@ -583,7 +557,7 @@ def test_flat_tasks_reject_nesting_and_ai():
     client = TestClient(app)
     task = client.post('/standalone-tasks',json={'title':'Flat task'}).json()
     assert client.post(f"/tasks/{task['id']}/subtasks",json={'title':'Child'}).status_code == 400
-    assert client.post(f"/tasks/{task['id']}/breakdown").status_code == 400
+    assert client.post(f"/tasks/{task['id']}/breakdown").status_code == 404
 
 
 def test_long_session_retry_delete_and_restore():

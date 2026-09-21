@@ -1,0 +1,34 @@
+.appearance-modal { width:min(540px,100%); max-height:calc(100dvh - 32px); overflow:auto; padding:28px; border:1px solid var(--border); border-radius:18px; background:var(--surface-strong); box-shadow:0 24px 100px #0005; }
+.appearance-modal header { display:flex; align-items:start; justify-content:space-between; gap:20px; }
+.appearance-modal h2 { margin:4px 0 0; font-size:26px; letter-spacing:-.04em; }
+.appearance-modal > p { color:var(--muted); font-size:12px; margin:12px 0 24px; }
+.appearance-modal fieldset { margin:0 0 24px; padding:0; border:0; }
+.appearance-modal legend { font-size:12px; font-weight:600; margin-bottom:12px; }
+.appearance-landscapes, .appearance-colors { display:grid; gap:10px; grid-template-columns:repeat(3,minmax(0,1fr)); }
+.appearance-colors { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.appearance-choice { position:relative; display:block; padding:5px 5px 10px; border:1px solid var(--border); border-radius:10px; overflow:hidden; cursor:pointer; background:var(--surface); }
+.appearance-choice:has(:checked) { border-color:var(--forest); box-shadow:0 0 0 1px var(--forest); }
+.appearance-choice:has(:focus-visible) { outline:3px solid var(--focus-ring); outline-offset:3px; }
+.appearance-preview { display:block; height:76px; border-radius:6px; background-position:center; background-size:cover; }
+.solid-choice .appearance-preview { height:40px; }
+.appearance-choice input { position:absolute; width:14px; height:14px; left:10px; top:91px; margin:0; accent-color:var(--forest); }
+.solid-choice input { top:55px; }
+.appearance-choice-copy { display:block; padding:8px 0 0 26px; font-size:12px; color:var(--ink); font-weight:550; }
+.appearance-choice small { display:block; color:var(--muted); font-size:10px; margin:4px 4px 0; }
+.artwork-switches label { display:flex; align-items:center; justify-content:space-between; min-height:48px; font-size:13px; color:var(--ink); border-bottom:1px solid var(--border); }
+.artwork-switches input { width:18px; height:18px; accent-color:var(--forest); }
+.artwork-switches label:has(:disabled) { color:var(--muted); }
+#artwork-note { font-size:11px; line-height:1.5; color:var(--muted); }
+.appearance-modal footer { display:flex; justify-content:space-between; gap:16px; }
+.appearance-modal .icon-btn { min-width:44px; min-height:44px; }
+.focus-atmosphere[hidden], .plan-atmosphere[hidden] { display:none; }
+.focus-card.is-solid, .plan-cover.is-solid { background:var(--scene-light); }
+[data-theme="dark"] .focus-card.is-solid, [data-theme="dark"] .plan-cover.is-solid { background:var(--scene-dark); }
+.focus-card.is-solid::after, .focus-card.is-solid::before, .plan-cover.is-solid::before { display:none; }
+/* Keep the dial as the single start button; make its action explicit at rest. */
+#start-pomodoro .timer-time span { display:flex; align-items:center; justify-content:center; gap:7px; background:#e7d7bb; color:#242a21; border-radius:99px; padding:8px 13px; margin-top:12px; font-size:12px; letter-spacing:0; text-transform:none; box-shadow:0 2px 8px #0002; }
+#start-pomodoro .timer-time span::before { content:''; width:9px; height:10px; background:currentColor; clip-path:polygon(0 0,100% 50%,0 100%); }
+[data-theme="light"] #start-pomodoro .timer-time span { background:#2a3723; color:#fcfaf5; }
+#start-pomodoro .timer-play-mark { display:none; }
+#start-pomodoro:hover .timer-time span { filter:brightness(1.12); }
+@media(max-width:520px) { .appearance-modal { padding:20px; } .appearance-colors { grid-template-columns:repeat(2,minmax(0,1fr)); } .appearance-choice small { font-size:9px; } }

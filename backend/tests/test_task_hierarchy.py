@@ -29,7 +29,7 @@ def test_subtasks_are_last_level_and_cannot_be_broken_down(goal_type):
     child = client.post(f"/tasks/{parent['id']}/subtasks", json={"title": "Subtask"}).json()
     assert child["depth"] == 2
     assert client.post(f"/tasks/{child['id']}/subtasks", json={"title": "Too deep"}).status_code == 400
-    assert client.post(f"/tasks/{child['id']}/breakdown").status_code == 400
+    assert client.post(f"/tasks/{child['id']}/breakdown").status_code == 404
     assert len(client.get(f"/goals/{goal['id']}/tasks").json()) == 2
 
 

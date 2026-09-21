@@ -120,17 +120,13 @@ test('leaving an unchanged title does not steal focus from its action menu', asy
   await expect(page.locator('[data-task-id="4"] .task-edit-title')).toBeHidden();
 });
 
-test('drafting smaller steps shows visible progress outside the closed menu', async ({page}) => {
-  let finish!: () => void;
-  const pending=new Promise<void>(resolve=>{finish=resolve;});
-  await page.route('**/api/tasks/1/breakdown',async route=>{await pending; await route.fulfill({json:[{title:'Review index design'}]});});
+test('Plan has two creation choices and no AI drafting actions', async ({page}) => {
   await page.goto('/#goals');
+  await expect(page.locator('[data-goal-create]')).toHaveCount(2);
+  await expect(page.locator('.goal-type-label').first()).toHaveText('Project');
   await page.getByRole('button',{name:'Actions for Learn retrieval',exact:true}).click();
-  await page.getByRole('menu',{name:'Actions for Learn retrieval',exact:true}).getByRole('menuitem',{name:/Draft smaller steps/}).click();
-  await expect(page.getByText('Drafting smaller steps…',{exact:true})).toBeVisible();
-  finish();
-  await expect(page.getByText('Review index design',{exact:true})).toBeVisible();
-  await expect(page.getByText('Drafting smaller steps…',{exact:true})).toBeHidden();
+  await expect(page.getByRole('menuitem',{name:/Draft/})).toHaveCount(0);
+  await expect(page.getByRole('menuitem',{name:'Add subtask',exact:true})).toBeVisible();
 });
 
 test('leaf tasks can join the queue from Plan and parents cannot', async ({page}) => {

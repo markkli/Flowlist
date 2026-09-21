@@ -88,7 +88,7 @@ export function initHistory({ showToast, refresh }) {
         const last=nextDay(week,6);
         el('history-week-label').textContent=`${week.toLocaleDateString([], {month:'short',day:'numeric'})} – ${last.toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'})}`;
         el('history-week-total').textContent=`${data.days.reduce((total,day)=>total+day.minutes,0)} min focused · ${data.sessions.length} ${data.sessions.length===1?'ritual':'rituals'}`;
-        el('history-timezone').textContent=`${Intl.DateTimeFormat().resolvedOptions().timeZone.replaceAll('_',' ')} · Focus blocks only; breaks are excluded. Select a block to review its ritual.`;
+        el('history-timezone').textContent=`${Intl.DateTimeFormat().resolvedOptions().timeZone.replaceAll('_',' ')} · 24-hour week · Scroll to see all hours. Breaks excluded; sessions under 5 minutes appear in Brief sessions. Select a block to review its ritual.`;
         renderTimeline(el('history-timeline'),data,openRecord);
         const untimed=data.sessions.filter(session=>!session.started_at || !session.blocks?.length);
         el('history-untimed').classList.toggle('hidden',!untimed.length);el('history-untimed-list').replaceChildren(...untimed.map(session=>recordCard(session)));

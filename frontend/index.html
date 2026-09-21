@@ -27,7 +27,7 @@
     <div class="workspace">
       <header class="toolbar">
         <p class="date-line" id="top-date"></p>
-        <div class="toolbar-actions"><span class="connection-state"><i></i>Local</span><button class="icon-btn" id="theme-toggle" aria-label="Switch color theme"><svg id="theme-icon" viewBox="0 0 24 24" aria-hidden="true"></svg></button></div>
+        <div class="toolbar-actions"><span class="connection-state"><i></i>Local</span><button class="icon-btn" id="appearance-toggle" aria-label="Appearance" aria-haspopup="dialog" aria-controls="appearance-overlay"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="m3 16 5-5 4 4 4-6 5 7"/><circle cx="8" cy="7" r="1"/></svg></button><button class="icon-btn" id="theme-toggle" aria-label="Switch color theme"><svg id="theme-icon" viewBox="0 0 24 24" aria-hidden="true"></svg></button></div>
       </header>
 
       <main id="main-content" tabindex="-1"><div id="connection-error" class="connection-error hidden" role="alert"><span id="connection-error-copy"></span><button id="retry-view" class="secondary-btn" type="button">Retry</button></div>
@@ -68,13 +68,12 @@
             <div class="plan-create-actions" aria-label="Add to plan">
               <span>Create</span>
               <button type="button" data-goal-create="project"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 6V5a1 1 0 0 1 1-1h4l2 2h6a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6Z"/></svg>Project</button>
-              <button type="button" data-goal-create="learning"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 5v11M10 5C8 3 5 3 3 4v11c2-1 5-1 7 1 2-2 5-2 7-1V4c-2-1-5-1-7 1Z"/></svg>Learning</button>
               <button type="button" data-goal-create="standalone"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3.5" y="3.5" width="13" height="13" rx="3"/><path d="m6.5 10 2.5 2.5 4.5-5"/></svg>Task</button>
             </div>
           </header>
           <div class="roadmap-layout">
             <aside class="plan-index hidden" aria-label="Plan index">
-              <nav class="plan-index-list" id="plan-index-list" aria-label="Jump to a direction"></nav>
+              <nav class="plan-index-list" id="plan-index-list" aria-label="Jump to a project"></nav>
             </aside>
             <div class="plan-main">
               <aside class="new-goal panel hidden" id="goal-composer">
@@ -85,7 +84,7 @@
                 </form>
               </aside>
               <div id="goals" class="goal-stack"></div>
-              <details class="completed-directions hidden" id="completed-directions"><summary><span>Completed directions</span><b id="completed-directions-count">0</b><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg></summary><div id="completed-directions-list" class="completed-directions-list"></div></details>
+              <details class="completed-directions hidden" id="completed-directions"><summary><span>Completed projects</span><b id="completed-directions-count">0</b><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg></summary><div id="completed-directions-list" class="completed-directions-list"></div></details>
             </div>
           </div>
         </section>
@@ -111,7 +110,7 @@
       <p id="history-detail-meta" class="page-description"></p><div id="history-detail-blocks"></div>
       <form id="history-edit-form"><label for="history-reflection">Reflection</label><textarea class="field" id="history-reflection" rows="4" maxlength="2000" placeholder="What did this time make possible?"></textarea>
         <fieldset class="history-edit-work"><legend>Work recorded</legend><p>These choices describe this ritual. Editing them does not change tasks in Plan.</p><div id="history-edit-attributions"></div></fieldset>
-        <details id="history-add-work"><summary>Add a task to this record</summary><label for="history-task-search">Find a task</label><input class="field" type="search" id="history-task-search" placeholder="Search task or direction"><p id="history-task-status" role="status"></p><div id="history-task-results"></div></details>
+        <details id="history-add-work"><summary>Add a task to this record</summary><label for="history-task-search">Find a task</label><input class="field" type="search" id="history-task-search" placeholder="Search task or project"><p id="history-task-status" role="status"></p><div id="history-task-results"></div></details>
         <p class="field-error" id="history-edit-error" role="alert"></p><button type="button" class="text-btn hidden" id="history-reload-record">Reload saved version</button>
         <footer><button class="text-btn" type="button" id="history-edit-cancel">Cancel</button><button class="primary-btn" id="history-edit-save" type="submit">Save changes</button></footer>
       </form>
@@ -124,7 +123,7 @@
         <button class="goal-collapse plan-icon" type="button" aria-expanded="true"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg></button>
         <div class="goal-card-copy">
           <h2><button class="goal-title inline-title" type="button"></button></h2>
-          <form class="goal-title-form inline-edit hidden"><input class="field goal-edit-title" type="text" maxlength="120" aria-label="Direction name"><button class="sr-only">Save</button></form>
+          <form class="goal-title-form inline-edit hidden"><input class="field goal-edit-title" type="text" maxlength="120" aria-label="Project name"><button class="sr-only">Save</button></form>
           <div class="direction-meta"><span class="goal-type-label"></span><span class="goal-progress-copy"></span></div>
           <p class="goal-description hidden"></p>
         </div>
@@ -133,17 +132,15 @@
           <button class="plan-icon goal-more" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="16" cy="10" r="1.5"/></svg></button>
           <div class="plan-menu goal-menu" popover="auto" role="menu">
             <button class="rename-goal" type="button" role="menuitem">Rename</button>
-            <button class="break-down-goal" type="button" role="menuitem">Draft learning path <small class="beta-badge">AI · Beta</small></button>
             <button class="goal-move-up" type="button" role="menuitem">Move up</button>
             <button class="goal-move-down" type="button" role="menuitem">Move down</button>
-            <hr><button class="delete-goal danger" type="button" role="menuitem">Remove direction</button>
+            <hr><button class="delete-goal danger" type="button" role="menuitem">Remove project</button>
           </div>
         </div>
       </header>
       <div class="goal-body">
-        <div class="goal-status hidden"><span class="goal-status-copy"></span><button class="goal-complete text-btn hidden" type="button">Close direction</button></div>
+        <div class="goal-status hidden"><span class="goal-status-copy"></span><button class="goal-complete text-btn hidden" type="button">Close project</button></div>
         <form class="task-form step-composer hidden"><label><span class="step-composer-label">New step</span><input class="field" type="text" maxlength="120" placeholder="Describe the next meaningful step" aria-label="New task"></label><button class="secondary-btn">Add</button><button class="text-btn cancel-step-composer" type="button">Cancel</button></form>
-        <ul class="goal-suggestion-list task-list suggestions" style="display:none"></ul>
         <section class="goal-outline" aria-label="Active steps"><ul class="goal-task-list task-list"></ul><p class="goal-empty-state hidden">Add a step when you’re ready to begin.</p></section>
         <details class="completed-tasks hidden"><summary><span><b class="completed-count">0</b> completed</span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg></summary><ul class="completed-task-list"></ul></details>
       </div>
@@ -162,7 +159,6 @@
           <button class="queue-task" type="button" role="menuitem">Add to focus queue</button>
           <button class="rename-task" type="button" role="menuitem">Rename</button>
           <button class="add-subtask" type="button" role="menuitem">Add a smaller step</button>
-          <button class="break-down" type="button" role="menuitem">Draft smaller steps <small class="beta-badge">AI · Beta</small></button>
           <button class="task-move-up" type="button" role="menuitem">Move up</button>
           <button class="task-move-down" type="button" role="menuitem">Move down</button>
           <hr><button class="delete-task danger" type="button" role="menuitem">Remove task</button>
@@ -170,13 +166,13 @@
       </div>
       <form class="task-edit-form inline-edit hidden"><input class="field task-edit-title" type="text" maxlength="120" aria-label="Task title"><button class="sr-only">Save</button></form>
       <form class="subtask-form step-composer nested-form hidden"><label><span>New substep</span><input class="field" type="text" maxlength="120" placeholder="Describe the smaller step" aria-label="Subtask title"></label><button class="secondary-btn">Add</button><button class="text-btn cancel-subtask" type="button">Cancel</button></form>
-      <ul class="suggestion-list task-list nested-list"></ul><ul class="subtask-list task-list nested-list" data-task-children></ul>
+      <ul class="subtask-list task-list nested-list" data-task-children></ul>
     </li>
   </template>
 
   <template id="session-template"><article class="session-row panel"><div class="session-copy"><div class="session-title"></div><div class="session-summary-note"></div><div class="session-attributions"></div><div class="session-meta"></div></div><div class="session-actions"><span class="session-status pill"></span><button class="session-delete icon-btn" type="button" aria-label="Delete focus record"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg></button></div></article></template>
   <div id="focus-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Pomodoro timer"><div class="timer-modal pomodoro-modal" tabindex="-1"><button class="text-btn timer-minimize" id="focus-minimize" type="button">Minimize timer</button><div class="pomodoro-modal-top"><span id="focus-phase-label" class="status"><i></i>Focus</span><span id="focus-cycle-copy">25 minute interval</span></div><h2 id="focus-task-title">Focus session</h2><p id="focus-goal-title">Stay with the work. You can assign it afterward.</p><div class="timer-orbit" id="focus-orbit"><div id="focus-time" class="timer-time">25:00<span>Remaining</span></div></div><div class="focus-actions"><button id="focus-add-plan" class="text-btn timer-plan" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Add to plan</span></button><button id="focus-exit" class="text-btn timer-exit" type="button">End ritual</button><button id="focus-skip" class="secondary-btn timer-skip" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 6 9 6-9 6V6Zm12 0v12"/></svg><span id="focus-skip-label">Skip to break</span></button></div></div></div>
-  <div id="plan-capture-overlay" class="overlay plan-capture-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="plan-capture-title"><section class="quick-plan-modal" tabindex="-1"><header class="settings-modal-header"><div><p class="kicker">Without leaving the ritual</p><h2 id="plan-capture-title">Add a task</h2></div><button class="icon-btn" id="plan-capture-close" type="button" aria-label="Close add to plan"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg></button></header><form id="plan-capture-form"><label for="plan-capture-name"><span>Task</span></label><input class="field" id="plan-capture-name" type="text" maxlength="120" placeholder="What needs a place?" required><label for="plan-capture-destination"><span>Add to</span></label><select class="field" id="plan-capture-destination"></select><p class="capture-helper">Choose a direction or the shared Tasks list. The timer keeps running.</p><p class="field-error" id="plan-capture-error" role="alert"></p><footer class="settings-actions"><button class="text-btn" id="plan-capture-cancel" type="button">Cancel</button><button class="primary-btn" type="submit">Add task</button></footer></form></section></div>
+  <div id="plan-capture-overlay" class="overlay plan-capture-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="plan-capture-title"><section class="quick-plan-modal" tabindex="-1"><header class="settings-modal-header"><div><p class="kicker">Without leaving the ritual</p><h2 id="plan-capture-title">Add a task</h2></div><button class="icon-btn" id="plan-capture-close" type="button" aria-label="Close add to plan"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg></button></header><form id="plan-capture-form"><label for="plan-capture-name"><span>Task</span></label><input class="field" id="plan-capture-name" type="text" maxlength="120" placeholder="What needs a place?" required><label for="plan-capture-destination"><span>Add to</span></label><select class="field" id="plan-capture-destination"></select><p class="capture-helper">Choose a project or the shared Tasks list. The timer keeps running.</p><p class="field-error" id="plan-capture-error" role="alert"></p><footer class="settings-actions"><button class="text-btn" id="plan-capture-cancel" type="button">Cancel</button><button class="primary-btn" type="submit">Add task</button></footer></form></section></div>
   <div id="session-attribution-overlay" class="overlay attribution-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="attribution-title"><section class="attribution-modal" tabindex="-1"><div class="attribution-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5 10.5 15 16 9"/></svg></div><p class="kicker" id="attribution-status">Focus complete</p><h2 id="attribution-title">Where did this focus go?</h2><p class="attribution-summary"><strong id="attribution-minutes">25 minutes</strong> will be added once. Select every task you touched; mark only the ones you finished.</p><form id="session-attribution-form"><label class="session-note-label" for="session-summary"><span>What did you do?</span><small>Optional · saved with this ritual</small></label><textarea class="field session-note" id="session-summary" rows="3" maxlength="2000" placeholder="e.g. Resolved the retrieval errors and documented the fix"></textarea><fieldset><legend>Session work</legend><div class="attribution-column-head" aria-hidden="true"><span>Task</span><span>Worked on</span><span>Finished</span></div><div class="attribution-options" id="attribution-options"></div><p class="attribution-general-note">Leave every task unchecked to save this as General focus.</p></fieldset><details class="attribution-task-builder" id="attribution-task-builder">
   <summary><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg><span>Add a missing task</span></summary>
   <div class="attribution-task-builder-body">
@@ -184,32 +180,27 @@
     <label for="attribution-new-task">Task name</label>
     <div class="attribution-capture-row"><input class="field" id="attribution-new-task" type="text" maxlength="120" placeholder="e.g. Reviewed the release notes" aria-describedby="attribution-capture-help attribution-task-error"><button class="secondary-btn" id="attribution-add-task" type="button">Add task</button></div>
     <details class="attribution-organize" id="attribution-organize"><summary><span>Save to</span><strong id="attribution-destination-label">Tasks</strong><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 4 6 6-6 6"/></svg></summary>
-      <div class="attribution-organize-body"><label for="attribution-task-destination">List or direction</label><select class="field" id="attribution-task-destination"></select>
-        <div class="attribution-new-group hidden" id="attribution-new-group"><label for="attribution-new-group-name">Direction name</label><input class="field" id="attribution-new-group-name" type="text" maxlength="120" placeholder="e.g. Personal website"><fieldset class="type-picker"><legend>Direction type</legend><div class="type-segments"><label><input type="radio" name="attribution-group-type" value="project" checked><span>Project</span></label><label><input type="radio" name="attribution-group-type" value="learning"><span>Learning</span></label></div></fieldset></div>
+      <div class="attribution-organize-body"><label for="attribution-task-destination">List or project</label><select class="field" id="attribution-task-destination"></select>
+        <div class="attribution-new-group hidden" id="attribution-new-group"><label for="attribution-new-group-name">Project name</label><input class="field" id="attribution-new-group-name" type="text" maxlength="120" placeholder="e.g. Personal website"></div>
       </div>
     </details>
     <p class="field-error" id="attribution-task-error" role="alert"></p>
   </div>
 </details><p class="field-error" id="attribution-error" role="alert"></p><footer class="attribution-actions"><button class="text-btn" id="attribution-later" type="button">Save later</button><button class="text-btn danger" id="discard-session" type="button">Discard</button><button class="primary-btn" id="save-session" type="submit">Save ritual</button></footer></form></section></div>
   <div id="timer-settings-overlay" class="overlay settings-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="timer-settings-title"><section class="settings-modal" tabindex="-1"><header class="settings-modal-header"><div><p class="kicker">Pomodoro cycle</p><h2 id="timer-settings-title">Timer settings</h2></div><button class="icon-btn" id="timer-settings-close" type="button" aria-label="Close timer settings"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg></button></header><p class="settings-intro">A long break begins after the final focus round.</p><form id="timer-settings-form"><div class="settings-grid"><label><span>Focus</span><div class="number-field"><input class="field" id="focus-minutes-setting" type="number" min="5" max="120" value="25"><small>min</small></div></label><label><span>Short break</span><div class="number-field"><input class="field" id="break-minutes-setting" type="number" min="1" max="60" value="5"><small>min</small></div></label><label><span>Rounds</span><div class="number-field"><input class="field" id="rounds-setting" type="number" min="2" max="8" value="4"><small>rounds</small></div></label><label><span>Long break</span><div class="number-field"><input class="field" id="long-break-minutes-setting" type="number" min="5" max="90" value="15"><small>min</small></div></label></div><p class="field-error" id="timer-settings-error" role="alert"></p><footer class="settings-actions"><button class="text-btn" id="timer-settings-cancel" type="button">Cancel</button><button class="primary-btn" type="submit">Save cycle</button></footer></form></section></div>
-  <div id="learning-path-overlay" class="overlay learning-overlay hidden" role="dialog" aria-modal="true" aria-label="Generate learning path">
-    <section class="learning-wizard" tabindex="-1">
-      <header class="learning-wizard-header"><div><p class="kicker">AI draft <b class="beta-badge">Beta</b></p><span class="learning-goal-name" id="learning-goal-name"></span></div><button class="icon-btn" id="learning-wizard-close" type="button" aria-label="Close learning path questions"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg></button></header>
-      <div class="learning-wizard-loading" id="learning-wizard-loading"><span class="loading-ring" aria-hidden="true"></span><h2>Preparing your questions</h2><p>Flowlist is finding the details needed to shape this path.</p></div>
-      <div class="learning-wizard-question" id="learning-wizard-question" hidden>
-        <div class="wizard-progress-copy"><span id="learning-question-count">Question 1 of 1</span><span id="learning-progress-percent">0%</span></div>
-        <div class="wizard-progress" aria-hidden="true"><span id="learning-progress-fill"></span></div>
-        <div class="wizard-prompt"><p class="kicker">A little context</p><h2 id="learning-wizard-title"></h2><p>AI can miss your pace and preferences. Treat this as a draft; a plan you think through yourself will usually fit better.</p></div>
-        <label class="wizard-answer-label" for="learning-wizard-answer">Your answer</label>
-        <textarea class="field wizard-answer" id="learning-wizard-answer" rows="4"></textarea>
-        <p class="field-error" id="learning-wizard-error" role="alert"></p>
-        <footer class="wizard-actions"><button class="secondary-btn" id="learning-wizard-back" type="button">Back</button><button class="primary-btn" id="learning-wizard-next" type="button">Continue</button></footer>
-      </div>
-    </section>
-  </div>
   <div id="celebration-overlay" class="overlay hidden"><div class="timer-modal celebration"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 40V15m0 7-9-8m9 15 10-9M15 40h18"/><path d="M24 15c-2-6-7-9-13-7 1 7 5 10 13 10m0 2c2-7 7-10 14-9-1 7-5 11-14 12"/></svg><span class="status"><i></i>Goal complete</span><h2 id="celebration-goal-title">Goal complete</h2><p>Nice work. Take a moment before choosing what comes next.</p><div class="focus-actions"><button id="celebration-dismiss" class="primary-btn">Continue</button></div></div></div>
   <div id="timer-mini" class="timer-mini hidden" aria-label="Current ritual"><button id="timer-mini-open" type="button"><span id="timer-mini-copy"></span><span class="mini-action">Open</span></button><button class="text-btn" id="timer-mini-end" type="button">End ritual</button></div>
   <div id="app-toast" class="app-toast" role="status" aria-live="polite"></div>
+  <div id="appearance-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="appearance-title">
+    <section class="appearance-modal">
+      <header><div><p class="kicker">Make room for focus</p><h2 id="appearance-title">Appearance</h2></div><button type="button" class="icon-btn" id="appearance-close" aria-label="Close appearance">×</button></header>
+      <p>A quieter backdrop for your day. Changes save on this device.</p>
+      <fieldset><legend>Landscapes</legend><div id="appearance-landscapes" class="appearance-landscapes"></div></fieldset>
+      <fieldset><legend>Solid colors</legend><div id="appearance-colors" class="appearance-colors"></div></fieldset>
+      <fieldset class="artwork-switches"><legend>Panel artwork</legend><label for="focus-artwork">Pomodoro artwork<input id="focus-artwork" type="checkbox"></label><label for="plan-artwork">Plan artwork<input id="plan-artwork" type="checkbox"></label><p id="artwork-note"></p></fieldset>
+      <footer><button class="secondary-btn" id="appearance-reset" type="button">Reset appearance</button><button class="primary-btn" id="appearance-done" type="button">Done</button></footer>
+    </section>
+  </div>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

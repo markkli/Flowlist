@@ -142,3 +142,22 @@ def test_focus_block_migration_keeps_legacy_dates_unknown_and_protects_new_inter
         assert db.execute('SELECT version_num FROM alembic_version').fetchone() == ('20260919_12',)
         assert db.execute('SELECT COUNT(*) FROM focus_blocks').fetchone() == (1,)
         assert db.execute('SELECT summary FROM focus_sessions').fetchone() == ('Original reflection',)
+
+
+def test_learning_merge_preserves_identity_and_can_restore_original_types(tmp_path):
+    database, migrate = legacy_hierarchy_database(tmp_path)
+    migrate('upgrade','20260919_12')
+    with sqlite3.connect(database) as db:
+        db.execute("UPDATE goals SET goal_type='learning' WHERE id=1")
+        tasks = db.execute('SELECT * FROM tasks ORDER BY id').fetchall()
+        history = db.execute('SELECT * FROM focus_session_tasks ORDER BY id').fetchall()
+    migrate('upgrade','head')
+    with sqlite3.connect(database) as db:
+        assert db.execute('SELECT goal_type FROM goals WHERE id=1').fetchone() == ('project',)
+        assert db.execute('SELECT * FROM tasks ORDER BY id').fetchall() == tasks
+        assert db.execute('SELECT * FROM focus_session_tasks ORDER BY id').fetchall() == history
+        db.execute("UPDATE goals SET title='Edited name' WHERE id=1")
+    migrate('downgrade','20260919_12')
+    with sqlite3.connect(database) as db:
+        assert db.execute('SELECT goal_type,title FROM goals WHERE id=1').fetchone() == ('learning','Edited name')
+        assert db.execute('PRAGMA foreign_key_check').fetchall() == []

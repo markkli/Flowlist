@@ -1,10 +1,11 @@
 from datetime import datetime, timezone, timedelta
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BeforeValidator, BaseModel, ConfigDict, Field, field_validator, model_validator
 
-GoalType = Literal["project", "learning", "standalone"]
+# Accept legacy clients while storing and returning only the two current types.
+GoalType = Annotated[Literal["project", "standalone"], BeforeValidator(lambda value: "project" if value == "learning" else value)]
 
 
 class TitledPayload(BaseModel):
