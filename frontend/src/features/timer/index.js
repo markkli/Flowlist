@@ -2,8 +2,10 @@ import { api } from '../../shared/api';
 import { escapeHtml, trapFocus, syncDialogs as syncModal } from '../../shared/dom';
 import { RITUAL_KEY, defaults, validSettings, freshRitual, readRitual, migrateLegacy, advance, remaining, payload } from './state';
 import './attribution.css';
+import { initReminders } from './reminders';
 
 export function initTimer({ showToast, loadGoals, loadDashboard }) {
+const reminders = initReminders({ showToast });
 const formatTime = seconds => `${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
 const TIMER_SETTINGS_KEY = 'flowlist-timer-settings';
 let timerSettings = {...defaults};
@@ -56,7 +58,7 @@ function setTimerSettingsOpen(open) {
   timerSettingsOverlay.classList.toggle('hidden', !open);
   timerSettingsToggle.setAttribute('aria-expanded', String(open));
   timerSettingsError.textContent = '';
-  if (open) renderSettings();
+  if (open) { renderSettings(); reminders.render(); }
   syncModal();
   if (open) timerSettingsModal.focus(); else timerSettingsToggle.focus();
 }
@@ -102,10 +104,14 @@ async function minimizeTimer() {
   (lastFocus?.isConnected ? lastFocus : document.getElementById('start-pomodoro')).focus();
 }
 async function transition(end = false, expectedDeadline = null) {
+  let completedInterval = null;
   await mutate(latest => {
     if (!latest || !['focus','break'].includes(latest.phase) || (expectedDeadline !== null && latest.deadline !== expectedDeadline)) return undefined;
-    return advance(latest, Date.now(), end);
+    const next = advance(latest, Date.now(), end);
+    if (!end && expectedDeadline !== null) completedInterval = [latest, next];
+    return next;
   });
+  if (completedInterval) reminders.notify(...completedInterval);
   if (state?.phase === 'awaiting-attribution') { pendingSession = payload(state); await openAttributionModal(); }
 }
 document.getElementById('start-pomodoro').addEventListener('click', openTimer);

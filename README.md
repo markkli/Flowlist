@@ -188,6 +188,20 @@ cover skipped blocks, long breaks, sleep recovery, and long rituals. Playwright
 checks draft recovery, failed saves, safe title rendering, history Undo,
 keyboard behavior, navigation, and responsive layouts.
 
+## Interval reminders
+
+Every automatic focus, short-break, and long-break completion shows an eight-second
+in-app message without opening the timer or moving keyboard focus. Timer settings
+also offers optional silent desktop notifications for when the page is in the
+background. Permission is requested only by the Enable desktop reminders button;
+the preference applies immediately and persists per browser. Manual Skip and End
+remain direct actions and do not generate completion alerts. Shared tabs coordinate
+the transition with Web Locks so only one sends the desktop notification.
+
+Keep a Flowlist tab open. Browser suspension and device sleep can delay reminders;
+this is not a closed-browser alarm service. Denied or unsupported desktop
+notifications leave in-app reminders available.
+
 ## Appearance and launch planning
 
 The toolbar's Appearance button selects Grove, Coast, or Hills artwork, or Linen,

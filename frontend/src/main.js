@@ -12,7 +12,7 @@ function greetingForNow() {
   return hour < 12 ? "Good morning." : hour < 18 ? "Good afternoon." : "Good evening.";
 }
 
-function showToast(message, isError = false, action = null) {
+function showToast(message, isError = false, action = null, duration = action ? 5200 : 2800) {
   const toast = document.getElementById("app-toast");
   toast.replaceChildren();
   const copy = document.createElement("span");
@@ -33,7 +33,7 @@ function showToast(message, isError = false, action = null) {
   toast.classList.toggle("has-action", Boolean(action));
   toast.classList.add("visible");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove("visible"), action ? 5200 : 2800);
+  toastTimer = setTimeout(() => toast.classList.remove("visible"), duration);
 }
 
 function setDateCopy() {

@@ -54,6 +54,7 @@ Use semantic tokens (`--accent`, `--on-accent`, `--surface`, `--ink`, `--muted`)
 - The Pomodoro card is the strongest surface and uses the selected full-bleed landscape artwork under a legibility gradient. Atmospheric art must touch every card edge without exposed background gaps.
 - The timer dial itself is the primary Start control. Use a fine double edge, prominent numerals, and an always-visible play mark with a plain Start focus label. Keep the whole circle one button without a nested pill.
 - Use the selected palette for the dial surface, label, focus outline, and active progress ring. Match light and dark mode; avoid fixed forest or sand colors.
+- Automatic interval completion shows a polite, transient message without focus changes. Desktop notifications are silent, opt-in through Timer settings, and never force the page to the foreground. Explain open-tab and sleep limitations beside the control.
 - Starting the clock never requires choosing a task first. Default to 25 minutes of focus, 5 minutes of rest, and a 15-minute long break after four rounds.
 - Expose focus length, short break, rounds per cycle, and long break in a dedicated modal. Never put interactive number fields inside the atmospheric timer card.
 - Exhibit the current round with text and a small dot sequence on the timer card.

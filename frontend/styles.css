@@ -754,3 +754,9 @@ body:has(.timer-mini:not(.hidden)) .app-toast { bottom:100px; }
 .attribution-toggle input { inset:0; width:100%; height:100%; margin:0; opacity:0; pointer-events:auto; cursor:pointer; z-index:1; }
 .attribution-toggle .toggle-box { pointer-events:none; }
 .timer-mini { bottom:max(12px, env(safe-area-inset-bottom)); }
+
+.timer-reminders { margin-top:24px; padding-top:18px; border-top:1px solid var(--border); }
+.timer-reminders h3 { margin:0 0 8px; font-size:13px; }
+.timer-reminders p { color:var(--muted); font-size:12px; line-height:1.5; margin:8px 0 12px; }
+.timer-reminders .reminders-note { font-size:11px; margin-bottom:0; }
+.timer-reminders button { min-height:40px; }
