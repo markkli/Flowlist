@@ -19,7 +19,6 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-flowlist}:${POSTGRES_PASSWORD:-change-me-before-deploying}@db:5432/${POSTGRES_DB:-flowlist}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_SUBTASK_MODEL: ${OPENAI_SUBTASK_MODEL:-gpt-5.4-mini}
       OPENAI_FOCUS_TITLE_MODEL: ${OPENAI_FOCUS_TITLE_MODEL:-gpt-5.4-mini}
       FLOWLIST_CORS_ORIGINS: ${FLOWLIST_CORS_ORIGINS:-}
       WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}

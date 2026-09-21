@@ -8,16 +8,16 @@ Plan is a compact outline of directions and actionable steps. Keep the forest pa
 
 - On long plans, use a fixed vertical rail of short marks at the viewport edge. It stays in place while the page scrolls, takes minimal width, and exposes labels on hover or keyboard focus. Hide it when the plan fits the viewport. Reserve its gutter beside both the header and outline.
 - The page has an atmospheric forest cover echoing the Pomodoro, with a quiet icon-and-label creation toolbar. Each direction has disclosure, a 17–19px editable title, a short type/completion count, Add step, and More.
-- Rename, AI draft, Move up/down, and Remove live in More. Keep menu targets at least 44px and render menus in the browser top layer so cards cannot clip them.
+- Rename, Move up/down, and Remove live in More. Keep menu targets at least 44px and render menus in the browser top layer so cards cannot clip them.
 - Project, Learning, and Task creation remain available in the page header and each reveal one composer.
-- Add and AI draft expand a collapsed direction before revealing their content. Collapse state persists locally.
+- Add expands a collapsed direction before revealing their content. Collapse state persists locally.
 
 ## Task hierarchy
 
 - Leaves have a completion checkbox and title; do not reserve empty disclosure or drag columns before the title.
 - Tasks support only one subtask level. Every task always has a checkbox; parents also have disclosure and a subtask count. Explicitly completing a parent completes its descendants. Completing all subtasks never checks the parent. Keep finished subtasks visible under an open parent.
 - Use compact indentation, subtle vertical guides, and stronger section titles. Keep each task in one row when its title fits, including on touch layouts.
-- More provides Rename, Add smaller step, AI draft, Move up/down, and Remove where eligible. Leaf tasks also provide Add to / Remove from focus queue.
+- More provides Rename, Add smaller step, Move up/down, and Remove where eligible. Leaf tasks also provide Add to / Remove from focus queue.
 - Mouse users can drag the trailing handle within a sibling group. Alt+Up/Down and menu actions provide keyboard alternatives.
 - Menus support arrow keys, Home/End, Escape, and focus return. Inline rename restores focus on save or Escape.
 - Shared Tasks stays flat. It has no hierarchy placeholders, substeps, or AI drafting.
@@ -41,10 +41,6 @@ Plan is a compact outline of directions and actionable steps. Keep the forest pa
 
 Offer every unfinished hierarchy level grouped by direction. Finished on a parent selects its descendants; Finished on every child never selects the parent. Clearing a child clears ancestor Finished while retaining Worked on. Persist the reconciled selection in the saved draft. Count session minutes once.
 
-## AI
+## Types
 
-AI drafting remains secondary and marked Beta. Learning questions and generated proposals are drafts. Never add suggestions automatically: require selection and Add selected.
-
-## Responsive checks
-
-Check 375px, tablet, short landscape, and desktop in both themes. Preserve visible keyboard focus and 44px primary touch targets. Long titles wrap in Plan; queue titles expose full text via their title attribute and picker.
+Projects unify work and learning into one structured card with tasks and one subtask level. Tasks is the shared flat list. There are only two creation choices. AI planning and clarification wizards are removed; manual editing and hierarchy behavior remain.

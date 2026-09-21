@@ -92,32 +92,6 @@ class ReorderPayload(BaseModel):
         return value
 
 
-class SuggestedSubtask(TitledPayload):
-    pass
-
-
-class ClarificationQuestion(BaseModel):
-    id: str = Field(min_length=1, max_length=40)
-    question: str = Field(min_length=1, max_length=500)
-
-
-class LearningAnswer(BaseModel):
-    id: str = Field(min_length=1, max_length=40)
-    answer: str = Field(min_length=1, max_length=2000)
-
-    @field_validator("answer")
-    @classmethod
-    def normalize_answer(cls, value: str) -> str:
-        answer = value.strip()
-        if not answer:
-            raise ValueError("Answer must not be blank")
-        return answer
-
-
-class LearningBreakdownRequest(BaseModel):
-    answers: list[LearningAnswer] = Field(min_length=1, max_length=6)
-
-
 def utc_timestamp(value: datetime) -> datetime:
     if value.tzinfo is None:
         raise ValueError("Use an ISO timestamp with a timezone offset")

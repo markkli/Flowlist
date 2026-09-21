@@ -118,3 +118,20 @@ test('a daylight-saving week uses an agenda and distinguishes the clock offsets'
   await page.locator('.history-block').click();
   await expect(page.locator('.history-block-list')).toContainText('1:50 AM CST–3:10 AM CDT · 20 min');
 });
+
+test('24-hour scale is stable and seven-second sessions remain accessible without inflated blocks',async({page})=>{
+  const {sessions}=await setup(page);
+  sessions.push({...structuredClone(blockSession),id:3,task_title:'A brief check',actual_minutes:0,blocks:[{id:3,started_at:'2026-09-20T03:48:00',ended_at:'2026-09-20T03:48:07'}]});
+  await page.getByRole('button',{name:'This week',exact:true}).click();
+  await expect(page.locator('.history-time-axis > span')).toHaveCount(24);
+  await expect(page.locator('.history-time-axis')).toContainText('00:00');
+  await expect(page.locator('.history-time-axis')).toContainText('23:00');
+  await expect(page.locator('.history-block')).toHaveCount(2);
+  const heights=await page.locator('.history-block').evaluateAll(elements=>elements.map(el=>el.getBoundingClientRect().height));
+  expect(heights).toEqual([25,30]);
+  await expect(page.locator('.history-day-body').first()).toHaveCSS('height','1440px');
+  await page.locator('.history-brief-strip summary').click();
+  await expect(page.getByRole('button',{name:/7s · A brief check/})).toBeVisible();
+  await page.getByRole('button',{name:/7s · A brief check/}).click();
+  await expect(page.getByRole('dialog',{name:'A brief check',exact:true})).toBeVisible();
+});

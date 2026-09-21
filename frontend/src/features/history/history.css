@@ -138,3 +138,15 @@
   .history-block.is-tiny > * { visibility:visible; }
   .history-brief-strip { display:block; }
 }
+
+.history-time-axis > span { transform:translateY(2px); }
+.history-block.is-short:not(.is-tiny) { padding:2px 4px; }
+.history-block.is-short:not(.is-tiny) .history-block-time { display:none; }
+.history-block.is-short:not(.is-tiny) strong { margin:0; }
+.history-brief-strip details[open] { max-height:220px; overflow:auto; }
+@media(max-width:760px) { .history-block.is-short:not(.is-tiny) { padding:8px 10px; } .history-block.is-short:not(.is-tiny) .history-block-time { display:block; } }
+.as-agenda .history-block.is-short:not(.is-tiny) { padding:8px 10px; }
+.as-agenda .history-block.is-short:not(.is-tiny) .history-block-time { display:block; }
+
+.as-agenda .history-block.is-tiny { padding:8px 10px; }
+.as-agenda .history-block.is-tiny > * { visibility:visible; }

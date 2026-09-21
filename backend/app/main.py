@@ -16,4 +16,4 @@ for module in (goals, tasks, sessions, dashboard, queue, history):
 @app.get("/health")
 def health(db: Session = Depends(get_db)):
     db.execute(select(1))
-    return {"ok": True, "database": "connected", "ai_breakdown_configured": bool(os.getenv("OPENAI_API_KEY"))}
+    return {"ok": True, "database": "connected", "ai_titles_configured": bool(os.getenv("OPENAI_API_KEY"))}

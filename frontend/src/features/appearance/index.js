@@ -1,5 +1,6 @@
 import { syncDialogs, trapFocus } from '../../shared/dom';
 import './appearance.css';
+import './palettes.css';
 
 const KEY = 'flowlist-appearance-v1';
 const PRESETS = [
@@ -28,6 +29,7 @@ export function initAppearance({showToast}) {
   const planToggle = document.getElementById('plan-artwork');
   const render = () => {
     const preset = PRESETS.find(p=>p.id===preferences.preset);
+    document.documentElement.dataset.appearance = preset.id;
     document.documentElement.style.setProperty('--scene-light',preset.light);
     document.documentElement.style.setProperty('--scene-dark',preset.dark);
     for (const [panel,image,enabled] of [
@@ -59,7 +61,8 @@ export function initAppearance({showToast}) {
     radio.addEventListener('change',()=>{ preferences.preset = preset.id; save(); });
     const preview = document.createElement('span'); preview.className = 'appearance-preview'; preview.setAttribute('aria-hidden','true');
     if (preset.image) preview.style.backgroundImage = `url('/images/focus-${preset.image}.webp')`;
-    preview.style.backgroundColor = preset.light;
+    preview.style.setProperty('--swatch-light',preset.light);
+    preview.style.setProperty('--swatch-dark',preset.dark);
     const copy = document.createElement('span'); copy.className='appearance-choice-copy'; copy.textContent = preset.name;
     label.append(radio,preview,copy);
     if (preset.note) { const note = document.createElement('small'); note.textContent = preset.note; label.append(note); }

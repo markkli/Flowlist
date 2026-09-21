@@ -1,0 +1,53 @@
+/* Presets define the application palette, not just the cover artwork.
+   Legacy forest/sage/sand tokens alias semantic roles for existing features. */
+:root[data-appearance] {
+  --tone-h: 82; --tone-s: 13%;
+  --accent-light: #3e5233; --accent-dark: #bccba7;
+  --bg: hsl(var(--tone-h) var(--tone-s) 91%);
+  --sidebar: hsl(var(--tone-h) var(--tone-s) 86%);
+  --surface: hsl(var(--tone-h) var(--tone-s) 95%);
+  --surface-strong: hsl(var(--tone-h) var(--tone-s) 98%);
+  --surface-muted: hsl(var(--tone-h) var(--tone-s) 86%);
+  --ink: hsl(var(--tone-h) 18% 10%);
+  --muted: hsl(var(--tone-h) 10% 36%);
+  --faint: hsl(var(--tone-h) 8% 40%);
+  --accent: var(--accent-light);
+  --on-accent: var(--surface-strong);
+  --accent-soft: color-mix(in srgb,var(--accent) 14%,var(--surface));
+  --border: color-mix(in srgb,var(--accent) 20%,transparent);
+  --border-strong: color-mix(in srgb,var(--accent) 35%,transparent);
+  --focus-ring: var(--accent);
+  --forest: var(--accent); --sage: var(--accent-soft); --sand: var(--accent);
+  --on-forest: var(--on-accent);
+  --control-fill: var(--surface-strong);
+  --row-hover: color-mix(in srgb,var(--accent) 6%,transparent);
+  --heat-0: var(--surface-muted);
+  --heat-1: color-mix(in srgb,var(--accent) 24%,var(--surface));
+  --heat-2: color-mix(in srgb,var(--accent) 48%,var(--surface));
+  --heat-3: color-mix(in srgb,var(--accent) 74%,var(--surface));
+  --heat-4: var(--accent);
+  --shadow-1: 0 1px 2px #00000008, 0 8px 24px #0000000a;
+  --shadow-2: 0 20px 60px #00000029;
+  --hero-base: var(--surface);
+}
+:root[data-appearance][data-theme="dark"] {
+  --bg: hsl(var(--tone-h) var(--tone-s) 7%);
+  --sidebar: hsl(var(--tone-h) var(--tone-s) 9%);
+  --surface: hsl(var(--tone-h) var(--tone-s) 11%);
+  --surface-strong: hsl(var(--tone-h) var(--tone-s) 14%);
+  --surface-muted: hsl(var(--tone-h) var(--tone-s) 18%);
+  --ink: hsl(var(--tone-h) 14% 93%);
+  --muted: hsl(var(--tone-h) 12% 73%);
+  --faint: hsl(var(--tone-h) 10% 62%);
+  --accent: var(--accent-dark);
+  --on-accent: var(--bg);
+  --shadow-1: 0 1px 2px #0003, 0 12px 36px #0003;
+  --shadow-2: 0 28px 90px #0008;
+  --hero-base: var(--bg);
+}
+:root[data-appearance="coast"] { --tone-h:205; --tone-s:18%; --accent-light:#315e79; --accent-dark:#a5cbe2; }
+:root[data-appearance="hills"] { --tone-h:35; --tone-s:23%; --accent-light:#735333; --accent-dark:#d7bc95; }
+:root[data-appearance="linen"] { --tone-h:38; --tone-s:16%; --accent-light:#645541; --accent-dark:#d1c3aa; }
+:root[data-appearance="sage"] { --tone-h:112; --tone-s:11%; --accent-light:#45644c; --accent-dark:#b3cbb6; }
+:root[data-appearance="slate"] { --tone-h:219; --tone-s:14%; --accent-light:#465d7c; --accent-dark:#b2c4df; }
+:root[data-appearance="clay"] { --tone-h:15; --tone-s:20%; --accent-light:#805243; --accent-dark:#dfb7a8; }

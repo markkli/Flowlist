@@ -1,6 +1,6 @@
 # Flowlist
 
-Flowlist is a private focus app: organize projects, learning objectives, and a
+Flowlist is a private focus app: organize projects and a
 shared Tasks list; run a focus ritual; then attribute the time to the work.
 
 ## Local development
@@ -106,7 +106,7 @@ development, and PostgreSQL for the container stack remain in place.
   Flat tasks do not reserve hierarchy columns. Feature styles live alongside
   their view code in `frontend/src/features/plan/plan.css` and
   `frontend/src/features/dashboard/queue.css`.
-- Projects and learning objectives support tasks plus one subtask level. The
+- Projects support tasks plus one subtask level. The
   shared Tasks list stays flat. Every task has a checkbox; parents also have a
   disclosure arrow. Explicitly completing a parent completes its descendants,
   while completing its subtasks leaves the parent open. Reopening a child
@@ -118,8 +118,9 @@ development, and PostgreSQL for the container stack remain in place.
   subtask list, preserving IDs, titles, completion states, history, and queue
   membership. It journals old structure for rollback and refuses to roll back
   after conflicting structural edits. Back up the database before upgrading.
-- AI planning produces proposals that require explicit selection. Learning
-  paths ask clarification questions first.
+- Planning is manual: Projects hold tasks and one subtask level; Tasks stays flat.
+  Legacy learning projects migrate without changing task or history IDs.
+
 - Start a ritual without choosing a task. Defaults are 25 minutes of focus,
   5 minutes of rest, and a 15-minute break after four rounds. Settings apply to
   the next ritual. Skip credits only elapsed focus, never break time. Minutes
@@ -186,3 +187,17 @@ responses and isolated browser profiles, never the user's database. Timer tests
 cover skipped blocks, long breaks, sleep recovery, and long rituals. Playwright
 checks draft recovery, failed saves, safe title rendering, history Undo,
 keyboard behavior, navigation, and responsive layouts.
+
+## Appearance and launch planning
+
+The toolbar's Appearance button selects Grove, Coast, or Hills artwork, or Linen,
+Sage, Slate, or Clay solids. Artwork can be switched off independently for Focus
+and Plan. Every preset also colors the full workspace, timer, controls, and heatmap
+in light and dark modes. Turning artwork off preserves the palette. Choices persist on this device. See [asset provenance and prompts](docs/APPEARANCE-ASSETS.md).
+
+History uses a full 24-hour weekly grid with proportional blocks. Focus intervals
+under five minutes are grouped in Brief sessions and still open their original
+ritual. Narrow screens and daylight-saving transition weeks use a readable agenda.
+
+See [the shipping review](docs/SHIPPING.md) for auth/ownership requirements,
+recommended managed database setup, and the web → macOS → iOS roadmap.

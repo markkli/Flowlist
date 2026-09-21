@@ -126,7 +126,7 @@ test('Plan has two creation choices and no AI drafting actions', async ({page}) 
   await expect(page.locator('.goal-type-label').first()).toHaveText('Project');
   await page.getByRole('button',{name:'Actions for Learn retrieval',exact:true}).click();
   await expect(page.getByRole('menuitem',{name:/Draft/})).toHaveCount(0);
-  await expect(page.getByRole('menuitem',{name:'Add subtask',exact:true})).toBeVisible();
+  await expect(page.getByRole('menuitem',{name:'Add a smaller step under Learn retrieval',exact:true})).toBeVisible();
 });
 
 test('leaf tasks can join the queue from Plan and parents cannot', async ({page}) => {
@@ -180,7 +180,7 @@ test('a subtask cannot create a third level', async ({page}) => {
 test('floating navigation stays fixed, uses minimal space, and hides on short plans and other views', async ({page}) => {
   await page.setViewportSize({width:768,height:600});
   await page.goto('/#goals');
-  const rail=page.getByRole('navigation',{name:'Jump to a direction'});
+  const rail=page.getByRole('navigation',{name:'Jump to a project'});
   await expect(rail).toBeVisible();
   const initial=(await rail.boundingBox())!;
   expect(initial.width).toBeLessThanOrEqual(44);
@@ -210,7 +210,7 @@ test('an overflowing navigator can reach its first and last direction', async ({
   await page.setViewportSize({width:768,height:600});
   await page.route('**/api/goals',route=>route.fulfill({json:Array.from({length:20},(_,i)=>({id:i+1,title:`Direction ${i+1}`,goal_type:'project',completed:false,position:i}))}));
   await page.goto('/#goals');
-  const rail=page.getByRole('navigation',{name:'Jump to a direction'});
+  const rail=page.getByRole('navigation',{name:'Jump to a project'});
   await expect(rail).toBeVisible();
   const first=rail.getByRole('button',{name:'Jump to Direction 1',exact:true});
   expect((await first.boundingBox())!.y).toBeGreaterThanOrEqual((await rail.boundingBox())!.y);

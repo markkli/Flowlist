@@ -36,6 +36,7 @@ test('timer minimizes, retains plan navigation and restores after refresh', asyn
   await page.clock.install();
   await page.goto('/');
   await page.getByRole('button',{name:/Start a 25-minute/}).click();
+  await expect(page.getByRole('dialog',{name:'Pomodoro timer'})).toBeVisible();
   await page.clock.fastForward(90000);
   await page.getByRole('button',{name:'Minimize timer'}).click();
   await page.getByRole('button',{name:'Plan',exact:true}).click();
@@ -143,7 +144,7 @@ test('missing-task capture defaults to Tasks, Enter adds it, and save cannot los
   await page.getByRole('button',{name:/Start a 25-minute/}).click();
   await page.locator('#focus-exit').click();
   await page.getByText('Add a missing task', {exact:true}).click();
-  await expect(page.getByLabel('List or direction')).toBeHidden();
+  await expect(page.getByLabel('List or project')).toBeHidden();
   await page.getByLabel('Task name', {exact:true}).fill('Reviewed the release');
   await page.getByRole('button',{name:'Save ritual',exact:true}).click();
   await expect(page.locator('#attribution-task-error')).toContainText('Add this task first');
@@ -166,11 +167,11 @@ test('capture remembers its organization and typed draft after refresh', async (
   await page.getByText('Add a missing task',{exact:true}).click();
   await page.getByLabel('Task name',{exact:true}).fill('Check spacing');
   await page.locator('#attribution-organize > summary').click();
-  await page.getByLabel('List or direction').selectOption('1');
+  await page.getByLabel('List or project').selectOption('1');
   await page.reload();
   await expect(page.getByLabel('Task name',{exact:true})).toBeVisible();
   await expect(page.getByLabel('Task name',{exact:true})).toHaveValue('Check spacing');
-  await expect(page.getByLabel('List or direction')).toHaveValue('1');
+  await expect(page.getByLabel('List or project')).toHaveValue('1');
   await expect(page.locator('#attribution-destination-label')).toContainText('Project');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
@@ -196,11 +197,11 @@ test('a failed task creation reuses the direction already created', async ({page
   await page.getByText('Add a missing task',{exact:true}).click();
   await page.getByLabel('Task name',{exact:true}).fill('Draft landing page');
   await page.locator('#attribution-organize > summary').click();
-  await page.getByLabel('List or direction').selectOption('__new__');
-  await page.getByLabel('Direction name',{exact:true}).fill('New direction');
+  await page.getByLabel('List or project').selectOption('__new__');
+  await page.getByLabel('Project name',{exact:true}).fill('New direction');
   await page.getByRole('button',{name:'Add task',exact:true}).click();
   await expect(page.locator('#attribution-task-error')).toContainText('Try again');
-  await expect(page.getByLabel('List or direction')).toHaveValue('2');
+  await expect(page.getByLabel('List or project')).toHaveValue('2');
   await page.getByRole('button',{name:'Add task',exact:true}).click();
   await expect(page.getByLabel('Worked on Draft landing page',{exact:true})).toBeChecked();
   expect(goalsCreated).toBe(1);
@@ -234,6 +235,8 @@ test('saved ritual includes actual focus intervals and excludes the break',async
   await page.route('**/api/sessions',async route=>{bodies.push(route.request().postDataJSON());await route.fulfill({json:{id:1}});});
   await page.goto('/');
   await page.getByRole('button',{name:/Start a 25-minute/}).click();
+  // Start acquires a browser lock asynchronously; wait for the running UI before advancing time.
+  await expect(page.locator('#focus-overlay')).toBeVisible();
   await expect(page.locator('#focus-phase-label')).toHaveText('Focus');
   await page.clock.fastForward(70000);
   await page.locator('#focus-skip').click();

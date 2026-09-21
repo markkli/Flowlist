@@ -25,10 +25,11 @@
 .focus-card.is-solid, .plan-cover.is-solid { background:var(--scene-light); }
 [data-theme="dark"] .focus-card.is-solid, [data-theme="dark"] .plan-cover.is-solid { background:var(--scene-dark); }
 .focus-card.is-solid::after, .focus-card.is-solid::before, .plan-cover.is-solid::before { display:none; }
-/* Keep the dial as the single start button; make its action explicit at rest. */
-#start-pomodoro .timer-time span { display:flex; align-items:center; justify-content:center; gap:7px; background:#e7d7bb; color:#242a21; border-radius:99px; padding:8px 13px; margin-top:12px; font-size:12px; letter-spacing:0; text-transform:none; box-shadow:0 2px 8px #0002; }
-#start-pomodoro .timer-time span::before { content:''; width:9px; height:10px; background:currentColor; clip-path:polygon(0 0,100% 50%,0 100%); }
-[data-theme="light"] #start-pomodoro .timer-time span { background:#2a3723; color:#fcfaf5; }
-#start-pomodoro .timer-play-mark { display:none; }
-#start-pomodoro:hover .timer-time span { filter:brightness(1.12); }
 @media(max-width:520px) { .appearance-modal { padding:20px; } .appearance-colors { grid-template-columns:repeat(2,minmax(0,1fr)); } .appearance-choice small { font-size:9px; } }
+
+.appearance-preview { background-color:var(--swatch-light); }
+[data-theme="dark"] .appearance-preview { background-color:var(--swatch-dark); }
+.appearance-choice input:focus-visible { outline:none; }
+
+.plan-cover::before { background:linear-gradient(90deg,color-mix(in srgb,var(--scene-light) 96%,transparent),color-mix(in srgb,var(--scene-light) 72%,transparent) 50%,color-mix(in srgb,var(--scene-light) 20%,transparent)),linear-gradient(0deg,color-mix(in srgb,var(--scene-light) 80%,transparent),transparent 65%); }
+[data-theme="dark"] .plan-cover::before { background:linear-gradient(90deg,color-mix(in srgb,var(--scene-dark) 96%,transparent),color-mix(in srgb,var(--scene-dark) 78%,transparent) 48%,color-mix(in srgb,var(--scene-dark) 28%,transparent)),linear-gradient(0deg,color-mix(in srgb,var(--scene-dark) 82%,transparent),transparent 70%); }
