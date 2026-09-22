@@ -1,16 +1,16 @@
 import {test,expect, type Page} from '@playwright/test';
 
-async function fakeNotifications(page:Page, permission='default', result='granted') {
-  await page.addInitScript(({permission,result})=>{
+async function fakeNotifications(page:Page, permission='default', result='granted', background=false) {
+  await page.addInitScript(({permission,result,background})=>{
     const log={requests:0,messages:[] as {title:string,options:NotificationOptions}[]};
     (window as any).__reminders=log;
-    Object.defineProperty(document,'hasFocus',{value:()=>false});
+    if(background) Object.defineProperty(document,'hasFocus',{value:()=>false});
     Object.defineProperty(window,'Notification',{configurable:true,value:class {
       static permission=permission;
       static async requestPermission(){log.requests++;this.permission=result;return result;}
       constructor(title:string,options:NotificationOptions){log.messages.push({title,options});}
     }});
-  },{permission,result});
+  },{permission,result,background});
 }
 
 test.beforeEach(async({context})=>{
@@ -29,11 +29,15 @@ test('every automatic interval gets a quiet notice without opening the timer or 
   await fakeNotifications(page);
   await page.clock.install();
   await startMinimized(page);
+  await page.getByRole('button',{name:'Project',exact:true}).click();
+  await page.locator('#goal-title').fill('An uninterrupted draft');
+  await expect(page.locator('#goal-title')).toBeFocused();
   for(let round=1;round<=4;round++) {
     await page.clock.fastForward(25*60000);
     await expect(page.locator('#app-toast')).toContainText(round===4?'Cycle complete. Long break started · 15 minutes.':`Focus round ${round} complete. Short break started · 5 minutes.`);
     await expect(page.locator('#focus-overlay')).toBeHidden();
-    await expect(page.getByRole('button',{name:'Plan',exact:true})).toBeFocused();
+    await expect(page.locator('#goal-title')).toBeFocused();
+    await expect(page.locator('#goal-title')).toHaveValue('An uninterrupted draft');
     await page.clock.fastForward((round===4?15:5)*60000);
     await expect(page.locator('#app-toast')).toContainText(`${round===4?'Long':'Short'} break complete. Focus round ${round===4?1:round+1} of 4 started`);
     await expect(page).toHaveURL(/#goals$/);
@@ -42,7 +46,7 @@ test('every automatic interval gets a quiet notice without opening the timer or 
 });
 
 test('desktop reminders require opt-in, persist, remain silent and can be turned off',async({page})=>{
-  await fakeNotifications(page,'granted');
+  await fakeNotifications(page,'granted','granted',true);
   await page.clock.install();
   await page.goto('/');
   await page.locator('#timer-settings-toggle').click();
@@ -91,9 +95,10 @@ test('manual skip and end do not send completion reminders',async({page})=>{
 
 test('two tabs advance a shared interval once and emit one desktop notice',async({page,context})=>{
   const other=await context.newPage();
+  // Playwright's clock is shared by every page in the browser context.
+  await page.clock.install({time:new Date('2026-09-20T12:00:00Z')});
   for(const tab of [page,other]) {
-    await fakeNotifications(tab,'granted');
-    await tab.clock.install({time:new Date('2026-09-20T12:00:00Z')});
+    await fakeNotifications(tab,'granted','granted',true);
   }
   await page.goto('/');
   await page.locator('#timer-settings-toggle').click();
@@ -101,7 +106,7 @@ test('two tabs advance a shared interval once and emit one desktop notice',async
   await page.getByRole('button',{name:'Close timer settings'}).click();
   await startMinimized(page);
   await other.goto('/');
-  await Promise.all([page.clock.fastForward(25*60000),other.clock.fastForward(25*60000)]);
+  await page.clock.fastForward(25*60000);
   for(const tab of [page,other]) await expect(tab.locator('#timer-mini-copy')).toContainText('Short break');
   const counts=await Promise.all([page,other].map(tab=>tab.evaluate(()=>(window as any).__reminders.messages.length)));
   expect(counts[0]+counts[1]).toBe(1);
