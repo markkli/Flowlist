@@ -25,7 +25,9 @@ an `onrender.com` address. Supabase remains the database and identity provider.
 
 Google stays hidden until its provider and exact callback are configured. See
 [BETA-SETUP.md](BETA-SETUP.md) for that separate setup and release acceptance
-checks. An unconfirmed initial account verifies its email during sign-in.
+checks. An unconfirmed initial account must complete email verification first;
+OTP login for an unconfirmed account fails while public signups are disabled.
+See the invitation setup in BETA-SETUP.md. Keep public signup disabled.
 
 ## Releases and limits
 
