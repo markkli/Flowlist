@@ -38,7 +38,7 @@ Google sign-in itself does not need an SMTP service; the email-code option still
 
 Point a beta subdomain at the host. Only ports 80 and 443 are public. Caddy provides HTTPS; Nginx serves the built website and proxies `/api` internally. PostgreSQL remains managed by Supabase. The current application needs no native packaging, Kubernetes, or framework rewrite.
 
-Copy `deploy/beta.env.example` to `.env.beta` (ignored by Git), then fill its values using the host's secret settings. URL-encode special characters in database passwords and require TLS. Use Supabase's session pooler if the host cannot connect to its direct database IPv6 address. For a custom Supabase auth domain, update the gateway's `connect-src` CSP to that exact origin.
+Copy `deploy/beta.env.example` to `.env.beta` (ignored by Git), then fill its values using the host's secret settings. URL-encode special characters in database passwords and use `sslmode=verify-full`. The beta containers supply the bundled Supabase CA through `PGSSLROOTCERT`; local administrator commands need that variable set to the absolute path of `backend/certs/supabase-prod-ca-2021.crt`. Use Supabase's session pooler if the host cannot connect to its direct database IPv6 address. Pooler usernames include the project reference, such as `flowlist_api.YOUR_PROJECT_REF`. For a custom Supabase auth domain, update the gateway's `connect-src` CSP to that exact origin.
 
 The frontend gets its public config from `/api/config` at runtime. The same frontend artifact can be promoted to staging/production without embedding privileged keys. Missing auth config fails closed. `FLOWLIST_AUTH_MODE=local` is rejected when `FLOWLIST_ENV=production`.
 

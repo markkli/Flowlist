@@ -7,6 +7,20 @@ from pathlib import Path
 import pytest
 
 
+def test_migration_url_preserves_percent_escapes(tmp_path):
+    root = Path(__file__).resolve().parents[1]
+    # Exercise Alembic's real ConfigParser path with the same percent sequences
+    # that occur in URL-encoded PostgreSQL passwords, without a live database.
+    database = tmp_path / 'encoded%40%25.db'
+    env = {**os.environ, 'DATABASE_URL': f'sqlite:///{database}', 'OPENAI_API_KEY': ''}
+    subprocess.run(
+        [str(root / '.venv/bin/alembic'), 'upgrade', 'head'],
+        cwd=root, env=env, check=True, capture_output=True,
+    )
+    with sqlite3.connect(database) as db:
+        assert db.execute('SELECT version_num FROM alembic_version').fetchone() == ('20260921_14',)
+
+
 def test_upgrade_and_downgrade_preserve_existing_records(tmp_path):
     root = Path(__file__).resolve().parents[1]
     database = tmp_path / 'migration.db'

@@ -8,7 +8,8 @@ from app import models  # noqa: F401 - importing registers every table with Base
 
 
 config = context.config
-config.set_main_option("sqlalchemy.url", DATABASE_URL)
+# ConfigParser treats percent signs as interpolation, including encoded passwords.
+config.set_main_option("sqlalchemy.url", DATABASE_URL.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
