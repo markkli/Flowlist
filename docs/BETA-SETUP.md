@@ -36,6 +36,10 @@ Google sign-in itself does not need an SMTP service; the email-code option still
 
 ## 2. Choose a domain and a Docker-capable host
 
+For the initial Render beta, follow [RENDER-SETUP.md](RENDER-SETUP.md). It uses
+one service and Render's supplied HTTPS address, so a custom domain and the
+Compose gateway below are not needed for that deployment.
+
 Point a beta subdomain at the host. Only ports 80 and 443 are public. Caddy provides HTTPS; Nginx serves the built website and proxies `/api` internally. PostgreSQL remains managed by Supabase. The current application needs no native packaging, Kubernetes, or framework rewrite.
 
 Copy `deploy/beta.env.example` to `.env.beta` (ignored by Git), then fill its values using the host's secret settings. URL-encode special characters in database passwords and use `sslmode=verify-full`. The beta containers supply the bundled Supabase CA through `PGSSLROOTCERT`; local administrator commands need that variable set to the absolute path of `backend/certs/supabase-prod-ca-2021.crt`. Use Supabase's session pooler if the host cannot connect to its direct database IPv6 address. Pooler usernames include the project reference, such as `flowlist_api.YOUR_PROJECT_REF`. For a custom Supabase auth domain, update the gateway's `connect-src` CSP to that exact origin.

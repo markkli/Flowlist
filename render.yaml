@@ -1,0 +1,31 @@
+# Deploy from Render > New > Blueprint. Supabase is provisioned separately.
+services:
+  - type: web
+    name: flowlist-beta
+    runtime: docker
+    plan: free
+    dockerfilePath: ./deploy/render/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeployTrigger: "off"
+    envVars:
+      - key: FLOWLIST_ENV
+        value: production
+      - key: FLOWLIST_AUTH_MODE
+        value: supabase
+      - key: FLOWLIST_BETA_SIGNUPS
+        value: invite
+      - key: FLOWLIST_GOOGLE_LOGIN
+        value: "false"
+      - key: PGSSLROOTCERT
+        value: /app/certs/supabase-prod-ca-2021.crt
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: FLOWLIST_BETA_EMAILS
+        sync: false

@@ -1,0 +1,55 @@
+worker_processes auto;
+pid /tmp/flowlist-nginx.pid;
+error_log /dev/stderr crit;
+events { worker_connections 512; }
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    sendfile on;
+    server_tokens off;
+    client_body_temp_path /tmp/flowlist-client;
+    proxy_temp_path /tmp/flowlist-proxy;
+    fastcgi_temp_path /tmp/flowlist-fastcgi;
+    uwsgi_temp_path /tmp/flowlist-uwsgi;
+    scgi_temp_path /tmp/flowlist-scgi;
+    # Do not include OAuth callback queries, headers, or referrers in logs.
+    log_format flowlist '$remote_addr [$time_local] "$request_method $uri $server_protocol" $status $body_bytes_sent';
+    access_log /dev/stdout flowlist;
+    # Limit by the trusted socket peer. Do not trust arbitrary forwarded headers.
+    limit_req_zone $binary_remote_addr zone=flowlist_api:10m rate=5r/s;
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+    server {
+        listen ${PORT};
+        server_name _;
+        root /app/site;
+        index index.html;
+        client_max_body_size 1m;
+        add_header Strict-Transport-Security "max-age=31536000" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "no-referrer" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://*.supabase.co; font-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'" always;
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+        # Assets are small enough for no-store during the private beta. Keeping
+        # headers at server level also preserves them on assets and error pages.
+        add_header Cache-Control "no-store" always;
+
+        location ^~ /api/ {
+            limit_req zone=flowlist_api burst=30 nodelay;
+            limit_req_status 429;
+            proxy_read_timeout 30s;
+            proxy_pass http://127.0.0.1:8000/;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $remote_addr;
+            proxy_set_header X-Forwarded-Proto https;
+        }
+        location = /api { return 404; }
+        location ~ /\. { return 404; }
+        location ~* \.(?:css|js|webp|png|jpg|jpeg|svg|ico|woff2?|json|webmanifest)$ {
+            try_files $uri =404;
+        }
+        location / { try_files $uri $uri/ /index.html; }
+    }
+}
