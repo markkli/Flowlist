@@ -4,6 +4,10 @@ __pycache__
 .pytest_cache
 .env
 local-development.env
-flowlist.local.db
+flowlist.local.db*
 tests
 .DS_Store
+
+.env.*
+*.bak
+*.sqlite*

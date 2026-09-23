@@ -18,6 +18,7 @@ test.beforeEach(async ({page}) => {
   const queue = () => queueIds.map(id => ({task:tasks.find(t=>t.id===id),goal:goals.find(g=>g.id===tasks.find(t=>t.id===id)?.goal_id)}));
   await page.route('**/api/**', async route => {
     const path = new URL(route.request().url()).pathname.replace('/api','');
+    if (path === '/api/config' || path === '/config') return route.fulfill({json:{auth_mode:'local'}});
     const method = route.request().method();
     let json:any = {};
     if(path === '/dashboard') json={queue:queue(),goals:goals.map(goal=>({goal,tasks:tasks.filter(t=>t.goal_id===goal.id)})),stats:{current_streak:0,total_sessions:0,total_minutes:0},activity:[],week_sessions:0};

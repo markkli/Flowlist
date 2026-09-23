@@ -14,7 +14,7 @@ async function fakeNotifications(page:Page, permission='default', result='grante
 }
 
 test.beforeEach(async({context})=>{
-  await context.route('**/api/**',route=>route.fulfill({json:new URL(route.request().url()).pathname==='/api/dashboard' ? {queue:[],goals:[],stats:{current_streak:0,total_sessions:0,total_minutes:0},week_sessions:0,activity:[]} : []}));
+  await context.route('**/api/**',route=>route.fulfill({json:new URL(route.request().url()).pathname==='/api/config' ? {auth_mode:'local'} : new URL(route.request().url()).pathname==='/api/dashboard' ? {queue:[],goals:[],stats:{current_streak:0,total_sessions:0,total_minutes:0},week_sessions:0,activity:[]} : []}));
 });
 
 async function startMinimized(page:Page) {

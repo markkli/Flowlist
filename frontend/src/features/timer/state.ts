@@ -1,5 +1,8 @@
+import { accountKey, accountId } from '../../shared/account';
 import type { SessionPayload, Selection, FocusBlockInput } from '../../shared/types';
 export const RITUAL_KEY = 'flowlist-ritual-v2';
+export const ritualKey = () => accountKey(RITUAL_KEY);
+export const ritualDraftKey = () => accountKey('flowlist-ritual-draft');
 export interface TimerSettings { focus: number; break: number; rounds: number; longBreak: number }
 export const defaults: TimerSettings = { focus: 25, break: 5, rounds: 4, longBreak: 15 };
 export type Phase = 'focus' | 'break' | 'awaiting-attribution' | 'saving' | 'saved';
@@ -51,8 +54,22 @@ export function payload(state: Ritual): SessionPayload {
 }
 export function readRitual(storage: Storage = localStorage): Ritual | null {
   try {
-    const value = JSON.parse(storage.getItem(RITUAL_KEY) || 'null') as Ritual | null;
+    const value = JSON.parse(storage.getItem(ritualKey()) || 'null') as Ritual | null;
     if (!value) return null;
+    // Input events save this small snapshot synchronously. A refresh must not
+    // outrun the asynchronous cross-tab lock used for timer transitions.
+    try {
+      const draft = JSON.parse(storage.getItem(ritualDraftKey()) || 'null');
+      if (draft?.ritualId === value.id && ['awaiting-attribution','saving'].includes(value.phase)
+          && typeof draft.summary === 'string' && Array.isArray(draft.selections)
+          && draft.selections.every((item: Selection) => Number.isInteger(item.task_id) && typeof item.completed === 'boolean')
+          && ['draftTask','draftDestination','draftGroup','draftGroupType'].every(key => typeof draft[key] === 'string')) {
+        for (const key of ['summary','selections','draftTask','draftDestination','draftGroup','draftGroupType'] as const) {
+          (value as any)[key] = draft[key];
+        }
+      }
+    } catch { /* A damaged draft does not invalidate the saved ritual. */ }
+
     if (!value.id || !validSettings(value.settings) || !['focus','break','awaiting-attribution','saving','saved'].includes(value.phase) || !Number.isFinite(value.elapsedSeconds) || value.elapsedSeconds < 0 || !Number.isFinite(value.deadline) || !Number.isFinite(value.blockSeconds) || value.blockSeconds <= 0 || typeof value.summary !== "string" || !Array.isArray(value.selections) || !value.selections.every(item => Number.isInteger(item.task_id) && typeof item.completed === "boolean") || !Number.isInteger(value.round) || value.round < 1 || value.round > value.settings.rounds) return null;
     if (value.blocks !== undefined && (!Number.isFinite(value.startedAt) || !Array.isArray(value.blocks) || !value.blocks.every(block =>
       typeof block.started_at === 'string' && typeof block.ended_at === 'string' && Number.isFinite(Date.parse(block.started_at)) && Date.parse(block.ended_at) > Date.parse(block.started_at)
@@ -61,7 +78,8 @@ export function readRitual(storage: Storage = localStorage): Ritual | null {
   } catch { return null; }
 }
 export function migrateLegacy(settings: TimerSettings): Ritual | null {
-  if (localStorage.getItem(RITUAL_KEY)) return readRitual();
+  if (localStorage.getItem(ritualKey())) return readRitual();
+  if (accountId()) return null; // Never claim a legacy local draft for a signed-in user.
   try {
     const timer = JSON.parse(localStorage.getItem('flowlist-active-focus') || 'null');
     const old = JSON.parse(localStorage.getItem('flowlist-focus-ritual') || 'null');
@@ -73,7 +91,7 @@ export function migrateLegacy(settings: TimerSettings): Ritual | null {
       state.phase = timer.phase; state.deadline = timer.deadline; state.blockSeconds = Number(timer.planned_seconds) || Number(timer.planned_minutes) * 60 || settings.focus * 60;
       state.round = timer.round_number || 1; state.breakKind = timer.break_kind || 'short';
     } else { state.phase = 'awaiting-attribution'; }
-    localStorage.setItem(RITUAL_KEY, JSON.stringify(state));
+    localStorage.setItem(ritualKey(), JSON.stringify(state));
     ['flowlist-active-focus','flowlist-focus-ritual','flowlist-pomodoro-cycle'].forEach(key => localStorage.removeItem(key));
     return state;
   } catch { return null; }

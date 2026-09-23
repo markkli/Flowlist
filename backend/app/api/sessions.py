@@ -1,4 +1,5 @@
 import os
+import hashlib
 from datetime import datetime, timezone
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import select
@@ -14,6 +15,8 @@ router = APIRouter()
 
 @router.post("/sessions", response_model=schemas.FocusSession)
 def log_session(session: schemas.FocusSessionCreate, background: BackgroundTasks, db: Session = Depends(get_db)):
+    if session.client_id and db.info.get("owner_id"):
+        session.client_id = hashlib.sha256(f"{db.info['owner_id']}:{session.client_id}".encode()).hexdigest()
     if session.client_id:
         existing = db.scalar(select(FocusSessionModel).where(FocusSessionModel.client_id == session.client_id))
         if existing:
@@ -70,7 +73,7 @@ def log_session(session: schemas.FocusSessionCreate, background: BackgroundTasks
         )
     db.commit()
     db.refresh(new_session)
-    if os.getenv("OPENAI_API_KEY") and ((stored_summary and (len(stored_summary) > 80 or len(stored_summary.split()) > 12)) or (not stored_summary and len(selected_tasks) > 1)):
+    if os.getenv("FLOWLIST_AUTH_MODE") == "local" and os.getenv("OPENAI_API_KEY") and ((stored_summary and (len(stored_summary) > 80 or len(stored_summary.split()) > 12)) or (not stored_summary and len(selected_tasks) > 1)):
         background.add_task(improve_focus_title, new_session.id, stored_summary, [f"{task.title} — {task.goal.title}" for task in selected_tasks])
     return new_session
 

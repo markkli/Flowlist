@@ -23,6 +23,7 @@ async function openCheckout(page: Page, selections: {task_id: number; completed:
   }, {selections});
   await page.route('**/api/**', async route => {
     const path = new URL(route.request().url()).pathname;
+    if (path === '/api/config' || path === '/config') return route.fulfill({json:{auth_mode:'local'}});
     let json: any = {};
     const currentTasks = tasks.map(task => ({...task, completed: completedIds.has(task.id)}));
     if (path === '/api/goals') json = [project, learning];

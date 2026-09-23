@@ -6,6 +6,7 @@ const dashboard = {queue:[{task,goal}],goals:[{goal,tasks:[task]}],stats:{curren
 test.beforeEach(async ({page}) => {
   await page.route('**/api/**', async route => {
     const path = new URL(route.request().url()).pathname;
+    if (path === '/api/config' || path === '/config') return route.fulfill({json:{auth_mode:'local'}});
     let json:any = {};
     if(path === '/api/dashboard') json=dashboard;
     if(path === '/api/goals') json=[goal];

@@ -17,6 +17,8 @@ services:
   backend:
     build: ./backend
     environment:
+      FLOWLIST_AUTH_MODE: local
+      FLOWLIST_ENV: development
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-flowlist}:${POSTGRES_PASSWORD:-change-me-before-deploying}@db:5432/${POSTGRES_DB:-flowlist}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_FOCUS_TITLE_MODEL: ${OPENAI_FOCUS_TITLE_MODEL:-gpt-5.4-mini}

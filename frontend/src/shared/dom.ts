@@ -4,12 +4,14 @@ export function escapeHtml(value: unknown): string {
 }
 export function trapFocus(event: KeyboardEvent, container: HTMLElement): void {
   if (event.key !== 'Tab') return;
-  const items = [...container.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])')].filter(el => !el.hidden && el.offsetParent !== null);
+  const items = [...container.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])')].filter(el => !el.hidden && el.tabIndex >= 0 && el.offsetParent !== null);
   if (!items.length) { event.preventDefault(); container.focus(); return; }
-  const first = items[0], last = items[items.length - 1];
-  if (!container.contains(document.activeElement) || document.activeElement === container || (event.shiftKey && document.activeElement === first)) {
-    event.preventDefault(); (event.shiftKey ? last : first).focus();
-  } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  // Safari may skip buttons during native tab navigation. Move explicitly so
+  // every dialog control remains reachable and focus cannot leave the modal.
+  event.preventDefault();
+  const current = items.indexOf(document.activeElement as HTMLElement);
+  const next = current < 0 ? (event.shiftKey ? items.length - 1 : 0) : (current + (event.shiftKey ? -1 : 1) + items.length) % items.length;
+  items[next].focus();
 }
 
 export function syncDialogs(): void {

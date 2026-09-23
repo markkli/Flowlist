@@ -24,6 +24,7 @@ To run the servers separately:
 
 ```bash
 # Terminal 1, from backend (configure DATABASE_URL first)
+export FLOWLIST_AUTH_MODE=local FLOWLIST_ENV=development
 .venv/bin/alembic upgrade head
 .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
 
@@ -40,7 +41,8 @@ with `python -m http.server` or open `index.html` directly.
 ```bash
 npm --prefix frontend run build
 cd backend
-# Configure DATABASE_URL, then:
+# Configure DATABASE_URL, then explicitly select private local mode:
+export FLOWLIST_AUTH_MODE=local FLOWLIST_ENV=development
 .venv/bin/alembic upgrade head
 .venv/bin/uvicorn preview:app --host 127.0.0.1 --port 8010
 ```
@@ -56,7 +58,7 @@ docker compose up --build
 
 The Compose stack uses PostgreSQL, FastAPI, and Nginx. The frontend is exposed
 on **127.0.0.1:8080 only**; the API and database stay inside the Docker network.
-Authentication and per-user ownership are deliberately deferred until shipping.
+The website beta includes Supabase email-code authentication, optional Google sign-in, and per-user ownership. Local development remains explicitly single-user. See [beta setup](docs/BETA-SETUP.md) for provider configuration before hosting.
 Do not expose this single-user build publicly. Back up the database before
 upgrades. `.env` files, database files, logs, builds, and caches are ignored.
 
@@ -215,3 +217,7 @@ ritual. Narrow screens and daylight-saving transition weeks use a readable agend
 
 See [the shipping review](docs/SHIPPING.md) for auth/ownership requirements,
 recommended managed database setup, and the web → macOS → iOS roadmap.
+
+## Website beta
+
+See [BETA-SETUP.md](docs/BETA-SETUP.md) for Supabase/SMTP setup, invite-only access, PostgreSQL release migrations, HTTPS deployment, explicit local-data import, and the remaining hosted acceptance checks.

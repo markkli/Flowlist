@@ -1,3 +1,4 @@
+import { accountKey } from '../../shared/account';
 import { api } from '../../shared/api';
 import { escapeHtml, syncDialogs } from '../../shared/dom';
 import './plan.css';
@@ -19,8 +20,8 @@ const goalComposer = document.getElementById("goal-composer");
 const completedDirections = document.getElementById("completed-directions");
 const completedDirectionsList = document.getElementById("completed-directions-list");
 const completedDirectionsCount = document.getElementById("completed-directions-count");
-const COLLAPSED_TASKS_KEY = "flowlist-collapsed-plan-sections";
-const COLLAPSED_GOALS_KEY = "flowlist-collapsed-directions";
+const COLLAPSED_TASKS_KEY = accountKey("flowlist-collapsed-plan-sections");
+const COLLAPSED_GOALS_KEY = accountKey("flowlist-collapsed-directions");
 let activeGoalCreateType = "project";
 let planGoalsCache = [];
 let draggingTaskId = null;

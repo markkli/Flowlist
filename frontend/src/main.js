@@ -1,3 +1,4 @@
+import { initAuth } from './features/auth';
 import '../styles.css';
 import { observeDialogs } from './shared/dom';
 observeDialogs();
@@ -64,6 +65,8 @@ document.getElementById("theme-toggle").addEventListener("click", () => {
 });
 
 
+async function boot() {
+if (!await initAuth()) return;
 const appearance = initAppearance({ showToast });
 const plan = initPlan({ showToast });
 const dashboard = initDashboard({ setDateCopy, showToast });
@@ -106,3 +109,6 @@ document.addEventListener('keydown', event => { if (!appearance.handleKey(event)
 setDateCopy();
 switchView(location.hash.slice(1));
 if (['goals','history'].includes(location.hash.slice(1))) dashboard.loadDashboard().catch(error => showToast(error.message,true));
+
+}
+boot().catch(error=>{document.getElementById("auth-error").textContent=error.message;});

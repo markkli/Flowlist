@@ -32,6 +32,7 @@ async function mockQueueApi(page: Page, initialQueue: number[] = []) {
   await page.route('**/api/**', async route => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^\/api/, '');
+    if (path === '/api/config' || path === '/config') return route.fulfill({json:{auth_mode:'local'}});
     const method = request.method();
     const body = request.postData() ? request.postDataJSON() : null;
     if (method !== 'GET') state.writes.push({ method, path, body });

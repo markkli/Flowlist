@@ -20,6 +20,8 @@ cd "$BACKEND_DIR"
 set -a
 source local-development.env
 set +a
+# This script is explicitly for the private loopback development app.
+export FLOWLIST_AUTH_MODE=local FLOWLIST_ENV=development
 
 # Keep SQLite for quick mode, but reuse an existing key from backend/.env when
 # the quick-local file leaves AI disabled. The secret stays in the environment.

@@ -1,5 +1,6 @@
+import { accountKey, accountLocked } from '../../shared/account';
 const PREFERENCE_KEY = 'flowlist-desktop-reminders';
-const NOTICE_KEY = 'flowlist-interval-notice';
+const NOTICE_KEY = () => accountKey('flowlist-interval-notice');
 
 function reminderCopy(previous, next) {
   if (previous.phase === 'focus') {
@@ -54,7 +55,7 @@ export function initReminders({ showToast }) {
     if (event.key === PREFERENCE_KEY || event.key === null) render();
     // The tab which advances the shared timer owns the desktop notification.
     // Other tabs show only the same gentle in-app message, without moving focus.
-    if (event.key === NOTICE_KEY && event.newValue) {
+    if (!accountLocked() && event.key === NOTICE_KEY() && event.newValue) {
       try {
         const notice = JSON.parse(event.newValue);
         if (typeof notice.title === 'string' && typeof notice.body === 'string' && Math.abs(Date.now() - notice.at) < 15000) showInApp(notice);
@@ -68,7 +69,7 @@ export function initReminders({ showToast }) {
     notify(previous, next) {
       const notice = {...reminderCopy(previous, next), at: Date.now(), id: `${previous.id}:${previous.deadline}`};
       showInApp(notice);
-      try { localStorage.setItem(NOTICE_KEY, JSON.stringify(notice)); } catch { /* Timer remains usable if notice storage is unavailable. */ }
+      try { localStorage.setItem(NOTICE_KEY(), JSON.stringify(notice)); } catch { /* Timer remains usable if notice storage is unavailable. */ }
       readPreference();
       if (!supported || !enabled || Notification.permission !== 'granted' || (document.visibilityState === 'visible' && document.hasFocus())) return;
       try {

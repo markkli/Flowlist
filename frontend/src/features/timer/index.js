@@ -1,13 +1,14 @@
+import { accountKey, accountLocked } from '../../shared/account';
 import { api } from '../../shared/api';
 import { escapeHtml, trapFocus, syncDialogs as syncModal } from '../../shared/dom';
-import { RITUAL_KEY, defaults, validSettings, freshRitual, readRitual, migrateLegacy, advance, remaining, payload } from './state';
+import { ritualKey, ritualDraftKey, defaults, validSettings, freshRitual, readRitual, migrateLegacy, advance, remaining, payload } from './state';
 import './attribution.css';
 import { initReminders } from './reminders';
 
 export function initTimer({ showToast, loadGoals, loadDashboard }) {
 const reminders = initReminders({ showToast });
 const formatTime = seconds => `${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
-const TIMER_SETTINGS_KEY = 'flowlist-timer-settings';
+const TIMER_SETTINGS_KEY = accountKey('flowlist-timer-settings');
 let timerSettings = {...defaults};
 try { const saved = JSON.parse(localStorage.getItem(TIMER_SETTINGS_KEY)); if (validSettings(saved)) timerSettings = saved; } catch {}
 let state = migrateLegacy(timerSettings);
@@ -30,15 +31,17 @@ const longBreakMinutesSetting = document.getElementById('long-break-minutes-sett
 const timerSettingsError = document.getElementById('timer-settings-error');
 
 async function mutate(change) {
+  if (accountLocked()) return;
   const work = () => {
+    if (accountLocked()) return;
     const latest = readRitual();
     const next = change(latest);
     if (next === undefined) { state = latest; return; }
-    if (next) localStorage.setItem(RITUAL_KEY, JSON.stringify(next));
-    else localStorage.removeItem(RITUAL_KEY);
+    if (next) localStorage.setItem(ritualKey(), JSON.stringify(next));
+    else localStorage.removeItem(ritualKey());
     state = next;
   };
-  if (navigator.locks) await navigator.locks.request('flowlist-ritual', work); else work();
+  if (navigator.locks) await navigator.locks.request(accountKey('flowlist-ritual'), work); else work();
   renderTimer();
 }
 function renderSettings() {
@@ -73,6 +76,7 @@ timerSettingsForm.addEventListener('submit', event => {
   showToast('Settings saved for your next ritual.');
 });
 function renderTimer() {
+  if (accountLocked()) return;
   const running = state && ['focus','break'].includes(state.phase);
   const pending = state && ['awaiting-attribution','saving'].includes(state.phase);
   mini.classList.toggle('hidden', !running && !pending);
@@ -122,13 +126,14 @@ document.getElementById('timer-mini-end').addEventListener('click', () => transi
 document.getElementById('focus-skip').addEventListener('click', () => transition());
 let ticking = false;
 setInterval(async () => {
+  if (accountLocked()) return;
   renderTimer();
   if (ticking || !state || !['focus','break'].includes(state.phase) || remaining(state) > 0) return;
   ticking = true;
   try { await transition(false, state.deadline); } finally { ticking = false; }
 }, 1000);
 window.addEventListener('storage', event => {
-  if (event.key !== RITUAL_KEY) return;
+  if (accountLocked() || event.key !== ritualKey()) return;
   state = readRitual();
   if (!state || state.phase === 'saved') {
     pendingSession = null; attributionOverlay.classList.add('hidden');
@@ -517,6 +522,8 @@ async function persistDraft() {
   const id = pendingSession.client_id;
   const tasks = !optionsReady ? (state?.selections || []) : [...currentAttributionSelections()].filter(([,value]) => value.worked).map(([task_id,value]) => ({task_id, completed:value.finished}));
   const draft = {summary: sessionSummary.value, selections:tasks, draftTask:attributionNewTask.value, draftDestination:attributionTaskDestination.value, draftGroup:attributionNewGroupName.value, draftGroupType:'project'};
+  if (accountLocked()) return;
+  localStorage.setItem(ritualDraftKey(), JSON.stringify({ritualId:id, ...draft}));
   await mutate(latest => latest?.id === id && latest.phase !== 'saved' ? {...latest, ...draft} : undefined);
 }
 const attributionForm = document.getElementById('session-attribution-form');

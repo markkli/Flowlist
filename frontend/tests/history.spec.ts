@@ -12,6 +12,7 @@ async function setup(page: Page) {
   const updates:any[]=[];let taskWrites=0;
   await page.route('**/api/**',async route=>{
     const url=new URL(route.request().url()),path=url.pathname,method=route.request().method();let json:any={};
+    if (path === '/api/config' || path === '/config') return route.fulfill({json:{auth_mode:'local'}});
     if(path==='/api/dashboard')json={queue:[],goals:[],stats:{current_streak:1,total_sessions:2,total_minutes:67},week_sessions:2,activity:[]};
     if(path==='/api/goals'||path==='/api/focus-options')json=[];
     if(path==='/api/history/week'){

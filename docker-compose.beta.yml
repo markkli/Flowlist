@@ -1,0 +1,51 @@
+# Public beta: requires managed PostgreSQL and Supabase Auth.
+# First run the migrations service, then start the application.
+services:
+  migrations:
+    build: ./backend
+    profiles: [release]
+    environment:
+      DATABASE_URL: ${MIGRATION_DATABASE_URL:?Set the migration connection string}
+      FLOWLIST_AUTH_MODE: supabase
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set the restricted application connection string}
+      FLOWLIST_ENV: production
+      FLOWLIST_AUTH_MODE: supabase
+      SUPABASE_URL: ${SUPABASE_URL:?Set your project URL}
+      SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:?Set your publishable key}
+      SUPABASE_SECRET_KEY: ${SUPABASE_SECRET_KEY:?Set the server-only account deletion key}
+      FLOWLIST_BETA_SIGNUPS: ${FLOWLIST_BETA_SIGNUPS:-invite}
+      FLOWLIST_BETA_EMAILS: ${FLOWLIST_BETA_EMAILS:-}
+      FLOWLIST_GOOGLE_LOGIN: ${FLOWLIST_GOOGLE_LOGIN:-false}
+      OPENAI_API_KEY: ""
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+  frontend:
+    build: ./frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+  gateway:
+    image: caddy:2-alpine
+    environment:
+      FLOWLIST_DOMAIN: ${FLOWLIST_DOMAIN:?Set your beta domain}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [frontend]
+    restart: unless-stopped
+volumes:
+  caddy_data:
+  caddy_config:

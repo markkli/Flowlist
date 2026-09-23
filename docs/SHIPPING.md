@@ -1,6 +1,6 @@
 # Flowlist: web MVP and native roadmap
 
-Reviewed September 20, 2026. This is a launch plan, not a claim that the current local build is safe to publish.
+Reviewed September 21, 2026. The account and deployment implementation is now in place; see [BETA-SETUP.md](BETA-SETUP.md) for the current setup instructions and acceptance checklist. The sections below capture the launch requirements and platform roadmap.
 
 ## Product decision
 
@@ -8,9 +8,9 @@ Keep the MVP to Plan → Focus → Reflect → History. Projects cover work and 
 
 ## What must change before public access
 
-1. **Authentication and ownership.** Routes currently operate on a shared dataset; the models have no user owner. Require verified access tokens in FastAPI, add an application user mapped to the auth subject, and scope every read/write, queue reorder, dashboard aggregation, history edit, delete/restore, and export. Derive ownership on the server, never trust a submitted user ID. Validate task/project/session relationships within that same owner. Add negative tests with two users, guessed IDs, expired tokens, and mixed-owner payloads. A login screen alone does not solve this.
+1. **Authentication and ownership.** Implemented: user-owned projects and focus records, with related data scoped by the request session. Require verified access tokens in FastAPI, add an application user mapped to the auth subject, and scope every read/write, queue reorder, dashboard aggregation, history edit, delete/restore, and export. Derive ownership on the server, never trust a submitted user ID. Validate task/project/session relationships within that same owner. Add negative tests with two users, guessed IDs, expired tokens, and mixed-owner payloads. A login screen alone does not solve this.
 2. **Local drafts and account changes.** Namespace timer drafts and collapsed-plan state by user, clear in-memory data on logout, and ensure a draft cannot save into a different account. Appearance can remain device-specific. Claim the existing local database only through an explicit import into its owner's account; never give it to the first visitor who signs in.
-3. **Production database and release checks.** Use managed PostgreSQL, run migrations as a release step, and validate them against PostgreSQL in CI as well as SQLite. Test backup restoration and SQLite-to-PostgreSQL transfer with record counts and attribution relationships. The current migration tests use SQLite; they do not establish production PostgreSQL compatibility. Export exists, but a general import/restore UI does not.
+3. **Production database and release checks.** Use managed PostgreSQL, run migrations as a release step, and validate them against PostgreSQL in CI as well as SQLite. Test backup restoration and SQLite-to-PostgreSQL transfer with record counts and attribution relationships. A dedicated PostgreSQL release check now exercises migrations, restricted roles, and account isolation. Export exists, but a general import/restore UI does not.
 4. **Deployment and operations.** Serve frontend and API behind HTTPS on one origin. Keep database credentials server-side, use a restricted database role, configure health checks, error monitoring, backups, and request/body/rate limits. Replace the example Compose password. Dockerfiles and a local Compose stack already exist; Kubernetes and a separate container per user are unnecessary.
 5. **Account lifecycle and privacy.** Add verification, recovery, logout, account deletion, and an explanation of stored data. Optional AI history titles currently send note/task context to the model provider when a server key is configured. For the first public beta, leave AI enrichment disabled until there is an explicit user-facing choice and usage limits; the local title fallback already works.
 6. **Release validation.** Test Safari as well as Chromium, especially sleep/resume, refreshed drafts, multiple tabs, failed saves, and phone layouts. Interval reminders now provide in-app notices and optional silent desktop notifications. Test permission denial, suspended tabs, OS notification settings, and cross-tab deduplication on each target browser. Browser timers cannot promise alarms after the browser is closed. Clearly state that limitation instead of implying a native background service. Pin a release only after these checks pass.
@@ -25,7 +25,7 @@ For the next implementation phase, the owner should create a Supabase developmen
 
 FastAPI can keep SQLAlchemy. Choose the appropriate direct or session-pool connection for the hosting network and require TLS, following [Supabase's connection guide](https://supabase.com/docs/guides/database/connecting-to-postgres). If using Supabase, keep Flowlist tables in a private schema or otherwise prevent the public Data API from exposing them; browser auth does not automatically protect SQLAlchemy queries. Database grants/RLS and application ownership need an explicit design.
 
-No provider account has been provisioned, no auth integration is installed, and no public deployment has been performed by this change.
+Supabase integration is implemented. Provider provisioning, hosted acceptance testing, and public deployment still require the owner’s project and domain configuration.
 
 ## Platform sequence
 

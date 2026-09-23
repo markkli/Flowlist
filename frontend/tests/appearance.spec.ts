@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.beforeEach(async({page})=>{
-  await page.route('**/api/**',route=>route.fulfill({json:new URL(route.request().url()).pathname==='/api/dashboard' ? {queue:[],goals:[],stats:{current_streak:0,total_sessions:0,total_minutes:0},week_sessions:0,activity:[]} : []}));
+  await page.route('**/api/**',route=>route.fulfill({json:new URL(route.request().url()).pathname==='/api/config' ? {auth_mode:'local'} : new URL(route.request().url()).pathname==='/api/dashboard' ? {queue:[],goals:[],stats:{current_streak:0,total_sessions:0,total_minutes:0},week_sessions:0,activity:[]} : []}));
   await page.goto('/');
 });
 
@@ -42,6 +42,12 @@ test('every preset coordinates the workspace, controls and heatmap in both modes
       await expect(page.locator('html')).toHaveAttribute('data-appearance',preset.toLowerCase());
       // Allow the reduced-motion color transition to finish painting.
       await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+      const accent = await page.evaluate(()=>{
+        const hex=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+        return `rgb(${[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)).join(', ')})`;
+      });
+      await expect(page.locator('#appearance-done')).toHaveCSS('background-color',accent);
+      await expect(page.locator('#start-pomodoro .timer-time span')).toHaveCSS('color',accent);
       const colors = await page.evaluate(()=>{
         const style = (selector:string)=>getComputedStyle(document.querySelector(selector)!);
         // Resolve CSS Color 4 values to sRGB for actual rendered contrast.
