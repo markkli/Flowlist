@@ -28,14 +28,25 @@ body:not(.app-ready) #timer-mini { display:none; }
 .auth-privacy { margin-top:38px; font-size:12px; color:var(--muted); }
 .auth-privacy summary { cursor:pointer; padding:8px 0; }
 .auth-privacy p { font-size:12px; }
-.account-controls { padding:14px 12px; border-top:1px solid var(--border); margin-top:auto; font-size:12px; }
-.account-controls > summary { cursor:pointer; min-height:32px; }
+.account-controls { padding:8px 0 0; border-top:1px solid var(--border); margin-top:0; font-size:12px; }
+.account-controls > summary { cursor:pointer; min-height:44px; display:flex; align-items:center; gap:11px; padding:0 11px; border:1px solid transparent; border-radius:var(--radius-sm); list-style:none; color:var(--muted); font-size:13px; font-weight:520; }
+.account-controls > summary::-webkit-details-marker { display:none; }
+.account-controls > summary:hover, .account-controls[open] > summary { color:var(--ink); background:var(--surface); border-color:var(--border); }
+.account-controls > summary svg { width:18px; height:18px; flex:none; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.account-controls > summary .account-chevron { margin-left:auto; }
+.account-controls[open] > summary .account-chevron { transform:rotate(180deg); }
+.account-content { padding:4px 12px 12px; }
+.account-content > details { margin-top:8px; padding-top:8px; border-top:1px solid var(--border); }
+.account-content > details > summary { cursor:pointer; min-height:44px; align-content:center; color:var(--muted); }
 .account-controls p { color:var(--muted); overflow-wrap:anywhere; }
 .account-controls .text-btn { min-height:44px; }
 .account-controls form { margin-top:12px; }
 .account-controls label { display:block; margin-bottom:8px; }
 .account-controls input { width:100%; }
 .account-controls .field-error { color:var(--danger); }
+@media(max-width:820px) {
+ .account-controls { margin-top:8px; }
+}
 @media(max-width:700px) {
  .auth-screen { grid-template-columns:1fr; }
  .auth-scene { min-height:260px; padding:28px; }

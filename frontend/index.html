@@ -34,7 +34,18 @@
         <button class="nav-item" id="nav-history"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4m8-4v4M7 11h10"/></svg><span>History</span></button>
       </nav>
       <div class="sidebar-summary"><span>This week</span><strong id="side-session-count">— sessions</strong><small>Focused work logged</small></div>
-      <details id="account-controls" class="account-controls" hidden><summary>Account</summary><p id="account-email"></p><button id="account-signout" class="text-btn" type="button">Sign out</button><details><summary>Delete account</summary><p>This permanently deletes your projects, tasks, queue, and history. Export from History first if you need a copy.</p><form id="account-delete-form"><label for="account-delete-confirm">Type DELETE to confirm</label><input id="account-delete-confirm" class="field" pattern="DELETE" required autocomplete="off"><button id="account-delete" class="text-btn danger" type="submit">Delete my account</button><p id="account-error" class="field-error" role="alert"></p></form></details></details>
+      <details id="account-controls" class="account-controls" hidden>
+        <summary><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"/><path d="M5 20v-2a7 7 0 0 1 14 0v2"/></svg><span>Account</span><svg class="account-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></summary>
+        <div class="account-content">
+          <p id="account-email"></p>
+          <button id="account-signout" class="text-btn" type="button">Sign out</button>
+          <details>
+            <summary>Delete account</summary>
+            <p>This permanently deletes your projects, tasks, queue, and history. Export from History first if you need a copy.</p>
+            <form id="account-delete-form"><label for="account-delete-confirm">Type DELETE to confirm</label><input id="account-delete-confirm" class="field" pattern="DELETE" required autocomplete="off"><button id="account-delete" class="text-btn danger" type="submit">Delete my account</button><p id="account-error" class="field-error" role="alert"></p></form>
+          </details>
+        </div>
+      </details>
     </aside>
 
     <div class="workspace">
