@@ -14,7 +14,7 @@ test.beforeEach(async({context})=>{
  });
  await context.route('**/api/**',route=>{
   const path=new URL(route.request().url()).pathname;
-  if(path==='/api/config') return route.fulfill({json:{auth_mode:'supabase',supabase_url:'https://beta.supabase.co',supabase_key:'sb_publishable_test',signup_enabled:false,google_enabled:true}});
+  if(path==='/api/config') return route.fulfill({json:{auth_mode:'supabase',supabase_url:'https://beta.supabase.co',supabase_key:'sb_publishable_test',signup_enabled:false,google_enabled:true,email_enabled:true}});
   if(!route.request().headers().authorization) return route.fulfill({status:401,json:{detail:'Sign in'}});
   if(path==='/api/account') return route.fulfill({json:route.request().method()==='DELETE'?{deleted:true}:{id:userId,email:user.email,mode:'supabase'}});
   return route.fulfill({json:path==='/api/dashboard'?dashboard:[]});
@@ -28,6 +28,31 @@ async function signIn(page:any){
  await page.getByRole('button',{name:'Verify and continue'}).click();
  await expect(page.locator('.app-shell')).toBeVisible();
 }
+
+test('Google-only beta hides email sending and completes Google sign-in',async({page})=>{
+ await page.route('**/api/config',route=>route.fulfill({json:{auth_mode:'supabase',supabase_url:'https://beta.supabase.co',supabase_key:'sb_publishable_test',signup_enabled:false,google_enabled:true,email_enabled:false}}));
+ let emailsSent=0;
+ await page.route('https://beta.supabase.co/auth/v1/otp',route=>{emailsSent++;return route.fulfill({json:{}});});
+ await mockGoogle(page);
+ await page.goto('/');
+ await expect(page.locator('#auth-beta-note')).toContainText('invited Google account');
+ await expect(page.locator('#auth-form')).toBeHidden();
+ await expect(page.locator('#auth-divider')).toBeHidden();
+ await page.locator('#auth-form').evaluate(form=>form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})));
+ expect(emailsSent).toBe(0);
+ await page.getByRole('button',{name:'Continue with Google',exact:true}).click();
+ await expect(page.locator('.app-shell')).toBeVisible();
+ expect(emailsSent).toBe(0);
+});
+
+test('missing provider flags hide email and explain unavailable sign-in',async({page})=>{
+ await page.route('**/api/config',route=>route.fulfill({json:{auth_mode:'supabase',supabase_url:'https://beta.supabase.co',supabase_key:'sb_publishable_test',signup_enabled:false}}));
+ await page.goto('/');
+ await expect(page.locator('#auth-error')).toContainText('Sign-in is not available');
+ await expect(page.locator('#auth-form')).toBeHidden();
+ await expect(page.locator('#auth-google-option')).toBeHidden();
+ await expect(page.locator('.app-shell')).toBeHidden();
+});
 
 async function mockGoogle(page:any, outcome:'success'|'cancel'|'invalid' = 'success') {
  let challenge='';
@@ -114,7 +139,7 @@ test('unsolicited or expired Google callbacks never exchange a code',async({page
 });
 
 test('Google stays hidden until provider setup is enabled',async({page})=>{
- await page.route('**/api/config',route=>route.fulfill({json:{auth_mode:'supabase',supabase_url:'https://beta.supabase.co',supabase_key:'sb_publishable_test',signup_enabled:false,google_enabled:false}}));
+ await page.route('**/api/config',route=>route.fulfill({json:{auth_mode:'supabase',supabase_url:'https://beta.supabase.co',supabase_key:'sb_publishable_test',signup_enabled:false,google_enabled:false,email_enabled:true}}));
  await page.goto('/');
  await expect(page.getByLabel('Email address',{exact:true})).toBeVisible();
  await expect(page.getByRole('button',{name:'Continue with Google',exact:true})).toBeHidden();

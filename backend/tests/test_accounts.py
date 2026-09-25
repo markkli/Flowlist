@@ -163,6 +163,9 @@ def test_public_config_excludes_secrets_and_production_rejects_local_mode(client
     assert response.status_code==200 and 'never-expose-this' not in response.text
     assert response.json()['signup_enabled'] is False
     assert response.json()['google_enabled'] is False
+    assert response.json()['email_enabled'] is False
+    monkeypatch.setenv('FLOWLIST_EMAIL_LOGIN','true')
+    assert TestClient(app).get('/config').json()['email_enabled'] is True
     monkeypatch.setenv('FLOWLIST_GOOGLE_LOGIN','true')
     assert TestClient(app).get('/config').json()['google_enabled'] is True
     monkeypatch.setenv('FLOWLIST_ENV','production');monkeypatch.setenv('FLOWLIST_AUTH_MODE','local')

@@ -28,6 +28,8 @@ export async function initAuth() {
   const client = createClient(config.supabase_url, config.supabase_key, {
     auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,flowType:'pkce'},
   });
+  const emailEnabled = config.email_enabled === true;
+  const googleEnabled = config.google_enabled === true;
   let activeId = null;
   let ready = false;
   let checking = false;
@@ -37,15 +39,24 @@ export async function initAuth() {
   let finish;
   const signedIn = new Promise(resolve => {finish=resolve;});
   el('auth-loading').hidden = true;
-  el('auth-form').hidden = false;
-  el('auth-beta-note').textContent = config.signup_enabled ? 'A quiet place for your work. Sign in or create your account.' : 'Private beta · Use your invited email address.';
-  el('auth-google-option').hidden = config.google_enabled !== true;
+  el('auth-form').hidden = !emailEnabled;
+  el('auth-form').inert = !emailEnabled;
+  el('auth-beta-note').textContent = config.signup_enabled
+    ? 'A quiet place for your work. Sign in or create your account.'
+    : googleEnabled && !emailEnabled
+      ? 'Private beta · Continue with your invited Google account.'
+      : 'Private beta · Use your invited email address.';
+  el('auth-google-option').hidden = !googleEnabled;
+  el('auth-divider').hidden = !(googleEnabled && emailEnabled);
+  if (!emailEnabled && !googleEnabled) {
+    el('auth-error').textContent = 'Sign-in is not available right now. Please contact the person who invited you.';
+  }
 
   function setSigningIn(busy, google = false) {
     signingIn = busy;
-    el('auth-form').inert = busy;
-    el('auth-submit').disabled = busy;
-    el('auth-google').disabled = busy;
+    el('auth-form').inert = busy || !emailEnabled;
+    el('auth-submit').disabled = busy || !emailEnabled;
+    el('auth-google').disabled = busy || !googleEnabled;
     el('auth-google').setAttribute('aria-busy', String(busy && google));
     el('auth-google-label').textContent = busy && google ? 'Connecting to Google…' : 'Continue with Google';
   }
@@ -97,14 +108,14 @@ export async function initAuth() {
       finish(true);
     } catch(error) {
       el('auth-error').textContent=error.message;
-      el('auth-change-email').hidden=false;
+      el('auth-change-email').hidden=!emailEnabled;
       el('auth-retry').hidden=false;
       el('auth-retry').onclick=()=>location.reload();
     } finally {checking=false;}
   }
   el('auth-form').addEventListener('submit',async event=>{
     event.preventDefault();
-    if (signingIn) return;
+    if (signingIn || !emailEnabled) return;
     const submit=el('auth-submit');
     setSigningIn(true);el('auth-error').textContent='';
     try {

@@ -14,7 +14,7 @@
     <div class="auth-content"><div class="auth-inner"><p class="kicker">Your workspace</p><h2>Welcome to Flowlist</h2><p id="auth-beta-note">A quiet place for your work.</p><p id="auth-loading" role="status">Opening your workspace…</p>
     <div id="auth-google-option" class="auth-google-option" hidden>
       <button id="auth-google" class="auth-google" type="button"><img src="/brand/google-g.png" width="20" height="20" alt=""><span id="auth-google-label">Continue with Google</span></button>
-      <div class="auth-divider">or continue with email</div>
+      <div id="auth-divider" class="auth-divider" hidden>or continue with email</div>
     </div>
     <form id="auth-form" hidden><label for="auth-email">Email address</label><input class="field" id="auth-email" type="email" autocomplete="email" required maxlength="254" placeholder="you@example.com"><div id="auth-code-row" hidden><label for="auth-code">Email code</label><input class="field" id="auth-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" maxlength="10" placeholder="Enter your code"></div><button class="primary-btn" id="auth-submit" type="submit">Send sign-in code</button><button class="text-btn" id="auth-change-email" type="button" hidden>Use another email or request a new code</button></form>
     <p id="auth-status" role="status"></p><p class="field-error" id="auth-error" role="alert"></p><button class="secondary-btn" id="auth-retry" hidden>Retry</button>

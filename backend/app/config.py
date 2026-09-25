@@ -29,4 +29,5 @@ def public_config():
         raise RuntimeError('Set SUPABASE_PUBLISHABLE_KEY to an sb_publishable_ key')
     return {'auth_mode': 'supabase', 'supabase_url': supabase_url(), 'supabase_key': key,
             'google_enabled': os.getenv('FLOWLIST_GOOGLE_LOGIN', 'false') == 'true',
+            'email_enabled': os.getenv('FLOWLIST_EMAIL_LOGIN', 'false') == 'true',
             'signup_enabled': os.getenv('FLOWLIST_BETA_SIGNUPS', 'invite') == 'open'}

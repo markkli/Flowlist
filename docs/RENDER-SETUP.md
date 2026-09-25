@@ -11,23 +11,29 @@ an `onrender.com` address. Supabase remains the database and identity provider.
    the branch containing `render.yaml`.
 3. Name the Blueprint `flowlist-beta`. Verify it creates just one **Free** web
    service, with no Render database or disk.
-4. Fill the five prompted variables from the ignored local `.env.beta`:
+4. Fill the prompted variables from the ignored local `.env.beta`:
    `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`,
-   `SUPABASE_SECRET_KEY`, and `FLOWLIST_BETA_EMAILS`.
+   `SUPABASE_SECRET_KEY`, and `FLOWLIST_BETA_EMAILS`. Set the prompted
+   `FLOWLIST_GOOGLE_LOGIN` to `true` once the Google provider is configured.
    Paste only each value, without surrounding quotes or the `NAME=` prefix.
    Use the restricted `flowlist_api` database URL. Do not upload `.env.beta` or
    add `MIGRATION_DATABASE_URL` to the running service.
 5. Deploy and wait for the health check to pass. Open the assigned HTTPS URL.
 6. In Supabase, set Authentication's Site URL to that exact HTTPS origin. Keep
-   public signups disabled. Set up the email-code template and SMTP sender as
-   described in [BETA-SETUP.md](BETA-SETUP.md). Test sign-in with the invited
+   public signups disabled. The current beta uses Google sign-in with
+   `FLOWLIST_EMAIL_LOGIN=false`; email sending is hidden until custom SMTP and
+   its template are ready. Test Google sign-in with the invited
    account, save a task, reload, and verify that it persists.
 
 Google stays hidden until its provider and exact callback are configured. See
 [BETA-SETUP.md](BETA-SETUP.md) for that separate setup and release acceptance
-checks. An unconfirmed initial account must complete email verification first;
-OTP login for an unconfirmed account fails while public signups are disabled.
-See the invitation setup in BETA-SETUP.md. Keep public signup disabled.
+checks. If enabling email-code login later, an unconfirmed account must first
+complete email verification; OTP login for an unconfirmed account fails while
+public signups are disabled. For Google-only onboarding, Google verifies the
+email when the tester signs in. Keep public signup disabled.
+
+For adding testers, follow [TESTER-ONBOARDING.md](TESTER-ONBOARDING.md). Changing
+the local `.env.beta` alone does not change Render's deployed allowlist.
 
 ## Releases and limits
 

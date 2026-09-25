@@ -16,6 +16,9 @@ services:
       - key: FLOWLIST_BETA_SIGNUPS
         value: invite
       - key: FLOWLIST_GOOGLE_LOGIN
+        # Preserve the provider setting already configured in the dashboard.
+        sync: false
+      - key: FLOWLIST_EMAIL_LOGIN
         value: "false"
       - key: PGSSLROOTCERT
         value: /app/certs/supabase-prod-ca-2021.crt

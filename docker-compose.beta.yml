@@ -23,6 +23,7 @@ services:
       FLOWLIST_BETA_SIGNUPS: ${FLOWLIST_BETA_SIGNUPS:-invite}
       FLOWLIST_BETA_EMAILS: ${FLOWLIST_BETA_EMAILS:-}
       FLOWLIST_GOOGLE_LOGIN: ${FLOWLIST_GOOGLE_LOGIN:-false}
+      FLOWLIST_EMAIL_LOGIN: ${FLOWLIST_EMAIL_LOGIN:-false}
       OPENAI_API_KEY: ""
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
     healthcheck:

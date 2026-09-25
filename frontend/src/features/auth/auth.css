@@ -23,6 +23,7 @@ body:not(.app-ready) #timer-mini { display:none; }
 .auth-google:disabled { opacity:.6; cursor:wait; }
 .auth-divider { display:flex; align-items:center; gap:16px; margin:24px 0 0; color:var(--muted); font-size:12px; }
 .auth-divider::before, .auth-divider::after { content:''; height:1px; flex:1; background:var(--border); }
+.auth-divider[hidden] { display:none; }
 .auth-google-option[hidden] { display:none; }
 .auth-content .field-error { color:var(--danger); }
 .auth-privacy { margin-top:38px; font-size:12px; color:var(--muted); }
