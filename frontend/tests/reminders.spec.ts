@@ -129,7 +129,7 @@ for(const width of [375,768,1440]) test(`reminder settings fit at ${width}px wit
   }
 });
 
-test('chime is on by default, fires at a boundary, and can be muted without hiding reminders',async({page})=>{
+test('chime is on by default, fires at a boundary, and can be muted without hiding reminders',async({page},testInfo)=>{
  await fakeNotifications(page);
  await page.addInitScript(()=>{
   (window as any).__tones=0;
@@ -145,6 +145,7 @@ test('chime is on by default, fires at a boundary, and can be muted without hidi
  await page.clock.fastForward(25*60000);
  await expect(page.locator('#interval-reminder')).toBeVisible();
  expect(await page.evaluate(()=>(window as any).__tones)).toBe(2);
+ await page.screenshot({path:testInfo.outputPath('interval-popup.png')});
  await page.getByRole('button',{name:'Got it',exact:true}).click();
  await expect(page.locator('#interval-reminder')).toBeHidden();
  await page.getByRole('button',{name:'Today',exact:true}).click();

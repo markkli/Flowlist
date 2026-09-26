@@ -11,6 +11,7 @@ for (const width of [375,768,1440]) for (const empty of [true,false]) {
   await page.clock.install();
   await page.goto('/');
   await page.locator('#start-pomodoro').click();
+  await expect(page.locator('#focus-overlay')).toBeVisible();
   await page.clock.fastForward(7000);
   await page.locator('#focus-exit').click();
   const dialog=page.getByRole('dialog',{name:'Save your progress',exact:true});
