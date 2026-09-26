@@ -30,6 +30,7 @@ export async function initAuth() {
   });
   const emailEnabled = config.email_enabled === true;
   const googleEnabled = config.google_enabled === true;
+  el('account-delete-beta-note').hidden = config.signup_enabled === true;
   let activeId = null;
   let ready = false;
   let checking = false;
@@ -66,7 +67,7 @@ export async function initAuth() {
     if (signingIn || config.google_enabled !== true) return;
     setSigningIn(true, true);
     el('auth-error').textContent = ''; el('auth-status').textContent = '';
-    try { await startGoogleSignIn(client); }
+    try { await startGoogleSignIn(client, { emailEnabled }); }
     catch(error) {el('auth-error').textContent = error.message; setSigningIn(false);}
   };
 
@@ -183,7 +184,7 @@ export async function initAuth() {
   if (googleCallback) {
     setSigningIn(true);
     el('auth-status').textContent = 'Finishing Google sign-in…';
-    try { await accept(await finishGoogleSignIn(client, googleCallback)); }
+    try { await accept(await finishGoogleSignIn(client, googleCallback, { emailEnabled })); }
     catch(error) {el('auth-error').textContent = error.message;}
     finally {setSigningIn(false); el('auth-status').textContent = '';}
     // Never fall back to a previous user's session after a failed Google return.

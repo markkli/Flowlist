@@ -54,7 +54,7 @@ test('missing provider flags hide email and explain unavailable sign-in',async({
  await expect(page.locator('.app-shell')).toBeHidden();
 });
 
-async function mockGoogle(page:any, outcome:'success'|'cancel'|'invalid' = 'success') {
+async function mockGoogle(page:any, outcome:'success'|'cancel'|'invalid'|'signup-query'|'signup-fragment'|'signup-legacy' = 'success') {
  let challenge='';
  let exchanges=0;
  await page.route('https://beta.supabase.co/auth/v1/authorize**',async (route:any)=>{
@@ -68,7 +68,10 @@ async function mockGoogle(page:any, outcome:'success'|'cancel'|'invalid' = 'succ
   const callback=new URL(url.searchParams.get('redirect_to')!);
   expect(callback.origin).toBe(new URL(page.url()).origin);
   expect(callback.pathname+callback.search).toBe('/?auth=google');
-  if(outcome==='cancel') callback.hash='error=access_denied&error_description=untrusted-provider-text';
+  if(outcome==='signup-query') { callback.searchParams.set('error','access_denied'); callback.searchParams.set('error_code','signup_disabled'); }
+  else if(outcome==='signup-fragment') callback.hash='error=access_denied&error_code=signup_disabled&error_description=untrusted-provider-text';
+  else if(outcome==='signup-legacy') callback.hash='error=access_denied&error_description=Signups+not+allowed+for+this+instance';
+  else if(outcome==='cancel') callback.hash='error=access_denied&error_description=untrusted-provider-text';
   else callback.searchParams.set('code','one-use-test-code');
   callback.searchParams.set('next','https://untrusted.example');
   // WebKit's route mock cannot synthesize HTTP redirects. A provider document
@@ -103,7 +106,7 @@ for(const outcome of ['cancel','invalid'] as const) test(`Google ${outcome} retu
  await mockGoogle(page,outcome);
  await page.goto('/');
  await page.getByRole('button',{name:'Continue with Google',exact:true}).click();
- await expect(page.locator('#auth-error')).toContainText(outcome==='cancel'?'canceled':'could not be verified');
+ await expect(page.locator('#auth-error')).toContainText(outcome==='cancel'?'may have been canceled or blocked':'could not be verified');
  await expect(page.locator('#auth-error')).not.toContainText('untrusted-provider-text');
  await expect(page.locator('.app-shell')).toBeHidden();
  await expect(page.getByRole('button',{name:'Continue with Google',exact:true})).toBeEnabled();
@@ -230,4 +233,35 @@ for(const width of [375,768,1440]) test(`sign-in fits ${width}px in both modes`,
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.screenshot({path:testInfo.outputPath(`sign-in-${width}-${theme}.png`),fullPage:true,animations:'disabled'});
  }
+});
+
+for (const outcome of ['signup-query','signup-fragment','signup-legacy','cancel','invalid'] as const) {
+ test(`Google-only ${outcome} explains the failure without offering unavailable email login`,async({page})=>{
+  await page.route('**/api/config',route=>route.fulfill({json:{auth_mode:'supabase',supabase_url:'https://beta.supabase.co',supabase_key:'sb_publishable_test',signup_enabled:false,google_enabled:true,email_enabled:false}}));
+  const exchanges=await mockGoogle(page,outcome);
+  await page.goto('/');
+  await page.getByRole('button',{name:'Continue with Google',exact:true}).click();
+  const error=page.locator('#auth-error');
+  await expect(error).toContainText(outcome.startsWith('signup')?'New accounts are currently disabled':outcome==='cancel'?'may have been canceled or blocked':'could not be verified');
+  await expect(error).not.toContainText('email code');
+  await expect(error).not.toContainText('untrusted-provider-text');
+  await expect(page.locator('.app-shell')).toBeHidden();
+  await expect(page.locator('#auth-form')).toBeHidden();
+  await expect(page.getByRole('button',{name:'Continue with Google',exact:true})).toBeEnabled();
+  expect(new URL(page.url()).search+new URL(page.url()).hash).toBe('');
+  expect(exchanges()).toBe(outcome==='invalid'?1:0);
+  if(outcome==='signup-fragment') {
+   await mockGoogle(page);
+   await page.getByRole('button',{name:'Continue with Google',exact:true}).click();
+   await expect(page.locator('.app-shell')).toBeVisible();
+  }
+ });
+}
+
+test('private beta deletion warns that returning requires another invitation',async({page})=>{
+ await signIn(page);
+ await page.locator('#account-controls > summary').click();
+ await page.locator('#account-controls details > summary').click();
+ await expect(page.locator('#account-delete-beta-note')).toBeVisible();
+ await expect(page.locator('#account-delete-beta-note')).toContainText('new invitation');
 });
