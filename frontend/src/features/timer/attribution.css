@@ -71,65 +71,36 @@
   }
 }
 
-/* Capture first; organization stays a secondary choice. */
-.attribution-task-builder { margin-top: 16px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-.attribution-task-builder > summary, .attribution-organize > summary { display: flex; align-items: center; gap: 8px; min-height: 44px; list-style: none; cursor: pointer; color: var(--muted); font-size: 12px; }
-.attribution-task-builder > summary { font-weight: 620; }
-.attribution-task-builder summary::-webkit-details-marker { display: none; }
-.attribution-task-builder summary:hover { color: var(--ink); }
-.attribution-task-builder summary:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; border-radius: 4px; }
-.attribution-task-builder summary svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
-.attribution-task-builder[open] > summary svg, .attribution-organize[open] > summary svg { transform: rotate(90deg); }
-.attribution-task-builder-body { display: grid; gap: 8px; padding: 0 0 16px; }
-.attribution-task-builder-body > label, .attribution-organize-body > label, .attribution-new-group > label { color: var(--muted); font-size: 12px; font-weight: 550; }
-.attribution-capture-help { margin: 0 0 8px; color: var(--muted); font-size: 12px; line-height: 1.5; }
-.attribution-capture-row { display: flex; align-items: stretch; gap: 10px; }
-.attribution-capture-row .field { flex: 1; min-width: 0; }
-.attribution-capture-row button { flex-shrink: 0; white-space: nowrap; min-height: 44px; }
-.attribution-organize { min-width: 0; }
-.attribution-organize > summary { width: fit-content; max-width: 100%; }
-.attribution-organize > summary strong { color: var(--ink); font-weight: 550; overflow-wrap: anywhere; }
-.attribution-organize-body { display: grid; gap: 8px; max-width: 460px; padding: 4px 0 8px; }
-.attribution-new-group { display: grid; gap: 8px; padding-top: 8px; }
-.attribution-task-builder-body > .field-error { margin: 0; }
-.attribution-task-builder-body > .field-error:empty { display: none; }
-@media (max-width: 520px) {
-  .attribution-capture-row { flex-wrap: wrap; }
-  .attribution-capture-row .field { flex-basis: 100%; }
-  .attribution-capture-row button { width: 100%; }
-}
-/* A compact review: task selection first, optional detail underneath. */
-#session-attribution-overlay .attribution-modal { width:min(680px,100%); padding:28px; border-radius:20px; }
+/* Notes first, followed by two explicitly labelled task outcomes. */
+#session-attribution-overlay .attribution-modal { width:min(720px,100%); padding:28px; border-radius:20px; }
 .session-review-heading { display:flex; align-items:center; justify-content:space-between; gap:20px; }
 .session-review-heading .kicker { margin:0 0 8px; }
 #session-attribution-overlay h2 { margin:0; font-size:28px; letter-spacing:-.04em; }
 .session-duration { flex-shrink:0; padding:8px 12px; border:1px solid var(--border); border-radius:8px; color:var(--forest); font-size:13px; }
-#session-attribution-overlay .attribution-summary { margin:16px 0 0; font-size:13px; }
-#session-attribution-overlay .attribution-column-head { display:none; }
-#session-attribution-overlay .attribution-task-row { grid-template-columns:42px minmax(0,1fr) 90px; gap:0; padding:4px 8px 4px 0; min-height:58px; }
-#session-attribution-overlay .attribution-worked { grid-column:1; grid-row:1; border:0; min-height:44px; }
-#session-attribution-overlay .attribution-task-copy { grid-column:2; grid-row:1; }
-#session-attribution-overlay .attribution-finished { grid-column:3; grid-row:1; min-height:38px; display:flex; justify-content:center; gap:6px; border:1px solid var(--border); border-radius:8px; font-size:12px; color:var(--muted); }
-#session-attribution-overlay .attribution-finished .toggle-box { width:16px; height:16px; }
-#session-attribution-overlay .attribution-finished:has(input:checked) { color:var(--ink); background:var(--surface-muted); }
-#session-attribution-overlay .attribution-empty { text-align:left; padding:18px 0; border:0; font-size:14px; line-height:1.65; }
+.session-note-field { display:grid; gap:10px; margin:24px 0; }
+.session-note-field label, #session-attribution-form legend { font-size:14px; font-weight:600; color:var(--ink); }
+.session-note-field label { display:flex; justify-content:space-between; gap:12px; }
+.session-note-field label span, #session-attribution-form legend span { font-size:12px; font-weight:400; color:var(--muted); }
+#session-attribution-form legend span { margin-left:8px; }
+.session-note-field .session-note { min-height:88px; }
+#session-attribution-overlay .attribution-summary { margin:8px 0 16px; font-size:13px; line-height:1.6; }
+#session-attribution-overlay .attribution-task-row { grid-template-columns:minmax(0,1fr) 118px 106px; gap:8px; padding:6px 10px; min-height:58px; }
+#session-attribution-overlay .attribution-task-copy { padding:8px 0; }
+#session-attribution-overlay .attribution-toggle { border:0; min-height:44px; display:flex; align-items:center; justify-content:flex-start; gap:8px; font-size:12px; color:var(--ink); }
+#session-attribution-overlay .attribution-toggle > span { margin:0; font-size:12px; font-weight:500; letter-spacing:0; color:inherit; }
+#session-attribution-overlay .attribution-toggle .toggle-box { width:20px; height:20px; flex-shrink:0; }
+#session-attribution-overlay .attribution-empty { text-align:left; padding:16px 0; border:0; font-size:14px; line-height:1.65; }
 .attribution-empty strong { display:block; color:var(--ink); margin-bottom:4px; }
-#session-attribution-overlay .attribution-group-heading { margin-top:12px; }
-.session-note-disclosure { border-top:1px solid var(--border); margin-top:16px; }
-.session-note-disclosure summary { min-height:44px; display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; }
-.session-note-disclosure summary span { margin-left:auto; font-size:11px; color:var(--muted); }
-.session-note-disclosure summary::before { content:'+'; color:var(--muted); }
-.session-note-disclosure[open] summary::before { content:'−'; }
-.session-note-disclosure summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
-.session-note-disclosure .session-note { min-height:72px; margin-bottom:12px; }
-#session-attribution-overlay .attribution-task-builder { margin-top:0; }
+#session-attribution-overlay .attribution-group-heading { margin-top:8px; }
 #session-attribution-overlay .attribution-actions { border-top:1px solid var(--border); padding-top:16px; margin-top:12px; gap:10px; }
 #session-attribution-overlay .attribution-actions .primary-btn { margin-left:auto; }
+#attribution-error:empty { display:none; }
 @media(max-width:520px) {
   #session-attribution-overlay .attribution-modal { padding:20px; }
   .session-review-heading { align-items:flex-start; flex-direction:column; gap:10px; }
   #session-attribution-overlay h2 { font-size:26px; }
   .session-duration { padding:0; border:0; }
-  #session-attribution-overlay .attribution-task-row { grid-template-columns:36px minmax(0,1fr) 78px; }
+  #session-attribution-overlay .attribution-task-row { grid-template-columns:1fr 1fr; gap:0 12px; }
+  #session-attribution-overlay .attribution-task-copy { grid-column:1 / -1; padding-bottom:2px; }
   #session-attribution-overlay .attribution-actions button { padding:10px; font-size:12px; }
 }

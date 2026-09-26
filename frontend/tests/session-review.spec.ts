@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 
 for (const width of [375,768,1440]) for (const empty of [true,false]) {
  test(`session review ${empty?'empty':'with tasks'} is clear at ${width}px`,async({page},testInfo)=>{
-  await page.setViewportSize({width,height:850});
+  await page.setViewportSize({width,height:width===768?375:850});
   const options=empty?[]:[{id:1,title:'Read the first chapter',goal_id:1,goal_title:'Learn something new',goal_type:'project',parent_id:null,depth:1},{id:2,title:'Try an exercise',goal_id:1,goal_title:'Learn something new',goal_type:'project',parent_id:null,depth:1}];
   await page.route('**/api/**',route=>{
    const path=new URL(route.request().url()).pathname;
@@ -18,19 +18,26 @@ for (const width of [375,768,1440]) for (const empty of [true,false]) {
   await expect(dialog).toBeVisible();
   await expect(page.locator('#attribution-minutes')).toHaveText('7 seconds');
   await expect(page.locator('#save-session')).toBeEnabled();
-  await expect(page.locator('#session-summary')).toBeHidden();
+  await expect(page.locator('#session-summary')).toBeVisible();
+  await expect(page.getByText('Add a missing task',{exact:true})).toHaveCount(0);
+  const noteBox = (await page.locator('#session-summary').boundingBox())!;
+  const tasksBox = (await page.locator('#attribution-options').boundingBox())!;
+  expect(noteBox.y + noteBox.height).toBeLessThan(tasksBox.y);
   await expect(page.locator('.attribution-column-head')).toBeHidden();
   if(empty) {
    await expect(dialog).toContainText('No tasks to update');
    await expect(page.locator('.attribution-summary')).toBeHidden();
   } else {
-   await page.getByLabel('Worked on Read the first chapter',{exact:true}).check();
+   await expect(dialog).toContainText('records progress and keeps the task open');
    await page.getByLabel('Finished Read the first chapter',{exact:true}).check();
+   await expect(page.getByLabel('Worked on Read the first chapter',{exact:true})).toBeChecked();
+   await page.getByLabel('Worked on Try an exercise',{exact:true}).check();
    await expect(page.getByLabel('Finished Try an exercise',{exact:true})).not.toBeChecked();
   }
   for(const theme of ['light','dark']) {
    await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+   await page.locator('#save-session').scrollIntoViewIfNeeded();
    await expect(page.locator('#save-session')).toBeInViewport();
    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
    await page.screenshot({path:testInfo.outputPath(`review-${theme}.png`)});

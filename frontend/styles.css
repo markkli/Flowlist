@@ -487,7 +487,7 @@ label > span { display: block; margin-bottom: 5px; color: var(--muted); font-siz
 
 .overlay { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 20px; background: rgba(12,10,8,.58); backdrop-filter: blur(12px); }
 .modal-open { overflow: hidden; }
-.timer-modal { width: min(460px,100%); padding: 30px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-2); text-align: center; animation: modal-in .25s cubic-bezier(.16,1,.3,1) both; }
+.timer-modal { width: min(460px,100%); max-height: calc(100dvh - 40px); overflow-y: auto; overscroll-behavior: contain; padding: 30px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-2); text-align: center; animation: modal-in .25s cubic-bezier(.16,1,.3,1) both; }
 .timer-modal .status { color: var(--muted); justify-content: center; }
 .timer-modal h2 { margin: 12px 0 5px; font-size: 25px; }
 .timer-modal > p { margin: 0; color: var(--muted); }

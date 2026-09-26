@@ -8,3 +8,11 @@
 .sound-setting { display:flex; align-items:center; justify-content:space-between; min-height:44px; }
 .sound-setting input { width:20px; height:20px; accent-color:var(--forest); }
 @media(max-width:520px) { .interval-reminder { top:12px; right:16px; } }
+
+.reminder-invitation { text-align:left; width:100%; padding:16px; border:1px solid var(--border-strong); border-radius:12px; background:var(--surface-strong); margin:12px 0; }
+.reminder-invitation[hidden] { display:none; }
+.reminder-invitation > strong { font-size:14px; color:var(--ink); }
+.reminder-invitation p { font-size:13px; line-height:1.5; color:var(--muted); margin:8px 0 12px; }
+.reminder-invitation > div { display:flex; justify-content:flex-end; gap:12px; flex-wrap:wrap; }
+.reminder-invitation button { min-height:44px; font-size:12px; }
+#reminder-invitation-status:empty { display:none; }

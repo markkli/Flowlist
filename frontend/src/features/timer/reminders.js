@@ -2,6 +2,7 @@ import { accountKey, accountLocked } from '../../shared/account';
 import './reminders.css';
 const SOUND_KEY = 'flowlist-reminder-sound';
 const PREFERENCE_KEY = 'flowlist-desktop-reminders';
+const INVITATION_KEY = 'flowlist-reminder-invitation-seen';
 const NOTICE_KEY = () => accountKey('flowlist-interval-notice');
 
 function reminderCopy(previous, next) {
@@ -23,6 +24,9 @@ export function initReminders({ showToast }) {
   const status = document.getElementById('desktop-reminders-status');
   const soundButton = document.getElementById('reminder-sound-toggle');
   const noticeBox = document.getElementById('interval-reminder');
+  const invitation = document.getElementById('reminder-invitation');
+  const inviteEnable = document.getElementById('reminder-invitation-enable');
+  let invitationSeen = false;
   let noticeTimer;
   let audio;
   let soundEnabled = true;
@@ -78,6 +82,9 @@ export function initReminders({ showToast }) {
     const granted = supported && Notification.permission === 'granted';
     const blocked = supported && Notification.permission === 'denied';
     button.disabled = busy || !supported || blocked;
+    inviteEnable.disabled = busy;
+    inviteEnable.textContent = busy ? 'Waiting for permission…' : 'Enable notifications';
+    if (granted || blocked) invitation.hidden = true;
     button.setAttribute('aria-pressed', String(enabled && granted));
     button.textContent = busy ? 'Waiting for permission…' : enabled && granted ? 'Turn off desktop reminders' : 'Enable desktop reminders';
     status.textContent = !supported
@@ -86,17 +93,56 @@ export function initReminders({ showToast }) {
       : enabled && granted ? 'Desktop reminders are on for this browser. Changes apply immediately.'
       : 'In-app reminders are on. Enable desktop reminders to see a message while you’re elsewhere.';
   }
-  button.addEventListener('click', async () => {
+  function rememberInvitation() {
+    invitationSeen = true;
+    try { localStorage.setItem(INVITATION_KEY,'yes'); } catch {}
+  }
+  function offerNotifications() {
+    invitation.hidden = true;
+    readPreference(); readSound();
+    if (!supported || accountLocked()) return;
+    let preference = null;
+    try {
+      preference = localStorage.getItem(PREFERENCE_KEY);
+      invitationSeen ||= localStorage.getItem(INVITATION_KEY) === 'yes';
+    } catch {}
+    // Existing browser permission is sufficient. Respect an explicit app opt-out.
+    if (Notification.permission === 'granted') {
+      if (preference === null) {
+        enabled = true;
+        try { localStorage.setItem(PREFERENCE_KEY,'on'); } catch {}
+      }
+      render();
+      return;
+    }
+    if (Notification.permission !== 'default' || invitationSeen || preference !== null) return;
+    document.getElementById('reminder-invitation-copy').textContent = `${soundEnabled ? 'Your gentle chime is on.' : 'Your chime is muted.'} Enable desktop notifications for focus and break reminders while you’re in another app. Keep Flowlist open in a tab.`;
+    invitation.hidden = false;
+    rememberInvitation();
+  }
+  async function changeNotifications(forceEnable = false) {
+    if (busy) return;
     busy = true;
     render();
     try {
-      const turnOff = enabled && Notification.permission === 'granted';
-      // Ask only on the explicit Enable gesture, never on load or at an interval boundary.
-      const permission = turnOff ? 'granted' : await Notification.requestPermission();
+      const turnOff = !forceEnable && enabled && Notification.permission === 'granted';
+      // The browser prompt comes only from an explicit Enable click.
+      const permission = turnOff || Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
       if (permission === 'granted') localStorage.setItem(PREFERENCE_KEY, turnOff ? 'off' : 'on');
+      if (forceEnable) {
+        invitation.hidden = true;
+        document.querySelector('#focus-overlay .timer-modal').focus();
+        showToast(permission === 'granted' ? 'Desktop reminders enabled.' : 'In-app reminders stay on. You can enable desktop reminders in Timer settings later.');
+      }
     } catch {
       showToast('Desktop reminders could not be enabled. In-app reminders are still on.', true);
     } finally { busy = false; render(); }
+  }
+  button.addEventListener('click', () => changeNotifications());
+  inviteEnable.addEventListener('click', () => { rememberInvitation(); changeNotifications(true); });
+  document.getElementById('reminder-invitation-later').addEventListener('click', () => {
+    rememberInvitation(); invitation.hidden = true;
+    document.querySelector('#focus-overlay .timer-modal').focus();
   });
   const showInApp = notice => {
     document.getElementById('interval-reminder-title').textContent = notice.title + '. ';
@@ -106,7 +152,7 @@ export function initReminders({ showToast }) {
     noticeTimer = setTimeout(() => { noticeBox.hidden = true; }, 20000);
   };
   window.addEventListener('storage', event => {
-    if (event.key === PREFERENCE_KEY || event.key === SOUND_KEY || event.key === null) render();
+    if (event.key === PREFERENCE_KEY || event.key === SOUND_KEY || event.key === INVITATION_KEY || event.key === null) render();
     // The tab which advances the shared timer owns the desktop notification.
     // Other tabs show only the same gentle in-app message, without moving focus.
     if (!accountLocked() && event.key === NOTICE_KEY() && event.newValue) {
@@ -117,10 +163,10 @@ export function initReminders({ showToast }) {
     }
   });
   window.addEventListener('focus', render);
-  new MutationObserver(() => { if (accountLocked()) noticeBox.hidden = true; }).observe(document.body,{attributes:true,attributeFilter:['class']});
+  new MutationObserver(() => { if (accountLocked()) { noticeBox.hidden = true; invitation.hidden = true; } }).observe(document.body,{attributes:true,attributeFilter:['class']});
   render();
   return {
-    render, prepareAudio,
+    render, prepareAudio, offerNotifications,
     notify(previous, next) {
       const notice = {...reminderCopy(previous, next), at: Date.now(), id: `${previous.id}:${previous.deadline}`};
       showInApp(notice);

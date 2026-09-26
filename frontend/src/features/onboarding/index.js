@@ -28,7 +28,7 @@ const steps = [
   },
   {
     name: 'Review', title: 'Record progress, not just finished tasks.',
-    description: 'When you choose End session, select what you worked on. Mark Done only for work you completed, then press Save session.',
+    description: 'When you choose End session, select what you worked on. Mark Finished only for work you completed, then press Save session.',
     tips: [
       ['Select / Done', 'You can log time against a task without crossing it off. Tasks and smaller steps can both be selected.'],
       ['A note, if it helps', 'Write a short reflection or add a missing task. Leave tasks unselected to record General focus.'],

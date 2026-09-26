@@ -161,3 +161,75 @@ test('chime is on by default, fires at a boundary, and can be muted without hidi
  await page.locator('#timer-settings-toggle').click();
  await expect(page.getByRole('checkbox',{name:'Gentle chime',exact:true})).not.toBeChecked();
 });
+
+test('first timer click offers reminders, Enable asks once, and granted permission is remembered', async({page})=>{
+ await fakeNotifications(page);
+ await page.goto('/');
+ await expect(page.locator('#reminder-invitation')).toBeHidden();
+ expect(await page.evaluate(()=>(window as any).__reminders.requests)).toBe(0);
+ await page.locator('#start-pomodoro').click();
+ await expect(page.locator('#reminder-invitation')).toBeVisible();
+ await expect(page.locator('#reminder-invitation')).toContainText('gentle chime is on');
+ expect(await page.evaluate(()=>(window as any).__reminders.requests)).toBe(0);
+ await page.getByRole('button',{name:'Enable notifications',exact:true}).click();
+ await expect(page.locator('#reminder-invitation')).toBeHidden();
+ expect(await page.evaluate(()=>(window as any).__reminders.requests)).toBe(1);
+ expect(await page.evaluate(()=>localStorage.getItem('flowlist-desktop-reminders'))).toBe('on');
+ await page.getByRole('button',{name:'Minimize timer'}).click();
+ await page.locator('#timer-mini-open').click();
+ await expect(page.locator('#reminder-invitation')).toBeHidden();
+ await page.reload();
+ await expect(page.locator('#reminder-invitation')).toBeHidden();
+ expect(await page.evaluate(()=>(window as any).__reminders.requests)).toBe(0);
+});
+
+test('Not now remembers the choice without disabling the chime or settings opt-in',async({page})=>{
+ await fakeNotifications(page);
+ await page.goto('/');
+ await page.locator('#start-pomodoro').click();
+ await page.getByRole('button',{name:'Not now',exact:true}).click();
+ await page.reload();
+ await page.getByRole('button',{name:'Minimize timer'}).click();
+ await page.locator('#timer-mini-open').click();
+ await expect(page.locator('#reminder-invitation')).toBeHidden();
+ await page.getByRole('button',{name:'Minimize timer'}).click();
+ await page.locator('#timer-settings-toggle').click();
+ await expect(page.getByRole('checkbox',{name:'Gentle chime',exact:true})).toBeChecked();
+ await page.getByRole('button',{name:'Enable desktop reminders',exact:true}).click();
+ expect(await page.evaluate(()=>(window as any).__reminders.requests)).toBe(1);
+});
+
+for(const permission of ['granted','denied']) test(`existing ${permission} permission never prompts again`,async({page})=>{
+ await fakeNotifications(page,permission);
+ await page.goto('/');
+ await page.locator('#start-pomodoro').click();
+ await expect(page.locator('#focus-overlay')).toBeVisible();
+ await expect(page.locator('#reminder-invitation')).toBeHidden();
+ expect(await page.evaluate(()=>(window as any).__reminders.requests)).toBe(0);
+ if(permission==='granted') expect(await page.evaluate(()=>localStorage.getItem('flowlist-desktop-reminders'))).toBe('on');
+});
+
+test('a deliberate reminder opt-out is respected even with browser permission',async({page})=>{
+ await fakeNotifications(page,'granted');
+ await page.addInitScript(()=>localStorage.setItem('flowlist-desktop-reminders','off'));
+ await page.goto('/');
+ await page.locator('#start-pomodoro').click();
+ await expect(page.locator('#focus-overlay')).toBeVisible();
+ await expect(page.locator('#reminder-invitation')).toBeHidden();
+ expect(await page.evaluate(()=>localStorage.getItem('flowlist-desktop-reminders'))).toBe('off');
+});
+
+for(const width of [375,768,1440]) test(`reminder invitation is reachable at ${width}px`,async({page},testInfo)=>{
+ await fakeNotifications(page);
+ await page.setViewportSize({width,height:width===768?375:850});
+ await page.goto('/');
+ await page.locator('#start-pomodoro').click();
+ await expect(page.locator('#reminder-invitation')).toBeVisible();
+ await page.locator('#reminder-invitation-enable').scrollIntoViewIfNeeded();
+ await expect(page.locator('#reminder-invitation-enable')).toBeInViewport();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ for (const theme of ['light','dark']) {
+  await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
+  await page.screenshot({path:testInfo.outputPath(`notification-offer-${theme}.png`)});
+ }
+});

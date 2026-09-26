@@ -22,7 +22,6 @@ test('refresh restores reflection and task selections; Escape keeps the draft', 
   await page.getByRole('button',{name:/Start a 25-minute/}).click();
   await page.getByRole('button',{name:'End session',exact:true}).first().click();
   await expect(page.getByRole('dialog',{name:'Save your progress'})).toBeVisible();
-  await page.locator('#session-note > summary').click();
   await page.getByLabel('What did you do?').fill('Kept my reflection');
   await page.getByLabel('Worked on A task', {exact:true}).check();
   await page.reload();
@@ -61,7 +60,6 @@ test('a failed save retries with the same ritual ID and keeps the reflection', a
   await page.goto('/');
   await page.getByRole('button',{name:/Start a 25-minute/}).click();
   await page.locator('#focus-exit').click();
-  await page.locator('#session-note > summary').click();
   await page.getByLabel('What did you do?').fill('Retry this safely');
   await page.getByRole('button',{name:'Save session',exact:true}).click();
   await expect(page.locator('#attribution-error')).toContainText('Your ritual is saved on this device');
@@ -129,107 +127,27 @@ test('attribution remains usable on a narrow screen with enlarged text', async (
   await page.addStyleTag({content:'body { font-size: 20px; }'});
   await page.getByRole('button',{name:/Start a 25-minute/}).click();
   await page.locator('#focus-exit').click();
-  await page.locator('#session-note > summary').click();
   await page.getByLabel('What did you do?').fill('A note kept for later');
   await page.getByRole('button',{name:'Save later',exact:true}).click();
   await expect(page.locator('#timer-mini')).toContainText('Unsaved ritual');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-test('missing-task capture defaults to Tasks, Enter adds it, and save cannot lose unadded text', async ({page}) => {
-  let creates = 0;
-  const saved: any[] = [];
-  await page.route('**/api/standalone-tasks', async route => {
-    creates++;
-    await route.fulfill({json: {...task, id: 42, goal_id: 2, title: route.request().postDataJSON().title}});
+test('retired task drafts are preserved in the note without creating tasks', async ({page}) => {
+  await page.addInitScript(() => {
+    if (localStorage.getItem('flowlist-ritual-v2')) return;
+    localStorage.setItem('flowlist-ritual-v2', JSON.stringify({
+      id:'legacy-task-draft', phase:'awaiting-attribution', elapsedSeconds:1500, round:1,
+      settings:{focus:25,break:5,rounds:4,longBreak:15}, deadline:Date.now(), blockSeconds:1500,
+      breakKind:'short', minimized:false, summary:'Session notes', selections:[],
+      draftTask:'Remember this', draftDestination:'__tasks__', draftGroup:'Website', draftGroupType:'project'
+    }));
   });
-  await page.route('**/api/sessions', async route => { saved.push(route.request().postDataJSON()); await route.fulfill({json:{id:1}}); });
   await page.goto('/');
-  await page.getByRole('button',{name:/Start a 25-minute/}).click();
-  await page.locator('#focus-exit').click();
-  await page.getByText('Add a missing task', {exact:true}).click();
-  await expect(page.getByLabel('List or project')).toBeHidden();
-  await page.getByLabel('Task name', {exact:true}).fill('Reviewed the release');
-  await page.getByRole('button',{name:'Save session',exact:true}).click();
-  await expect(page.locator('#attribution-task-error')).toContainText('Add this task first');
-  expect(saved).toHaveLength(0);
-  await page.getByLabel('Task name', {exact:true}).press('Enter');
-  await expect(page.getByLabel('Worked on Reviewed the release',{exact:true})).toBeChecked();
-  await expect(page.getByLabel('Finished Reviewed the release',{exact:true})).not.toBeChecked();
-  await expect(page.getByLabel('Worked on Reviewed the release',{exact:true})).toBeFocused();
-  expect(creates).toBe(1);
-  await page.getByRole('button',{name:'Save session',exact:true}).click();
-  await expect(page.locator('#session-attribution-overlay')).toBeHidden();
-  expect(saved[0].tasks).toEqual([{task_id:42,completed:false}]);
-});
-
-test('capture remembers its organization and typed draft after refresh', async ({page}) => {
-  await page.setViewportSize({width:375,height:812});
-  await page.goto('/');
-  await page.getByRole('button',{name:/Start a 25-minute/}).click();
-  await page.locator('#focus-exit').click();
-  await page.getByText('Add a missing task',{exact:true}).click();
-  await page.getByLabel('Task name',{exact:true}).fill('Check spacing');
-  await page.locator('#attribution-organize > summary').click();
-  await page.getByLabel('List or project').selectOption('1');
+  await expect(page.locator('#session-summary')).toHaveValue('Session notes\n\nUnadded task: Remember this (Website)');
+  await expect(page.getByText('Add a missing task',{exact:true})).toHaveCount(0);
   await page.reload();
-  await expect(page.getByLabel('Task name',{exact:true})).toBeVisible();
-  await expect(page.getByLabel('Task name',{exact:true})).toHaveValue('Check spacing');
-  await expect(page.getByLabel('List or project')).toHaveValue('1');
-  await expect(page.locator('#attribution-destination-label')).toContainText('Project');
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-});
-
-test('a failed task creation reuses the direction already created', async ({page}) => {
-  let goalsCreated = 0, tasksCreated = 0;
-  const goalList = [goal];
-  await page.route('**/api/goals', async route => {
-    if (route.request().method() === 'POST') {
-      goalsCreated++;
-      const created = {...goal, id: 2, title:'New direction'};
-      goalList.push(created);
-      await route.fulfill({json: created});
-    } else await route.fulfill({json: goalList});
-  });
-  await page.route('**/api/goals/2/tasks', async route => {
-    tasksCreated++;
-    await route.fulfill(tasksCreated === 1 ? {status:503,json:{detail:'Try again'}} : {json:{...task,id:42,goal_id:2,title:'Draft landing page'}});
-  });
-  await page.goto('/');
-  await page.getByRole('button',{name:/Start a 25-minute/}).click();
-  await page.locator('#focus-exit').click();
-  await page.getByText('Add a missing task',{exact:true}).click();
-  await page.getByLabel('Task name',{exact:true}).fill('Draft landing page');
-  await page.locator('#attribution-organize > summary').click();
-  await page.getByLabel('List or project').selectOption('__new__');
-  await page.getByLabel('Project name',{exact:true}).fill('New direction');
-  await page.getByRole('button',{name:'Add task',exact:true}).click();
-  await expect(page.locator('#attribution-task-error')).toContainText('Try again');
-  await expect(page.getByLabel('List or project')).toHaveValue('2');
-  await page.getByRole('button',{name:'Add task',exact:true}).click();
-  await expect(page.getByLabel('Worked on Draft landing page',{exact:true})).toBeChecked();
-  expect(goalsCreated).toBe(1);
-  expect(tasksCreated).toBe(2);
-});
-
-test('missing-task capture fits both themes on desktop, phone, and short landscape', async ({page}, testInfo) => {
-  await page.goto('/');
-  await page.getByRole('button',{name:/Start a 25-minute/}).click();
-  await page.locator('#focus-exit').click();
-  await page.getByText('Add a missing task',{exact:true}).click();
-  for (const [width,height] of [[1200,960],[375,812],[768,375]]) {
-    await page.setViewportSize({width,height});
-    for (const theme of ['light','dark']) {
-      await page.evaluate(theme => document.documentElement.dataset.theme = theme, theme);
-      await page.getByRole('button',{name:'Add task',exact:true}).scrollIntoViewIfNeeded();
-      const box = await page.getByRole('button',{name:'Add task',exact:true}).boundingBox();
-      expect(box!.x).toBeGreaterThanOrEqual(0);
-      expect(box!.x + box!.width).toBeLessThanOrEqual(width);
-      expect(box!.y + box!.height).toBeLessThanOrEqual(height);
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      await page.screenshot({path:testInfo.outputPath(`capture-${width}-${theme}.png`)});
-    }
-  }
+  await expect(page.locator('#session-summary')).toHaveValue('Session notes\n\nUnadded task: Remember this (Website)');
 });
 
 test('saved ritual includes actual focus intervals and excludes the break',async({page})=>{
