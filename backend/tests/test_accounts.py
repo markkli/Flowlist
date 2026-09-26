@@ -175,3 +175,35 @@ def test_public_config_excludes_secrets_and_production_rejects_local_mode(client
 def test_large_mutations_are_rejected_before_authentication(clients):
     response=TestClient(app).post('/goals',content=b'x'*(1024*1024+1))
     assert response.status_code==413
+
+
+def test_onboarding_preference_is_private_and_cannot_authorize_access(clients, monkeypatch):
+    a,b=clients
+    def verify(token):
+        return {'id':token,'email':('a' if token==A else 'b')+'@example.com',
+                'email_confirmed_at':'2026-09-21',
+                'user_metadata':{'flowlist_onboarding_version':1 if token==A else 0}}
+    monkeypatch.setattr(auth,'verify_access_token',verify)
+    assert a.get('/account').json()['onboarding_version']==1
+    assert b.get('/account').json()['onboarding_version']==0
+    monkeypatch.setenv('FLOWLIST_BETA_EMAILS','b@example.com')
+    assert a.get('/account').status_code==403
+
+
+@pytest.mark.parametrize('metadata',[None,[],{'flowlist_onboarding_version':'1'},{'flowlist_onboarding_version':True}])
+def test_malformed_onboarding_metadata_is_ignored(clients,monkeypatch,metadata):
+    monkeypatch.setattr(auth,'verify_access_token',lambda token:{'id':A,'email':'a@example.com',
+        'email_confirmed_at':'2026-09-21','user_metadata':metadata})
+    assert clients[0].get('/account').json()['onboarding_version']==0
+
+
+def test_open_beta_accepts_new_verified_users_without_allowlist_but_still_requires_verification(clients,monkeypatch):
+    monkeypatch.setenv('FLOWLIST_BETA_SIGNUPS','open')
+    monkeypatch.setenv('FLOWLIST_BETA_EMAILS','')
+    a,b=clients
+    assert a.get('/account').status_code==b.get('/account').status_code==200
+    assert a.get('/goals').json()==b.get('/goals').json()==[]
+    monkeypatch.setattr(auth,'verify_access_token',lambda token:{'id':A,'email':'a@example.com','user_metadata':{'flowlist_onboarding_version':1}})
+    assert a.get('/account').status_code==403
+    monkeypatch.setattr(auth,'verify_access_token',lambda token:{'id':A,'email':'a@example.com','email_confirmed_at':'2026-09-21','is_anonymous':True})
+    assert a.get('/account').status_code==403

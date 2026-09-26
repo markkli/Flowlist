@@ -16,7 +16,7 @@ test.beforeEach(async({context})=>{
   const path=new URL(route.request().url()).pathname;
   if(path==='/api/config') return route.fulfill({json:{auth_mode:'supabase',supabase_url:'https://beta.supabase.co',supabase_key:'sb_publishable_test',signup_enabled:false,google_enabled:true,email_enabled:true}});
   if(!route.request().headers().authorization) return route.fulfill({status:401,json:{detail:'Sign in'}});
-  if(path==='/api/account') return route.fulfill({json:route.request().method()==='DELETE'?{deleted:true}:{id:userId,email:user.email,mode:'supabase'}});
+  if(path==='/api/account') return route.fulfill({json:route.request().method()==='DELETE'?{deleted:true}:{id:userId,email:user.email,mode:'supabase',onboarding_version:1}});
   return route.fulfill({json:path==='/api/dashboard'?dashboard:[]});
  });
 });

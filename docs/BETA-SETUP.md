@@ -20,7 +20,7 @@ See [email OTP setup](https://supabase.com/docs/guides/auth/auth-email-passwordl
 
 ### Enable Continue with Google
 
-1. In [Google Auth Platform](https://console.cloud.google.com/auth/overview), create/select a project. Configure Flowlist's branding, support contact, audience, and only the basic `openid`, email, and profile scopes. While Google's app is in testing, add the intended Google test users.
+1. In [Google Auth Platform](https://console.cloud.google.com/auth/overview), create/select a project. Configure Flowlist's branding, support contact, audience, and only the basic `openid`, email, and profile scopes. Google exempts apps requesting only those basic identity scopes from the Testing test-user allowlist. See [Google's current app-state guidance](https://developers.google.com/identity/protocols/oauth2/production-readiness/overview).
 2. Create an OAuth client with application type **Web application**. Add the website origin, such as `https://beta.your-domain.com`, as an authorized JavaScript origin.
 3. In Supabase **Authentication → Sign In / Providers → Google**, copy the provider callback URL. Add that exact URL to Google's **Authorized redirect URIs**—normally `https://YOUR_PROJECT.supabase.co/auth/v1/callback`. This is Google's return to Supabase, not Flowlist's return URL.
 4. Enable Google in Supabase and enter the Google client ID and client secret there. The Google secret does not belong in frontend code or Flowlist's public config.

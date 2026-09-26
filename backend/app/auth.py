@@ -14,6 +14,7 @@ from app.config import auth_mode, public_config, supabase_url
 class Identity:
     id: str | None
     email: str = ''
+    onboarding_version: int = 0
 
 
 def verify_access_token(token: str) -> dict:
@@ -53,7 +54,10 @@ def get_identity(authorization: str | None = Header(None)) -> Identity:
         invited = {entry.strip().lower() for entry in os.getenv('FLOWLIST_BETA_EMAILS', '').split(',') if entry.strip()}
         if email not in invited:
             raise HTTPException(403, 'This beta is invitation-only. This email has not been invited yet.')
-    return Identity(subject, email)
+    metadata = user.get('user_metadata')
+    version = metadata.get('flowlist_onboarding_version', 0) if isinstance(metadata, dict) else 0
+    # User-editable display preference only; never used to authorize access.
+    return Identity(subject, email, version if type(version) is int and version >= 0 else 0)
 
 
 def remove_auth_user(subject: str):

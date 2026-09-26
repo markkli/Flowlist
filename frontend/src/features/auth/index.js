@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { configureAccount, lockAccount, clearAccountDrafts, accountKey } from '../../shared/account';
+import { configureAccount, lockAccount, accountLocked, clearAccountDrafts, accountKey } from '../../shared/account';
 import './auth.css';
 import { captureGoogleCallback, startGoogleSignIn, finishGoogleSignIn } from './google';
 
@@ -23,7 +23,7 @@ export async function initAuth() {
     configureAccount(null,null);
     document.body.classList.add('app-ready');
     el('auth-screen').hidden = true;
-    return true;
+    return { onboarding: { automatic: false } };
   }
   const client = createClient(config.supabase_url, config.supabase_key, {
     auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,flowType:'pkce'},
@@ -105,7 +105,17 @@ export async function initAuth() {
       document.body.classList.add('app-ready');
       el('auth-screen').hidden=true;
       ready=true;
-      finish(true);
+      finish({ onboarding: {
+        automatic: true,
+        version: profile.onboarding_version || 0,
+        async save(version) {
+          if (accountLocked()) throw new Error('Your account changed.');
+          const { data: current, error: sessionError } = await client.auth.getSession();
+          if (sessionError || current.session?.user.id !== activeId) throw new Error('Your account changed.');
+          const { error } = await client.auth.updateUser({ data: { flowlist_onboarding_version: version } });
+          if (error) throw error;
+        },
+      } });
     } catch(error) {
       el('auth-error').textContent=error.message;
       el('auth-change-email').hidden=!emailEnabled;

@@ -14,7 +14,8 @@ router = APIRouter()
 
 @router.get('/account')
 def account(identity: Identity = Depends(get_identity), db: Session = Depends(get_db)):
-    return {'id': identity.id, 'email': identity.email, 'mode': 'local' if identity.id is None else 'supabase'}
+    return {'id': identity.id, 'email': identity.email, 'mode': 'local' if identity.id is None else 'supabase',
+            'onboarding_version': identity.onboarding_version}
 
 
 class Deletion(BaseModel):

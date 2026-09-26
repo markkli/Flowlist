@@ -7,6 +7,7 @@ import { initDashboard } from './features/dashboard';
 import { initHistory } from './features/history';
 import { initTimer } from './features/timer';
 import { initAppearance } from './features/appearance';
+import { initOnboarding } from './features/onboarding';
 let toastTimer;
 function greetingForNow() {
   const hour = new Date().getHours();
@@ -66,7 +67,8 @@ document.getElementById("theme-toggle").addEventListener("click", () => {
 
 
 async function boot() {
-if (!await initAuth()) return;
+const auth = await initAuth();
+if (!auth) return;
 const appearance = initAppearance({ showToast });
 const plan = initPlan({ showToast });
 const dashboard = initDashboard({ setDateCopy, showToast });
@@ -105,9 +107,11 @@ window.addEventListener('unhandledrejection', event => {
   event.preventDefault();
   showToast(event.reason?.message || 'Could not finish that action. Please try again.', true);
 });
-document.addEventListener('keydown', event => { if (!appearance.handleKey(event) && !historyView.handleKey(event) && !timer.handleKey(event)) plan.handleKey(event); });
+const onboarding = initOnboarding({ preferences: auth.onboarding, showToast, navigate });
+document.addEventListener('keydown', event => { if (!onboarding.handleKey(event) && !appearance.handleKey(event) && !historyView.handleKey(event) && !timer.handleKey(event)) plan.handleKey(event); });
 setDateCopy();
 switchView(location.hash.slice(1));
+onboarding.startIfNew();
 if (['goals','history'].includes(location.hash.slice(1))) dashboard.loadDashboard().catch(error => showToast(error.message,true));
 
 }

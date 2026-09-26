@@ -1,12 +1,15 @@
 # First Flowlist testers
 
 Start with a small group using Google accounts. Keep public signup disabled.
-Do not send invitations until the three access checks below are complete.
+For a future beta anyone can join, see [OPEN-BETA.md](OPEN-BETA.md).
+The steps here apply while access remains invitation-only.
 
 ## Owner setup
 
-1. Obtain each tester's exact Google email address. Add it to Google Auth
-   Platform → Audience → Test users while the OAuth application is in Testing.
+1. Obtain each tester's exact Google email address. Flowlist requests only
+   `openid`, `email`, and `profile`; Google exempts that scope combination from
+   the Testing test-user list. If additional scopes are requested, check Google's
+   Audience and verification requirements before inviting testers.
 2. Provision a passwordless Supabase user for that address through Auth Admin
    `createUser`, with `email_confirm: false`. Reuse an existing matching user;
    do not reset it. Do not set a shared password or administratively verify
@@ -22,8 +25,9 @@ Do not send invitations until the three access checks below are complete.
    using their approved Google account in Chrome or Safari, then verify they
    get an empty workspace and can save and reload their own task.
 
-Local `.env.beta` values do not propagate to Render automatically. Google test
-users, Supabase accounts, and Flowlist's deployed allowlist are separate gates.
+Local `.env.beta` values do not propagate to Render automatically. Supabase
+accounts and Flowlist's deployed allowlist must both be configured. Google may
+impose additional restrictions for organization-managed accounts or other scopes.
 No part of this workflow sends a message without the owner's instruction.
 
 The Google provisioning approach follows Supabase's
