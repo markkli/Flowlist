@@ -81,6 +81,10 @@ class Task(TaskCreate):
     position: int
 
 
+class GoalWithTasks(Goal):
+    tasks: list[Task]
+
+
 class ReorderPayload(BaseModel):
     ordered_ids: list[int] = Field(min_length=1)
 

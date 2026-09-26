@@ -20,15 +20,16 @@ test.beforeEach(async ({page}) => {
 test('refresh restores reflection and task selections; Escape keeps the draft', async ({page}) => {
   await page.goto('/');
   await page.getByRole('button',{name:/Start a 25-minute/}).click();
-  await page.getByRole('button',{name:'End ritual',exact:true}).first().click();
-  await expect(page.getByRole('dialog',{name:'Where did this focus go?'})).toBeVisible();
+  await page.getByRole('button',{name:'End session',exact:true}).first().click();
+  await expect(page.getByRole('dialog',{name:'Save your progress'})).toBeVisible();
+  await page.locator('#session-note > summary').click();
   await page.getByLabel('What did you do?').fill('Kept my reflection');
   await page.getByLabel('Worked on A task', {exact:true}).check();
   await page.reload();
   await expect(page.getByLabel('What did you do?')).toHaveValue('Kept my reflection');
   await expect(page.getByLabel('Worked on A task',{exact:true})).toBeChecked();
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog',{name:'Where did this focus go?'})).toBeHidden();
+  await expect(page.getByRole('dialog',{name:'Save your progress'})).toBeHidden();
   await page.getByRole('button',{name:'Unsaved ritual · Review and save Open'}).click();
   await expect(page.getByLabel('What did you do?')).toHaveValue('Kept my reflection');
 });
@@ -60,10 +61,11 @@ test('a failed save retries with the same ritual ID and keeps the reflection', a
   await page.goto('/');
   await page.getByRole('button',{name:/Start a 25-minute/}).click();
   await page.locator('#focus-exit').click();
+  await page.locator('#session-note > summary').click();
   await page.getByLabel('What did you do?').fill('Retry this safely');
-  await page.getByRole('button',{name:'Save ritual',exact:true}).click();
+  await page.getByRole('button',{name:'Save session',exact:true}).click();
   await expect(page.locator('#attribution-error')).toContainText('Your ritual is saved on this device');
-  await page.getByRole('button',{name:'Save ritual',exact:true}).click();
+  await page.getByRole('button',{name:'Save session',exact:true}).click();
   await expect(page.locator('#session-attribution-overlay')).toBeHidden();
   expect(bodies).toHaveLength(2);
   expect(bodies[0]).toEqual(bodies[1]);
@@ -127,6 +129,7 @@ test('attribution remains usable on a narrow screen with enlarged text', async (
   await page.addStyleTag({content:'body { font-size: 20px; }'});
   await page.getByRole('button',{name:/Start a 25-minute/}).click();
   await page.locator('#focus-exit').click();
+  await page.locator('#session-note > summary').click();
   await page.getByLabel('What did you do?').fill('A note kept for later');
   await page.getByRole('button',{name:'Save later',exact:true}).click();
   await expect(page.locator('#timer-mini')).toContainText('Unsaved ritual');
@@ -147,7 +150,7 @@ test('missing-task capture defaults to Tasks, Enter adds it, and save cannot los
   await page.getByText('Add a missing task', {exact:true}).click();
   await expect(page.getByLabel('List or project')).toBeHidden();
   await page.getByLabel('Task name', {exact:true}).fill('Reviewed the release');
-  await page.getByRole('button',{name:'Save ritual',exact:true}).click();
+  await page.getByRole('button',{name:'Save session',exact:true}).click();
   await expect(page.locator('#attribution-task-error')).toContainText('Add this task first');
   expect(saved).toHaveLength(0);
   await page.getByLabel('Task name', {exact:true}).press('Enter');
@@ -155,7 +158,7 @@ test('missing-task capture defaults to Tasks, Enter adds it, and save cannot los
   await expect(page.getByLabel('Finished Reviewed the release',{exact:true})).not.toBeChecked();
   await expect(page.getByLabel('Worked on Reviewed the release',{exact:true})).toBeFocused();
   expect(creates).toBe(1);
-  await page.getByRole('button',{name:'Save ritual',exact:true}).click();
+  await page.getByRole('button',{name:'Save session',exact:true}).click();
   await expect(page.locator('#session-attribution-overlay')).toBeHidden();
   expect(saved[0].tasks).toEqual([{task_id:42,completed:false}]);
 });
@@ -247,7 +250,7 @@ test('saved ritual includes actual focus intervals and excludes the break',async
   await expect(page.locator('#focus-phase-label')).toHaveText('Focus');
   await page.clock.fastForward(65000);
   await page.locator('#focus-exit').click();
-  await page.getByRole('button',{name:'Save ritual',exact:true}).click();
+  await page.getByRole('button',{name:'Save session',exact:true}).click();
   await expect(page.locator('#session-attribution-overlay')).toBeHidden();
   expect(bodies[0].actual_minutes).toBe(2);
   expect(bodies[0].blocks).toHaveLength(2);

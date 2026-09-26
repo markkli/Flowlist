@@ -50,7 +50,7 @@ async function openCheckout(page: Page, selections: {task_id: number; completed:
     await route.fulfill({json});
   });
   await page.goto('/');
-  await expect(page.getByRole('dialog', {name: 'Where did this focus go?'})).toBeVisible();
+  await expect(page.getByRole('dialog', {name: 'Save your progress'})).toBeVisible();
   await expect(page.getByLabel('Finished Ship the release', {exact: true})).toBeVisible();
   return sessionBodies;
 }
@@ -74,8 +74,8 @@ test('finishing a parent includes its subtasks, survives refresh, and saves one 
   await expectDraft(page, selections);
   await page.reload();
   await expect(page.getByLabel('Finished Review changes', {exact: true})).toBeChecked();
-  await page.getByRole('button', {name: 'Save ritual', exact: true}).click();
-  await expect(page.getByRole('dialog', {name: 'Where did this focus go?'})).toBeHidden();
+  await page.getByRole('button', {name: 'Save session', exact: true}).click();
+  await expect(page.getByRole('dialog', {name: 'Save your progress'})).toBeHidden();
   expect(bodies).toHaveLength(1);
   expect(bodies[0].tasks).toEqual(selections);
   expect(bodies[0].actual_minutes).toBe(25);
@@ -88,8 +88,8 @@ test('finishing every subtask leaves the parent task open', async ({page}) => {
   await page.getByLabel('Finished Publish release notes', {exact: true}).check();
   await expect(page.getByLabel('Finished Ship the release', {exact: true})).not.toBeChecked();
   await expect(page.getByLabel('Worked on Ship the release', {exact: true})).not.toBeChecked();
-  await page.getByRole('button', {name: 'Save ritual', exact: true}).click();
-  await expect(page.getByRole('dialog', {name: 'Where did this focus go?'})).toBeHidden();
+  await page.getByRole('button', {name: 'Save session', exact: true}).click();
+  await expect(page.getByRole('dialog', {name: 'Save your progress'})).toBeHidden();
   expect(bodies[0].tasks).toEqual([{task_id: 11, completed: true}, {task_id: 12, completed: true}]);
 });
 

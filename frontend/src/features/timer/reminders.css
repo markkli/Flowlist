@@ -1,0 +1,10 @@
+.interval-reminder { position:fixed; z-index:90; top:20px; right:20px; width:min(360px,calc(100vw - 32px)); border:1px solid var(--border-strong); border-left:4px solid var(--forest); border-radius:14px; padding:20px; background:var(--surface-strong); color:var(--ink); box-shadow:var(--shadow-2); }
+.interval-reminder[hidden] { display:none; }
+.interval-reminder strong { font-size:17px; }
+.interval-reminder p { margin:8px 0 12px; color:var(--muted); font-size:14px; line-height:1.5; }
+.interval-reminder-actions { display:flex; justify-content:flex-end; gap:12px; }
+.interval-reminder-actions button { min-height:44px; padding:8px 12px; border:1px solid var(--border); border-radius:8px; color:var(--ink); background:var(--surface); font:inherit; font-size:12px; cursor:pointer; }
+.interval-reminder-actions button:hover { background:var(--surface-muted); }
+.sound-setting { display:flex; align-items:center; justify-content:space-between; min-height:44px; }
+.sound-setting input { width:20px; height:20px; accent-color:var(--forest); }
+@media(max-width:520px) { .interval-reminder { top:12px; right:16px; } }

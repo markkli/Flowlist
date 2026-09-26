@@ -52,7 +52,7 @@ def test_append_remove_and_clear_are_idempotent_without_deleting_tasks():
 
 
 @pytest.mark.parametrize("invalid_kind,expected_status", [
-    ("duplicate", 422), ("missing", 404), ("parent", 409), ("completed", 409),
+    ("duplicate", 422), ("missing", 404), ("completed", 409),
     ("closed", 409), ("invalid_id", 422),
 ])
 def test_invalid_replacement_preserves_entire_existing_queue(invalid_kind, expected_status):
@@ -65,8 +65,6 @@ def test_invalid_replacement_preserves_entire_existing_queue(invalid_kind, expec
         requested_ids = [first["id"], first["id"]]
     elif invalid_kind == "missing":
         requested_ids.append(999999)
-    elif invalid_kind == "parent":
-        client.post(f"/tasks/{invalid['id']}/subtasks", json={"title": "Child"})
     elif invalid_kind == "completed":
         client.patch(f"/tasks/{invalid['id']}", json={"completed": True})
     elif invalid_kind == "closed":
@@ -79,7 +77,7 @@ def test_invalid_replacement_preserves_entire_existing_queue(invalid_kind, expec
 
     assert client.put("/queue", json={"ordered_ids": requested_ids}).status_code == expected_status
     assert queue_ids(client.get("/queue")) == [first["id"]]
-    if invalid_kind in {"parent", "completed", "closed"}:
+    if invalid_kind in {"completed", "closed"}:
         assert client.post(f"/queue/{invalid['id']}").status_code == 409
         assert queue_ids(client.get("/queue")) == [first["id"]]
 
@@ -97,12 +95,13 @@ def test_completion_hides_membership_and_reopening_restores_original_order():
     assert queue_ids(client.get("/queue")) == [second["id"], first["id"]]
 
 
-def test_adding_child_or_closing_direction_hides_queued_work():
+def test_parent_stays_prioritized_when_children_are_added_but_closed_projects_hide_work():
     client = TestClient(app)
     goal, task = create_goal_and_task(client)
     client.post(f"/queue/{task['id']}")
     child = client.post(f"/tasks/{task['id']}/subtasks", json={"title": "Child"}).json()
-    assert queue_ids(client.get("/queue")) == []
+    assert queue_ids(client.get("/queue")) == [task["id"]]
+    assert queue_ids(client.post(f"/queue/{child['id']}")) == [task["id"], child["id"]]
     client.delete(f"/tasks/{child['id']}")
     assert queue_ids(client.get("/queue")) == [task["id"]]
     with Session(engine) as db:

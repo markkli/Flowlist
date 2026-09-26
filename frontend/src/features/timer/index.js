@@ -97,6 +97,7 @@ function renderTimer() {
   syncModal();
 }
 async function openTimer() {
+  reminders.prepareAudio();
   state = readRitual();
   if (state && ['awaiting-attribution','saving'].includes(state.phase)) { pendingSession = payload(state); await openAttributionModal(); return; }
   lastFocus = document.activeElement;
@@ -340,7 +341,7 @@ function renderAttributionOptions(options, selections = new Map()) {
       row.dataset.taskId = option.id;
       if (option.parent_id != null) row.dataset.parentId = option.parent_id;
       const description = [headingId, context ? contextId : '', children.length ? hierarchyNote.id : ''].filter(Boolean).join(' ');
-      row.innerHTML = `<div class="attribution-task-copy"><strong>${escapeHtml(option.title)}</strong>${context ? `<small id="${contextId}">${escapeHtml(context)}</small>` : ''}</div><label class="attribution-toggle attribution-worked"><input class="attribution-worked-input" type="checkbox" aria-describedby="${description}"><span class="toggle-box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8.5 2.5 2.5L12 5.5"/></svg></span><span class="sr-only">Worked on ${escapeHtml(option.title)}</span></label><label class="attribution-toggle attribution-finished"><input class="attribution-finished-input" type="checkbox" aria-describedby="${description}"><span class="toggle-box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8.5 2.5 2.5L12 5.5"/></svg></span><span class="sr-only">Finished ${escapeHtml(option.title)}</span></label>`;
+      row.innerHTML = `<div class="attribution-task-copy"><strong>${escapeHtml(option.title)}</strong>${context ? `<small id="${contextId}">${escapeHtml(context)}</small>` : ''}</div><label class="attribution-toggle attribution-worked"><input class="attribution-worked-input" type="checkbox" aria-describedby="${description}"><span class="toggle-box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8.5 2.5 2.5L12 5.5"/></svg></span><span class="sr-only">Worked on ${escapeHtml(option.title)}</span></label><label class="attribution-toggle attribution-finished"><input class="attribution-finished-input" type="checkbox" aria-label="Finished ${escapeHtml(option.title)}" aria-describedby="${description}"><span class="toggle-box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8.5 2.5 2.5L12 5.5"/></svg></span><span class="finish-label" aria-hidden="true">Done</span><span class="sr-only">Finished ${escapeHtml(option.title)}</span></label>`;
       list.appendChild(row);
       children.forEach(appendTask);
     };
@@ -351,8 +352,10 @@ function renderAttributionOptions(options, selections = new Map()) {
   }
   hierarchyNote.classList.toggle('hidden', attributionChildren.size === 0);
   applyAttributionSelections(restoredSelections);
+  document.querySelector(".attribution-general-note").hidden = !options.length;
+  document.querySelector(".attribution-summary").hidden = !options.length;
   if (!options.length) {
-    attributionOptions.innerHTML = '<p class="attribution-empty">No unfinished tasks are available. This session will be saved as General focus.</p>';
+    attributionOptions.innerHTML = '<p class="attribution-empty"><strong>No tasks to update.</strong> Save your time as General focus, or add a task below.</p>';
   }
 }
 
@@ -456,13 +459,14 @@ attributionNewTask.addEventListener('keydown', event => {
 async function openAttributionModal() {
   if (!pendingSession) return;
   optionsReady = false;
-  document.getElementById("attribution-status").textContent = "Ritual ended";
-  document.getElementById("attribution-minutes").textContent = `${pendingSession.actual_minutes} ${pendingSession.actual_minutes === 1 ? "minute" : "minutes"}`;
-  saveSessionButton.textContent = "Save ritual";
+  document.getElementById("attribution-status").textContent = "Session complete";
+  document.getElementById("attribution-minutes").textContent = state.elapsedSeconds < 60 ? `${Math.floor(state.elapsedSeconds)} seconds` : `${Math.floor(state.elapsedSeconds / 60)} min of focus`;
+  saveSessionButton.textContent = "Save session";
   saveSessionButton.disabled = true;
   attributionError.textContent = "";
   attributionTaskError.textContent = "";
   sessionSummary.value = state.summary;
+  document.getElementById("session-note").open = Boolean(state.summary);
   attributionNewTask.value = state.draftTask;
   attributionNewGroupName.value = state.draftGroup;
   attributionTaskBuilder.removeAttribute("open");
@@ -551,13 +555,13 @@ attributionForm.addEventListener('submit', async event => {
     await api('/sessions', {method:'POST', body:JSON.stringify(payload(state))});
     await mutate(latest => latest?.id === id ? {...latest, phase:'saved', summary:'', selections:[], draftTask:'', draftGroup:''} : undefined);
     pendingSession = null; attributionOverlay.classList.add('hidden'); syncModal();
-    showToast('Focus ritual saved.');
+    showToast('Session saved.');
     document.getElementById('start-pomodoro').focus();
     loadDashboard();
   } catch(error) {
     await mutate(latest => latest?.id === id && latest.phase !== 'saved' ? {...latest, phase:'awaiting-attribution'} : undefined);
     attributionError.textContent = `${error.message} Your ritual is saved on this device; retry when ready.`;
-  } finally { saving = false; lockForm(false); saveSessionButton.textContent = 'Save ritual'; }
+  } finally { saving = false; lockForm(false); saveSessionButton.textContent = 'Save session'; }
 });
 async function closeAttribution() {
   if (saving || addingTask) return;

@@ -60,7 +60,7 @@ def test_every_read_and_export_is_private_and_same_client_id_is_independent(clie
     gb,tb,sb,bodyb=seed(b,'Bob private')
     assert a.post('/sessions',json=bodya).json()['id']==sa['id']
     assert sa['id']!=sb['id']
-    for path in ['/goals','/focus-options','/next-focus','/queue','/dashboard','/sessions','/history/task-options','/history/week?start=2026-09-21','/export']:
+    for path in ['/goals','/goals?include_tasks=true','/focus-options','/next-focus','/queue','/dashboard','/sessions','/history/task-options','/history/week?start=2026-09-21','/export']:
         ra,rb=a.get(path),b.get(path)
         assert ra.status_code==rb.status_code==200,(path,ra.text,rb.text)
         assert 'Bob private' not in ra.text,path
@@ -131,10 +131,10 @@ def test_supabase_verification_fails_closed_on_rejection_outage_and_malformed_da
     monkeypatch.setenv('SUPABASE_URL','https://beta.supabase.co')
     monkeypatch.setenv('SUPABASE_PUBLISHABLE_KEY','sb_publishable_test')
     for status in [401,403,500]:
-        monkeypatch.setattr(auth.httpx,'get',lambda *args,**kwargs:httpx.Response(status,json={'message':'error'}))
+        monkeypatch.setattr(auth.verification_client,'get',lambda *args,**kwargs:httpx.Response(status,json={'message':'error'}))
         assert TestClient(app,headers={'Authorization':'Bearer untrusted'}).get('/goals').status_code==(401 if status<500 else 503)
     def timeout(*args,**kwargs): raise httpx.ConnectTimeout('timeout')
-    monkeypatch.setattr(auth.httpx,'get',timeout)
+    monkeypatch.setattr(auth.verification_client,'get',timeout)
     assert TestClient(app,headers={'Authorization':'Bearer x'}).get('/goals').status_code==503
 
 
@@ -207,3 +207,14 @@ def test_open_beta_accepts_new_verified_users_without_allowlist_but_still_requir
     assert a.get('/account').status_code==403
     monkeypatch.setattr(auth,'verify_access_token',lambda token:{'id':A,'email':'a@example.com','email_confirmed_at':'2026-09-21','is_anonymous':True})
     assert a.get('/account').status_code==403
+
+
+def test_plan_snapshot_includes_private_tasks_without_changing_legacy_shape(clients):
+    a,b=clients
+    ga,ta,*_=seed(a,'Alice snapshot')
+    seed(b,'Bob snapshot')
+    response=a.get('/goals?include_tasks=true')
+    assert response.status_code==200
+    assert response.json()[0]['tasks'][0]['id']==ta['id']
+    assert 'Bob snapshot' not in response.text
+    assert 'tasks' not in a.get('/goals').json()[0]

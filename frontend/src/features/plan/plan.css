@@ -165,3 +165,9 @@
   .step-composer button { justify-self: end; }
 }
 @media (pointer: coarse) { .reorder-handle { display: none; } }
+.task-priority { opacity:1; color:var(--muted); flex-shrink:0; }
+.task-priority svg { fill:none; stroke:currentColor; stroke-width:1.5; }
+.task-priority[aria-pressed="true"] { color:var(--forest); }
+.task-priority[aria-pressed="true"] svg { fill:currentColor; }
+.task-priority:disabled { opacity:.55; cursor:wait; }
+@media(max-width:520px) { .task-priority { width:36px; min-height:44px; } }

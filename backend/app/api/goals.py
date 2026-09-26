@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from app import schemas
 from app.database import get_db
 from app.models import GoalModel, TaskModel
@@ -17,9 +17,14 @@ def create_goal(goal: schemas.GoalCreate, db: Session = Depends(get_db)):
     return new_goal
 
 
-@router.get("/goals", response_model=list[schemas.Goal])
-def list_goals(db: Session = Depends(get_db)):
-    return db.scalars(select(GoalModel).order_by(GoalModel.position, GoalModel.id)).all()
+@router.get("/goals", response_model=list[schemas.GoalWithTasks | schemas.Goal])
+def list_goals(include_tasks: bool = False, db: Session = Depends(get_db)):
+    query = select(GoalModel).order_by(GoalModel.position, GoalModel.id)
+    if include_tasks:
+        query = query.options(selectinload(GoalModel.tasks))
+    goals = db.scalars(query).all()
+    schema = schemas.GoalWithTasks if include_tasks else schemas.Goal
+    return [schema.model_validate(goal) for goal in goals]
 
 
 @router.post("/goals/reorder", response_model=list[schemas.Goal])

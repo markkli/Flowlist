@@ -34,12 +34,12 @@ test('every automatic interval gets a quiet notice without opening the timer or 
   await expect(page.locator('#goal-title')).toBeFocused();
   for(let round=1;round<=4;round++) {
     await page.clock.fastForward(25*60000);
-    await expect(page.locator('#app-toast')).toContainText(round===4?'Cycle complete. Long break started · 15 minutes.':`Focus round ${round} complete. Short break started · 5 minutes.`);
+    await expect(page.locator('#interval-reminder')).toContainText(round===4?'Cycle complete. Long break started · 15 minutes.':`Focus round ${round} complete. Short break started · 5 minutes.`);
     await expect(page.locator('#focus-overlay')).toBeHidden();
     await expect(page.locator('#goal-title')).toBeFocused();
     await expect(page.locator('#goal-title')).toHaveValue('An uninterrupted draft');
     await page.clock.fastForward((round===4?15:5)*60000);
-    await expect(page.locator('#app-toast')).toContainText(`${round===4?'Long':'Short'} break complete. Focus round ${round===4?1:round+1} of 4 started`);
+    await expect(page.locator('#interval-reminder')).toContainText(`${round===4?'Long':'Short'} break complete. Focus round ${round===4?1:round+1} of 4 started`);
     await expect(page).toHaveURL(/#goals$/);
   }
   expect(await page.evaluate(()=>(window as any).__reminders)).toEqual({requests:0,messages:[]});
@@ -62,7 +62,7 @@ test('desktop reminders require opt-in, persist, remain silent and can be turned
   await page.getByRole('button',{name:'Turn off desktop reminders'}).click();
   await page.getByRole('button',{name:'Close timer settings'}).click();
   await page.clock.fastForward(5*60000);
-  await expect(page.locator('#app-toast')).toContainText('Short break complete');
+  await expect(page.locator('#interval-reminder')).toContainText('Short break complete');
   expect(await page.evaluate(()=>(window as any).__reminders.messages.length)).toBe(1);
 });
 
@@ -78,7 +78,7 @@ for(const permission of ['denied','default']) test(`permission ${permission} kee
   await page.getByRole('button',{name:'Close timer settings'}).click();
   await startMinimized(page);
   await page.clock.fastForward(25*60000);
-  await expect(page.locator('#app-toast')).toContainText('Focus round 1 complete');
+  await expect(page.locator('#interval-reminder')).toContainText('Focus round 1 complete');
 });
 
 test('manual skip and end do not send completion reminders',async({page})=>{
@@ -87,7 +87,7 @@ test('manual skip and end do not send completion reminders',async({page})=>{
   await page.locator('#start-pomodoro').click();
   await page.getByRole('button',{name:'Skip to break',exact:true}).click();
   await expect(page.locator('#focus-phase-label')).toHaveText('Short break');
-  await expect(page.locator('#app-toast')).not.toHaveClass(/visible/);
+  await expect(page.locator('#interval-reminder')).toBeHidden();
   await page.locator('#focus-exit').click();
   await expect(page.locator('#session-attribution-overlay')).toBeVisible();
   expect(await page.evaluate(()=>(window as any).__reminders.messages)).toEqual([]);
@@ -127,4 +127,36 @@ for(const width of [375,768,1440]) test(`reminder settings fit at ${width}px wit
     await page.screenshot({path:testInfo.outputPath(`reminders-${width}-${theme}.png`)});
     await page.getByRole('button',{name:'Cancel',exact:true}).click();
   }
+});
+
+test('chime is on by default, fires at a boundary, and can be muted without hiding reminders',async({page})=>{
+ await fakeNotifications(page);
+ await page.addInitScript(()=>{
+  (window as any).__tones=0;
+  Object.defineProperty(window,'AudioContext',{value:class {
+   state='suspended';currentTime=0;destination={};
+   async resume(){this.state='running';}
+   createOscillator(){return {frequency:{value:0},type:'sine',connect(){},disconnect(){},start(){(window as any).__tones++;},stop(){},onended:null};}
+   createGain(){return {gain:{setValueAtTime(){},linearRampToValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){},disconnect(){}};}
+  }});
+ });
+ await page.clock.install();
+ await startMinimized(page);
+ await page.clock.fastForward(25*60000);
+ await expect(page.locator('#interval-reminder')).toBeVisible();
+ expect(await page.evaluate(()=>(window as any).__tones)).toBe(2);
+ await page.getByRole('button',{name:'Got it',exact:true}).click();
+ await expect(page.locator('#interval-reminder')).toBeHidden();
+ await page.getByRole('button',{name:'Today',exact:true}).click();
+ await page.locator('#timer-settings-toggle').click();
+ await expect(page.getByRole('checkbox',{name:'Gentle chime',exact:true})).toBeChecked();
+ await page.getByRole('checkbox',{name:'Gentle chime',exact:true}).uncheck();
+ await page.getByRole('button',{name:'Close timer settings'}).click();
+ await page.clock.fastForward(5*60000);
+ await expect(page.locator('#interval-reminder')).toContainText('Time to focus');
+ expect(await page.evaluate(()=>(window as any).__tones)).toBe(2);
+ await page.reload();
+ await page.getByRole('button',{name:'Today',exact:true}).click();
+ await page.locator('#timer-settings-toggle').click();
+ await expect(page.getByRole('checkbox',{name:'Gentle chime',exact:true})).not.toBeChecked();
 });

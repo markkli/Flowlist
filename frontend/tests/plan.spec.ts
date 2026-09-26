@@ -22,7 +22,7 @@ test.beforeEach(async ({page}) => {
     const method = route.request().method();
     let json:any = {};
     if(path === '/dashboard') json={queue:queue(),goals:goals.map(goal=>({goal,tasks:tasks.filter(t=>t.goal_id===goal.id)})),stats:{current_streak:0,total_sessions:0,total_minutes:0},activity:[],week_sessions:0};
-    if(path === '/goals') json=goals;
+    if(path === '/goals') json=new URL(route.request().url()).searchParams.has('include_tasks') ? goals.map(goal=>({...goal,tasks:tasks.filter(t=>t.goal_id===goal.id)})) : goals;
     if(/^\/goals\/\d+\/tasks$/.test(path)) {
       const id=Number(path.split('/')[2]);
       if(method==='POST') tasks.push({id:tasks.length+1,goal_id:id,parent_id:null,depth:1,title:route.request().postDataJSON().title,completed:false,position:9});
@@ -88,11 +88,11 @@ test('menus stay in viewport, support arrows and Escape, and return focus after 
   const trigger=page.getByRole('button',{name:'Actions for Pay bill',exact:true});
   await trigger.click();
   const menu=page.getByRole('menu',{name:'Actions for Pay bill',exact:true});
-  await expect(menu.getByRole('menuitem',{name:'Add to focus queue',exact:true})).toBeFocused();
+  await expect(menu.getByRole('menuitem',{name:'Rename',exact:true})).toBeFocused();
   const bounds=(await menu.boundingBox())!;
   expect(bounds.x).toBeGreaterThanOrEqual(0); expect(bounds.x+bounds.width).toBeLessThanOrEqual(375);
   await page.keyboard.press('ArrowDown');
-  await expect(menu.getByRole('menuitem',{name:'Rename',exact:true})).toBeFocused();
+  await expect(menu.getByRole('menuitem',{name:'Move down',exact:true})).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(trigger).toBeFocused(); await expect(menu).toBeHidden();
   await trigger.click();
@@ -117,7 +117,7 @@ test('leaving an unchanged title does not steal focus from its action menu', asy
   await page.getByRole('button',{name:'Pay bill',exact:true}).click();
   await expect(page.locator('[data-task-id="4"] .task-edit-title')).toBeFocused();
   await page.getByRole('button',{name:'Actions for Pay bill',exact:true}).click();
-  await expect(page.getByRole('menu',{name:'Actions for Pay bill',exact:true}).getByRole('menuitem',{name:'Add to focus queue',exact:true})).toBeFocused();
+  await expect(page.getByRole('menu',{name:'Actions for Pay bill',exact:true}).getByRole('menuitem',{name:'Rename',exact:true})).toBeFocused();
   await expect(page.locator('[data-task-id="4"] .task-edit-title')).toBeHidden();
 });
 
@@ -130,16 +130,18 @@ test('Plan has two creation choices and no AI drafting actions', async ({page}) 
   await expect(page.getByRole('menuitem',{name:'Add a smaller step under Learn retrieval',exact:true})).toBeVisible();
 });
 
-test('leaf tasks can join the queue from Plan and parents cannot', async ({page}) => {
+test('stars prioritize parents and smaller steps, and unstar keeps the task', async ({page}) => {
   await page.goto('/#goals');
-  await page.getByRole('button',{name:'Actions for Learn retrieval',exact:true}).click();
-  await expect(page.getByRole('menu',{name:'Actions for Learn retrieval',exact:true}).getByRole('menuitem',{name:'Add to focus queue',exact:true})).toHaveCount(0);
-  await page.keyboard.press('Escape');
-  await page.getByRole('button',{name:'Actions for Build an index',exact:true}).click();
-  await page.getByRole('menu',{name:'Actions for Build an index',exact:true}).getByRole('menuitem',{name:'Add to focus queue',exact:true}).click();
-  await expect(page.locator('#app-toast')).toContainText('Added to your focus queue');
-  await page.getByRole('button',{name:'Today',exact:true}).click();
-  await expect(page.locator('.agenda-title')).toHaveText('Build an index');
+  const star=page.getByRole('button',{name:'Prioritize Learn retrieval',exact:true});
+  await star.click();
+  await expect(page.getByRole('button',{name:'Unstar Learn retrieval',exact:true})).toHaveAttribute('aria-pressed','true');
+  await page.getByRole('button',{name:'Prioritize Build an index',exact:true}).click();
+  await expect(page.locator('#app-toast')).toContainText('Prioritized');
+  await page.reload();
+  await expect(page.getByRole('button',{name:'Unstar Learn retrieval',exact:true})).toHaveAttribute('aria-pressed','true');
+  await page.getByRole('button',{name:'Unstar Learn retrieval',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Prioritize Learn retrieval',exact:true})).toHaveAttribute('aria-pressed','false');
+  await expect(page.getByRole('button',{name:'Learn retrieval',exact:true})).toBeVisible();
 });
 
 test('each task keeps a checkbox; completing children leaves the parent open with its disclosure', async ({page}) => {
@@ -199,7 +201,7 @@ test('floating navigation stays fixed, uses minimal space, and hides on short pl
 
 test('a tall direction stays active until the next direction reaches the reading position', async ({page}) => {
   await page.setViewportSize({width:768,height:600});
-  await page.route('**/api/goals/1/tasks',route=>route.fulfill({json:Array.from({length:35},(_,i)=>({id:100+i,goal_id:1,parent_id:null,depth:1,title:`Step ${i+1}`,completed:false,position:i}))}));
+  await page.route('**/api/goals?*',async route=>{const goals=[{id:1,title:'AI engineering',goal_type:'project',completed:false,position:1,tasks:[] as any[]},{id:2,title:'Responsive QA',goal_type:'project',completed:false,position:2,tasks:[]}];goals[0].tasks=Array.from({length:35},(_,i)=>({id:100+i,goal_id:1,parent_id:null,depth:1,title:`Step ${i+1}`,completed:false,position:i}));await route.fulfill({json:goals});});
   await page.goto('/#goals');
   await expect(page.locator('#goal-1 .task-row')).toHaveCount(35);
   await page.locator('#goal-1').evaluate(el=>{const box=el.getBoundingClientRect();window.scrollTo(0,scrollY+box.bottom-500);});
@@ -209,7 +211,7 @@ test('a tall direction stays active until the next direction reaches the reading
 
 test('an overflowing navigator can reach its first and last direction', async ({page}) => {
   await page.setViewportSize({width:768,height:600});
-  await page.route('**/api/goals',route=>route.fulfill({json:Array.from({length:20},(_,i)=>({id:i+1,title:`Direction ${i+1}`,goal_type:'project',completed:false,position:i}))}));
+  await page.route('**/api/goals?*',route=>route.fulfill({json:Array.from({length:20},(_,i)=>({id:i+1,title:`Direction ${i+1}`,goal_type:'project',completed:false,position:i}))}));
   await page.goto('/#goals');
   const rail=page.getByRole('navigation',{name:'Jump to a project'});
   await expect(rail).toBeVisible();
@@ -234,3 +236,18 @@ for (const width of [375,768,1440]) {
     }
   });
 }
+
+test('Plan batches task loading and rolls back a rejected priority click', async ({page}) => {
+  const taskReads:string[]=[];
+  page.on('request',request=>{if(request.method()==='GET' && /\/goals\/\d+\/tasks/.test(request.url()))taskReads.push(request.url());});
+  await page.route('**/api/queue/1',async route=>{
+    await new Promise(resolve=>setTimeout(resolve,250));
+    await route.fulfill({status:503,json:{detail:'Could not save priority'}});
+  });
+  await page.goto('/#goals');
+  await page.getByRole('button',{name:'Prioritize Learn retrieval',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Unstar Learn retrieval',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(page.locator('#app-toast')).toContainText('Could not save priority');
+  await expect(page.getByRole('button',{name:'Prioritize Learn retrieval',exact:true})).toHaveAttribute('aria-pressed','false');
+  expect(taskReads).toEqual([]);
+});

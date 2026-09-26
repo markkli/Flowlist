@@ -10,7 +10,7 @@ const steps = [
     description: 'Start in Plan. Create a Project for something you want to build or learn, then break it into tasks and smaller steps. Use Task for a simple, one-off item.',
     tips: [
       ['Project → Add step', 'Keep a short list of projects or learning goals you actually want to work on.'],
-      ['Task menu ···', 'Add one layer of smaller steps, rename a task, or add it to your focus queue.'],
+      ['Star a task', 'Prioritize any task or smaller step with its star. It appears in Priority tasks on Today. The ··· menu holds rename and smaller-step actions.'],
     ],
     note: 'The arrow expands a task. The checkbox finishes it. Finishing a parent also finishes its smaller steps; finishing every smaller step leaves the parent for you to review.',
     preview: '<div class="guide-example-label">Example plan</div><div class="guide-project"><span class="guide-preview-meta">PROJECT</span><strong>Learn something new</strong><div class="guide-example-task"><i></i>Understand the basics</div><div class="guide-example-subtask"><i></i>Read the first chapter</div><div class="guide-example-subtask"><i></i>Try one small exercise</div></div><div class="guide-single-task"><i></i>Send that email<span>One-off task</span></div>',
@@ -19,22 +19,22 @@ const steps = [
     name: 'Focus', title: 'Press play. Stay with the work.',
     description: 'Go to Today and press the Pomodoro dial to start. You do not need to select a task first. Focus and breaks follow your cycle; name the work when you finish.',
     tips: [
-      ['Task queue', 'An optional shortlist for today. Add tasks from Plan or choose them here, then put them in the order you want.'],
+      ['Priority tasks', 'An optional shortlist for today. Star tasks in Plan or choose them here, then put them in the order you want.'],
       ['Cycle settings', 'The button above the dial changes focus time, breaks, rounds, and desktop reminders.'],
-      ['Minimize timer / End ritual', 'Minimize keeps the clock running while you browse. End ritual takes you to the review when you are ready to stop.'],
+      ['Minimize timer / End session', 'Minimize keeps the clock running while you browse. End session takes you to the review when you are ready to stop.'],
     ],
     note: 'Keep this tab open for interval reminders. Sleeping computers and suspended browsers can delay them.',
     preview: '<div class="guide-example-label">Today · Pomodoro</div><div class="guide-demo-dial"><strong>25:00</strong><span>Start focus <svg viewBox="0 0 24 24"><path d="m9 6 9 6-9 6Z"/></svg></span></div><div class="guide-cycle"><span>Focus</span><b>→</b><span>Break</span><b>→</b><span>Repeat</span></div><p class="guide-preview-caption">One interval at a time.</p>',
   },
   {
     name: 'Review', title: 'Record progress, not just finished tasks.',
-    description: 'When the full cycle ends, or you choose End ritual, select what you worked on. Check Finished only for work you completed, then press Save ritual.',
+    description: 'When you choose End session, select what you worked on. Mark Done only for work you completed, then press Save session.',
     tips: [
-      ['Worked on / Finished', 'You can log time against a task without crossing it off. Tasks and smaller steps can both be selected.'],
+      ['Select / Done', 'You can log time against a task without crossing it off. Tasks and smaller steps can both be selected.'],
       ['A note, if it helps', 'Write a short reflection or add a missing task. Leave tasks unselected to record General focus.'],
     ],
-    note: 'Save ritual adds the session to History and updates finished tasks in Plan. Save later keeps an unfinished review on this browser, ready to reopen.',
-    preview: '<div class="guide-example-label">Example review</div><div class="guide-review-example"><div class="guide-review-head"><span>Task</span><span>Worked on</span><span>Finished</span></div><div class="guide-review-row"><strong>Read the chapter</strong><i class="checked">✓</i><i class="checked">✓</i></div><div class="guide-review-row"><strong>Try an exercise</strong><i class="checked">✓</i><i></i></div><p>Made a start on the exercise. Pick up here tomorrow.</p></div><p class="guide-preview-caption">Partial progress counts, too.</p>',
+    note: 'Save session adds the session to History and updates finished tasks in Plan. Save later keeps an unfinished review on this browser, ready to reopen.',
+    preview: '<div class="guide-example-label">Example review</div><div class="guide-review-example"><div class="guide-review-head"><span>Task</span><span>Worked on</span><span>Done</span></div><div class="guide-review-row"><strong>Read the chapter</strong><i class="checked">✓</i><i class="checked">✓</i></div><div class="guide-review-row"><strong>Try an exercise</strong><i class="checked">✓</i><i></i></div><p>Made a start on the exercise. Pick up here tomorrow.</p></div><p class="guide-preview-caption">Partial progress counts, too.</p>',
   },
   {
     name: 'History', title: 'See where your attention went.',

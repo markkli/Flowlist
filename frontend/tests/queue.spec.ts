@@ -76,12 +76,12 @@ async function mockQueueApi(page: Page, initialQueue: number[] = []) {
 const queueTitles = (page: Page) => page.locator('#today-agenda .agenda-title');
 const picker = (page: Page) => page.getByRole('dialog', { name: 'Choose what comes next' });
 
-test('picker saves only chosen leaf tasks in a custom order that survives reload', async ({ page }) => {
+test('picker offers parents and smaller steps and saves chosen tasks in a custom order that survives reload', async ({ page }) => {
   const state = await mockQueueApi(page);
   await page.goto('/#dashboard');
-  await expect(page.getByRole('heading', { name: 'Make room for what matters.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'What matters next?' })).toBeVisible();
   await page.locator('#edit-queue').click();
-  await expect(picker(page).getByRole('checkbox', { name: 'Research section', exact: true })).toHaveCount(0);
+  await expect(picker(page).getByRole('checkbox', { name: 'Research section', exact: true })).toBeVisible();
   await expect(picker(page).getByRole('checkbox', { name: 'Finished draft', exact: true })).toHaveCount(0);
   await expect(picker(page).getByRole('checkbox', { name: 'Hidden old task', exact: true })).toHaveCount(0);
   await expect(picker(page).getByRole('checkbox', { name: /Compare findings/ })).toBeVisible();
@@ -93,7 +93,7 @@ test('picker saves only chosen leaf tasks in a custom order that survives reload
   await picker(page).getByRole('button', { name: 'Move up: Review the references', exact: true }).click();
   await picker(page).getByRole('button', { name: 'Unselect Pay electricity bill', exact: true }).click();
   await expect(picker(page).getByRole('status')).toHaveText('2 selected');
-  await picker(page).getByRole('button', { name: 'Save queue', exact: true }).click();
+  await picker(page).getByRole('button', { name: 'Save priorities', exact: true }).click();
 
   await expect(picker(page)).toBeHidden();
   await expect(queueTitles(page)).toHaveText(['Review the references', 'Outline the chapter']);
@@ -113,7 +113,7 @@ test('queue menu reorders and removes membership while keeping the task in Plan'
   await page.getByRole('group', { name: 'Queue task actions' }).getByRole('button', { name: 'Move down', exact: true }).click();
   await expect(queueTitles(page)).toHaveText(['Review the references', 'Outline the chapter', 'Pay electricity bill']);
   await page.getByRole('button', { name: 'Queue options for Outline the chapter', exact: true }).click();
-  await page.getByRole('button', { name: 'Remove from queue', exact: true }).click();
+  await page.getByRole('button', { name: 'Remove priority', exact: true }).click();
   await expect(queueTitles(page)).toHaveText(['Review the references', 'Pay electricity bill']);
   expect(state.queueIds).toEqual([12, 21]);
   expect(state.tasks.find(task => task.id === 11)?.completed).toBe(false);
@@ -171,11 +171,11 @@ test('failed save keeps selections and allows a safe retry', async ({ page }) =>
   await page.locator('#edit-queue').click();
   await picker(page).getByLabel('Find a task').fill('references');
   await picker(page).getByRole('checkbox', { name: 'Review the references', exact: true }).check();
-  await picker(page).getByRole('button', { name: 'Save queue', exact: true }).click();
+  await picker(page).getByRole('button', { name: 'Save priorities', exact: true }).click();
   await expect(picker(page).getByRole('alert')).toContainText('Queue could not be saved. Try again.');
   await expect(picker(page).getByRole('checkbox', { name: 'Review the references', exact: true })).toBeChecked();
   expect(state.queueIds).toEqual([11]);
-  await picker(page).getByRole('button', { name: 'Save queue', exact: true }).click();
+  await picker(page).getByRole('button', { name: 'Save priorities', exact: true }).click();
   await expect(picker(page)).toBeHidden();
   await expect(queueTitles(page)).toHaveText(['Outline the chapter', 'Review the references']);
   expect(state.writes).toHaveLength(2);
@@ -201,7 +201,7 @@ test('queue rows, action menu, and picker fit a narrow mobile viewport', async (
   await page.keyboard.press('Escape');
   await page.locator('#edit-queue').click();
   await expect(picker(page)).toBeVisible();
-  await expect(picker(page).getByRole('button', { name: 'Save queue', exact: true })).toBeInViewport();
+  await expect(picker(page).getByRole('button', { name: 'Save priorities', exact: true })).toBeInViewport();
   expect(await page.locator('.queue-picker').evaluate(node => {
     const bounds = node.getBoundingClientRect();
     return bounds.left >= 0 && bounds.right <= innerWidth && bounds.top >= 0 && bounds.bottom <= innerHeight && node.scrollWidth <= node.clientWidth;
@@ -219,17 +219,17 @@ test('queue picker remains scrollable and save is reachable in short landscape w
     const bounds=node.getBoundingClientRect();
     return bounds.top>=0 && bounds.bottom<=innerHeight && node.scrollWidth<=node.clientWidth;
   })).toBe(true);
-  const save=picker(page).getByRole('button',{name:'Save queue',exact:true});
+  const save=picker(page).getByRole('button',{name:'Save priorities',exact:true});
   await save.scrollIntoViewIfNeeded();
   await expect(save).toBeInViewport();
   await save.click();
   await expect(picker(page)).toBeHidden();
 });
 
-test('empty queue offers one Choose tasks action', async ({page}) => {
+test('empty queue offers one Choose priorities action', async ({page}) => {
   await mockQueueApi(page, []);
   await page.goto('/#dashboard');
-  await expect(page.getByRole('button',{name:'Choose tasks',exact:true})).toHaveCount(1);
-  await page.getByRole('button',{name:'Choose tasks',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Choose priorities',exact:true})).toHaveCount(1);
+  await page.getByRole('button',{name:'Choose priorities',exact:true}).click();
   await expect(picker(page)).toBeVisible();
 });

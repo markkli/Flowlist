@@ -43,7 +43,7 @@ test('first sign-in teaches the workflow, saves the preference, and does not cre
   await expect(page.locator('#onboarding-count')).toHaveText('Step 1 of 4');
   await page.getByRole('button', {name:'Next: Focus',exact:true}).click();
   await page.getByRole('button', {name:'Next: Review',exact:true}).click();
-  await expect(guide(page)).toContainText('Check Finished only for work you completed');
+  await expect(guide(page)).toContainText('Mark Done only for work you completed');
   await page.getByRole('button', {name:'Next: History',exact:true}).click();
   await page.getByRole('button', {name:'Open Plan',exact:true}).click();
   await expect(guide(page)).toBeHidden();

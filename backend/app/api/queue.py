@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import Session
 
 from app import schemas
 from app.database import get_db
@@ -25,11 +25,9 @@ class QueueUpdate(BaseModel):
 
 
 def eligible_task_conditions():
-    child = aliased(TaskModel)
     return (
         TaskModel.completed.is_(False),
         GoalModel.completed.is_(False),
-        ~select(child.id).where(child.parent_id == TaskModel.id).exists(),
     )
 
 
@@ -64,7 +62,7 @@ def validate_queue_tasks(db: Session, task_ids: list[int]) -> None:
     if eligible_ids != existing_ids:
         raise HTTPException(
             status_code=409,
-            detail="Choose unfinished tasks without child steps from active directions",
+            detail="Choose unfinished tasks from active projects",
         )
 
 

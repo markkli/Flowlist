@@ -3,12 +3,17 @@
 Do not decode unsigned client claims or cache successful identity checks.
 """
 import os
+import atexit
 from dataclasses import dataclass
 from uuid import UUID
 import httpx
 from fastapi import Header, HTTPException
 from app.config import auth_mode, public_config, supabase_url
 
+
+# Reuse TLS connections, but verify every request against Supabase as before.
+verification_client = httpx.Client(timeout=8, follow_redirects=False)
+atexit.register(verification_client.close)
 
 @dataclass(frozen=True)
 class Identity:
@@ -20,7 +25,7 @@ class Identity:
 def verify_access_token(token: str) -> dict:
     config = public_config()
     try:
-        response = httpx.get(f'{supabase_url()}/auth/v1/user', headers={
+        response = verification_client.get(f'{supabase_url()}/auth/v1/user', headers={
             'apikey': config['supabase_key'], 'Authorization': f'Bearer {token}',
         }, timeout=8, follow_redirects=False)
     except httpx.HTTPError:

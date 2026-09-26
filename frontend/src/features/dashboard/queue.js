@@ -30,8 +30,7 @@ function taskContext({ task, goal, tasks = [] }) {
 
 function eligibleTasks(goals) {
   return goals.filter(({ goal }) => !goal.completed).flatMap(({ goal, tasks }) => {
-    const parents = new Set(tasks.map(task => task.parent_id));
-    const ordered = [];
+        const ordered = [];
     const visited = new Set();
     function visit(parentId) {
       tasks.filter(task => task.parent_id === parentId)
@@ -40,8 +39,8 @@ function eligibleTasks(goals) {
           if (visited.has(task.id)) return;
           visited.add(task.id);
           if (task.completed) return;
-          if (parents.has(task.id)) visit(task.id);
-          else ordered.push({ task, goal, tasks });
+          ordered.push({ task, goal, tasks });
+          visit(task.id);
         });
     }
     visit(null);
@@ -57,7 +56,7 @@ export function initQueue({ showToast, onChange }) {
   const heading = panel.querySelector('.panel-heading');
   const planLink = document.getElementById('open-roadmap');
   const headingActions = element('div', 'queue-heading-actions');
-  const editButton = button('Choose tasks', 'secondary-btn queue-edit');
+  const editButton = button('Choose priorities', 'secondary-btn queue-edit');
   editButton.id = 'edit-queue';
   editButton.setAttribute('aria-haspopup', 'dialog');
   editButton.setAttribute('aria-controls', 'queue-picker-overlay');
@@ -78,18 +77,18 @@ export function initQueue({ showToast, onChange }) {
         <div><p class="kicker">Your shortlist</p><h2 id="queue-picker-title">Choose what comes next</h2></div>
         <button class="queue-icon-button queue-picker-close" type="button" aria-label="Close task picker"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg></button>
       </header>
-      <p class="queue-picker-description" id="queue-picker-description">Keep a few tasks close at hand. Your queue stays until you change it; the rest remains in Plan.</p>
+      <p class="queue-picker-description" id="queue-picker-description">Star tasks in Plan or choose them here. Priorities stay until you finish or unstar them.</p>
       <label class="queue-search-label" for="queue-search">Find a task</label>
       <input class="field queue-search" id="queue-search" type="search" placeholder="Search tasks or projects" autocomplete="off">
       <details class="queue-draft">
-        <summary><span>Queue order <b id="queue-draft-count">0</b></span><span class="queue-draft-hint">Review & reorder</span></summary>
+        <summary><span>Priority order <b id="queue-draft-count">0</b></span><span class="queue-draft-hint">Review & reorder</span></summary>
         <ol class="queue-draft-list"></ol>
       </details>
       <div class="queue-options" aria-label="Available tasks"></div>
       <p class="field-error queue-picker-error" role="alert"></p>
       <footer class="queue-picker-footer">
         <span class="queue-selection-count" role="status" aria-live="polite">0 selected</span>
-        <div><button class="text-btn queue-picker-cancel" type="button">Cancel</button><button class="primary-btn queue-picker-save" type="button">Save queue</button></div>
+        <div><button class="text-btn queue-picker-cancel" type="button">Cancel</button><button class="primary-btn queue-picker-save" type="button">Save priorities</button></div>
       </footer>
     </section>`;
   document.body.append(overlay);
@@ -149,7 +148,7 @@ export function initQueue({ showToast, onChange }) {
     overlay.querySelector('.queue-selection-count').textContent = `${draftIds.length} selected`;
     draftList.replaceChildren();
     if (!draftIds.length) {
-      draftList.append(element('li', 'queue-draft-empty', 'Select tasks below to build your queue.'));
+      draftList.append(element('li', 'queue-draft-empty', 'Select tasks below to choose your priorities.'));
       return;
     }
     draftIds.forEach((id, index) => {
@@ -243,7 +242,7 @@ export function initQueue({ showToast, onChange }) {
   function renderQueue() {
     closeMenu();
     agenda.replaceChildren();
-    editButton.textContent = entries.length ? 'Edit queue' : 'Choose tasks';
+    editButton.textContent = entries.length ? 'Edit priorities' : 'Choose priorities';
     document.getElementById('daily-progress-copy').textContent = entries.length
       ? 'Your next steps, in your order' : 'A little less to think about';
     document.getElementById('daily-progress-number').textContent = `${entries.length} ${entries.length === 1 ? 'task' : 'tasks'}`;
@@ -252,7 +251,7 @@ export function initQueue({ showToast, onChange }) {
       const mark = element('span', 'queue-empty-mark');
       mark.setAttribute('aria-hidden', 'true');
       mark.innerHTML = '<svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9 3h6v4H9zm0 9h6m-6 4h4"/></svg>';
-      empty.append(mark, element('h3', '', 'Make room for what matters.'), element('p', '', 'Choose a few tasks from Plan. They’ll stay here until you finish or remove them.'));
+      empty.append(mark, element('h3', '', 'What matters next?'), element('p', '', 'Star a task in Plan to put it here, or choose your priorities here.'));
       agenda.append(empty);
       return;
     }
@@ -329,7 +328,7 @@ export function initQueue({ showToast, onChange }) {
         const byId = new Map(entries.map(item => [item.task.id, item]));
         entries = ids.map(id => byId.get(id));
       } },
-      { label: 'Remove from queue', run: async () => {
+      { label: 'Remove priority', run: async () => {
         await api(`/queue/${taskId}`, { method: 'DELETE' });
         entries = entries.filter(item => item.task.id !== taskId);
       } },
@@ -351,7 +350,7 @@ export function initQueue({ showToast, onChange }) {
           editButton.disabled = false;
           agenda.querySelectorAll('.task-check, .queue-more').forEach(item => { item.disabled = false; });
           restore.focus();
-          if (action.label === 'Remove from queue') showToast('Removed from your queue. The task is still in Plan.');
+          if (action.label === 'Remove priority') showToast('Priority removed. The task is still in Plan.');
         } catch (actionError) { closeMenu(true); showToast(actionError.message, true); }
         finally { mutating = false; editButton.disabled = false; }
       });
@@ -420,12 +419,12 @@ export function initQueue({ showToast, onChange }) {
       saving = false;
       closePicker();
       await refreshDashboard();
-      showToast(entries.length ? 'Your queue is ready.' : 'Queue cleared. Your tasks are still in Plan.');
+      showToast(entries.length ? 'Your priorities are ready.' : 'Priorities cleared. Your tasks are still in Plan.');
     } catch (saveError) { error.textContent = saveError.message; }
     finally {
       saving = false;
       dialog.removeAttribute('aria-busy');
-      saveButton.textContent = 'Save queue';
+      saveButton.textContent = 'Save priorities';
       overlay.querySelectorAll('button, input').forEach(control => { control.disabled = false; });
       renderDraft();
       if (!overlay.classList.contains('hidden')) saveButton.focus();

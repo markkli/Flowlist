@@ -98,3 +98,38 @@
   .attribution-capture-row .field { flex-basis: 100%; }
   .attribution-capture-row button { width: 100%; }
 }
+/* A compact review: task selection first, optional detail underneath. */
+#session-attribution-overlay .attribution-modal { width:min(680px,100%); padding:28px; border-radius:20px; }
+.session-review-heading { display:flex; align-items:center; justify-content:space-between; gap:20px; }
+.session-review-heading .kicker { margin:0 0 8px; }
+#session-attribution-overlay h2 { margin:0; font-size:28px; letter-spacing:-.04em; }
+.session-duration { flex-shrink:0; padding:8px 12px; border:1px solid var(--border); border-radius:8px; color:var(--forest); font-size:13px; }
+#session-attribution-overlay .attribution-summary { margin:16px 0 0; font-size:13px; }
+#session-attribution-overlay .attribution-column-head { display:none; }
+#session-attribution-overlay .attribution-task-row { grid-template-columns:42px minmax(0,1fr) 90px; gap:0; padding:4px 8px 4px 0; min-height:58px; }
+#session-attribution-overlay .attribution-worked { grid-column:1; grid-row:1; border:0; min-height:44px; }
+#session-attribution-overlay .attribution-task-copy { grid-column:2; grid-row:1; }
+#session-attribution-overlay .attribution-finished { grid-column:3; grid-row:1; min-height:38px; display:flex; justify-content:center; gap:6px; border:1px solid var(--border); border-radius:8px; font-size:12px; color:var(--muted); }
+#session-attribution-overlay .attribution-finished .toggle-box { width:16px; height:16px; }
+#session-attribution-overlay .attribution-finished:has(input:checked) { color:var(--ink); background:var(--surface-muted); }
+#session-attribution-overlay .attribution-empty { text-align:left; padding:18px 0; border:0; font-size:14px; line-height:1.65; }
+.attribution-empty strong { display:block; color:var(--ink); margin-bottom:4px; }
+#session-attribution-overlay .attribution-group-heading { margin-top:12px; }
+.session-note-disclosure { border-top:1px solid var(--border); margin-top:16px; }
+.session-note-disclosure summary { min-height:44px; display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; }
+.session-note-disclosure summary span { margin-left:auto; font-size:11px; color:var(--muted); }
+.session-note-disclosure summary::before { content:'+'; color:var(--muted); }
+.session-note-disclosure[open] summary::before { content:'−'; }
+.session-note-disclosure summary:focus-visible { outline:3px solid var(--focus-ring); outline-offset:2px; }
+.session-note-disclosure .session-note { min-height:72px; margin-bottom:12px; }
+#session-attribution-overlay .attribution-task-builder { margin-top:0; }
+#session-attribution-overlay .attribution-actions { border-top:1px solid var(--border); padding-top:16px; margin-top:12px; gap:10px; }
+#session-attribution-overlay .attribution-actions .primary-btn { margin-left:auto; }
+@media(max-width:520px) {
+  #session-attribution-overlay .attribution-modal { padding:20px; }
+  .session-review-heading { align-items:flex-start; flex-direction:column; gap:10px; }
+  #session-attribution-overlay h2 { font-size:26px; }
+  .session-duration { padding:0; border:0; }
+  #session-attribution-overlay .attribution-task-row { grid-template-columns:36px minmax(0,1fr) 78px; }
+  #session-attribution-overlay .attribution-actions button { padding:10px; font-size:12px; }
+}

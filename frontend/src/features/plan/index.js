@@ -285,7 +285,7 @@ function renderCompletedDirections(goals) {
 }
 
 async function loadGoals() {
-  const [goals, queue] = await Promise.all([api("/goals"), api("/queue")]);
+  const [goals, queue] = await Promise.all([api("/goals?include_tasks=true"), api("/queue")]);
   queuedTaskIds = new Set(Array.isArray(queue) ? queue.map(({task}) => task.id) : []);
   planGoalsCache = goals;
   planTasks.clear();
@@ -429,7 +429,7 @@ async function loadGoals() {
       showToast(goal.goal_type === "standalone" ? "Task added." : "Step added.");
     });
     goalsContainer.appendChild(node);
-    taskLoads.push(loadTasks(goal.id));
+    taskLoads.push(loadTasks(goal.id, goal.tasks));
   }
   scheduleNavigationUpdate();
   await Promise.all(taskLoads);
@@ -520,8 +520,8 @@ function renderCompletedTasks(section, tasks) {
   });
 }
 
-async function loadTasks(goalId) {
-  const tasks = await api(`/goals/${goalId}/tasks`);
+async function loadTasks(goalId, includedTasks) {
+  const tasks = includedTasks ?? await api(`/goals/${goalId}/tasks`);
   planTasks.set(goalId, tasks);
   updatePlanOverview();
   const section = document.querySelector(`article[data-goal-id="${goalId}"]`);
@@ -702,21 +702,34 @@ function renderTask(task, allTasks, container, goalType = "project") {
 
   setupMenu(node.querySelector('.task-more'), node.querySelector('.task-menu'), task.title);
   node.querySelector('.rename-task').addEventListener('click', () => title.click());
-  const queueButton = node.querySelector('.queue-task');
-  if (!isLeaf || task.completed) queueButton.remove();
+  node.querySelector('.queue-task').remove();
+  const queueButton = node.querySelector('.task-priority');
+  if (task.completed) queueButton.remove();
   else {
-    const updateQueueLabel = () => { queueButton.textContent = queuedTaskIds.has(task.id) ? 'Remove from focus queue' : 'Add to focus queue'; };
-    updateQueueLabel();
+    const updatePriority = () => {
+      const selected = queuedTaskIds.has(task.id);
+      queueButton.setAttribute('aria-pressed', String(selected));
+      queueButton.setAttribute('aria-label', `${selected ? 'Unstar' : 'Prioritize'} ${task.title}`);
+      queueButton.title = selected ? 'Remove from Priority tasks' : 'Show in Priority tasks on Today';
+    };
+    updatePriority();
     queueButton.addEventListener('click', async () => {
       const removing = queuedTaskIds.has(task.id);
       queueButton.disabled = true;
+      // Reflect the click immediately; roll back if saving fails.
+      if (removing) queuedTaskIds.delete(task.id); else queuedTaskIds.add(task.id);
+      updatePriority();
       try {
         const queue = await api(`/queue/${task.id}`, {method: removing ? 'DELETE' : 'POST'});
-        queuedTaskIds = new Set(queue.map(({task}) => task.id));
-        updateQueueLabel();
-        showToast(removing ? 'Removed from your focus queue. Task kept in Plan.' : 'Added to your focus queue. Find it on Today.');
-      } catch(error) { showToast(error.message,true); }
-      finally { queueButton.disabled = false; }
+        // Each star request changes only its own membership, so independent
+        // in-flight star clicks cannot overwrite one another's visual state.
+        if (queue.some(({task: entry}) => entry.id === task.id)) queuedTaskIds.add(task.id);
+        else queuedTaskIds.delete(task.id);
+        showToast(removing ? 'Priority removed. Task kept in Plan.' : 'Prioritized. Find it on Today.');
+      } catch(error) {
+        if (removing) queuedTaskIds.add(task.id); else queuedTaskIds.delete(task.id);
+        showToast(error.message,true);
+      } finally { updatePriority(); queueButton.disabled = false; }
     });
   }
   const siblings = siblingsOf(task, allTasks).filter(item => !item.completed);
