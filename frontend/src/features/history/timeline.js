@@ -35,94 +35,74 @@ export function segmentsFor(sessions, dates) {
   return segments.sort((a,b) => a.start-b.start || a.session.id-b.session.id);
 }
 
-export function renderTimeline(container, data, openRecord) {
-  const segments = segmentsFor(data.sessions, data.days.map(day => day.date));
-  const startHour = 0, hours = 24, scale = 1;
-  container.replaceChildren();
-  const clockChange = data.days.some(day => {
-    const start = new Date(`${day.date}T00:00:00`);
-    return start.getTimezoneOffset() !== nextDay(start).getTimezoneOffset();
-  });
-  const brief = segments.filter(entry => entry.seconds < 300);
-  if (brief.length && !clockChange) {
-    const strip = document.createElement('section'); strip.className = 'history-brief-strip';
-    strip.innerHTML = '<div><h3>Brief sessions</h3><p>Under 5 minutes</p></div>';
-    for (const day of data.days) {
-      const entries = brief.filter(entry => entry.date === day.date);
-      if (!entries.length) continue;
-      const details = document.createElement('details');
-      const summary = document.createElement('summary');
-      summary.textContent = `${new Date(`${day.date}T12:00:00`).toLocaleDateString([], {weekday:'short',day:'numeric'})} · ${entries.length} · ${duration(entries.reduce((total,entry) => total+entry.seconds,0))}`;
-      details.append(summary);
-      for (const entry of entries) {
-        const button = document.createElement('button'); button.type = 'button';
-        button.textContent = `${timeLabel(entry.start)} · ${duration(entry.seconds)} · ${entry.session.task_title}`;
-        button.addEventListener('click', () => openRecord(entry.session,button));
-        details.append(button);
+// Every date has the same header, compact-record row, and 24-hour body.
+export function renderCalendarDay(day, segments, openRecord, {loading=false, retry=null}={}) {
+  const date = new Date(`${day.date}T12:00:00`);
+  const midnight = new Date(`${day.date}T00:00:00`);
+  const clockChange = midnight.getTimezoneOffset() !== nextDay(midnight).getTimezoneOffset();
+  const column = document.createElement('section');
+  column.className='history-day'; column.dataset.date=day.date;
+  const header=document.createElement('header');header.className='history-column-header';
+  const heading=document.createElement('h3');heading.className='history-day-heading';
+  heading.innerHTML=`<span>${escapeHtml(date.toLocaleDateString([], {weekday:'short'}))}</span><strong${day.date===dayKey(new Date())?' class="is-today"':''}>${date.getDate()}</strong><small>${day.minutes ? `${day.minutes} min` : day.seconds ? '<1 min' : '—'}</small>`;
+  const brief=document.createElement('div');brief.className='history-day-brief';
+  const compact=segments.filter(entry=>clockChange || entry.seconds<300);
+  if(compact.length) {
+    const details=document.createElement('details');
+    const summary=document.createElement('summary');
+    summary.textContent=clockChange ? `${compact.length} · clock change` : `${compact.length} brief`;
+    summary.setAttribute('aria-label',`${date.toLocaleDateString([], {month:'short',day:'numeric'})}: ${compact.length} ${clockChange?'sessions on a clock-change day':'sessions under 5 minutes'}`);
+    const list=document.createElement('div');list.className='history-brief-menu';
+    for(const entry of compact) {
+      const button=document.createElement('button');button.type='button';
+      button.textContent=`${clockChange?rangeLabel(entry.start,entry.end):timeLabel(entry.start)} · ${duration(entry.seconds)} · ${entry.session.task_title}`;
+      button.addEventListener('click',()=>{details.open=false;openRecord(entry.session,summary);});list.append(button);
+    }
+    details.append(summary,list);brief.append(details);
+    details.addEventListener('toggle',()=>{
+      header.classList.toggle('has-open-menu',details.open);
+      if(details.open) {
+        column.parentElement?.querySelectorAll('details[open]').forEach(other=>{if(other!==details)other.open=false;});
+        const viewport=column.closest('.history-calendar-scroll').getBoundingClientRect();
+        const bounds=header.getBoundingClientRect(), width=Math.min(260,viewport.width-60);
+        list.style.width=`${width}px`;
+        list.style.left=`${Math.max(viewport.left+52-bounds.left,Math.min(4,viewport.right-bounds.left-width-8))}px`;
       }
-      strip.append(details);
-    }
-    container.append(strip);
+    });
+  } else {
+    brief.textContent=loading?'…':'—';
+    brief.setAttribute('aria-label',loading?'Loading sessions':'No brief sessions');
   }
-  const scroll = document.createElement('div'); scroll.className = `history-clock-scroll${clockChange ? ' as-agenda' : ''}`;
-  scroll.tabIndex = 0; scroll.setAttribute('role','region'); scroll.setAttribute('aria-label','Weekly focus calendar, midnight to midnight. Scroll to see all hours.');
-  const grid = document.createElement('div'); grid.className='history-week-grid';
-  grid.classList.toggle('as-agenda',clockChange);
-  grid.style.setProperty('--hours', String(hours));
-  const axis = document.createElement('div'); axis.className='history-time-axis'; axis.setAttribute('aria-hidden','true');
-  axis.innerHTML = '<div class="history-day-heading"></div>';
-  for(let hour=startHour; hour < startHour+hours; hour++) {
-    const label = document.createElement('span'); label.textContent=`${String(hour).padStart(2,'0')}:00`; label.style.top=`${64+(hour-startHour)*60}px`; axis.appendChild(label);
+  header.append(heading,brief);column.append(header);
+  const body=document.createElement('div');body.className='history-day-body';
+  const entries=clockChange ? [] : segments.filter(entry=>entry.seconds>=300);
+  // Real durations and overlap lanes; brief sessions never inflate the time scale.
+  const clusters=[];
+  for(const entry of entries) {
+    entry.top=entry.startMinute; entry.height=entry.endMinute-entry.startMinute;
+    let cluster=clusters.at(-1);
+    if(!cluster || entry.top>=cluster.end){cluster={end:0,entries:[],lanes:[]};clusters.push(cluster);}
+    let lane=cluster.lanes.findIndex(end=>end<=entry.top);
+    if(lane<0)lane=cluster.lanes.length;
+    cluster.lanes[lane]=entry.top+entry.height;entry.lane=lane;
+    cluster.entries.push(entry);cluster.end=Math.max(cluster.end,entry.top+entry.height);
   }
-  grid.appendChild(axis);
-  for(const day of data.days) {
-    const date = new Date(`${day.date}T12:00:00`);
-    const column = document.createElement('section'); column.className='history-day';
-    const heading = document.createElement('h3'); heading.className='history-day-heading';
-    heading.innerHTML=`<span>${escapeHtml(date.toLocaleDateString([], {weekday:'short'}))}</span><strong${day.date === dayKey(new Date()) ? ' class="is-today"' : ''}>${date.getDate()}</strong><small>${day.minutes ? `${day.minutes} min` : day.seconds ? '<1 min' : '—'}</small>`;
-    column.appendChild(heading);
-    const body = document.createElement('div'); body.className='history-day-body';
-    const entries = segments.filter(x=>x.date===day.date && (clockChange || x.seconds >= 300));
-    column.classList.toggle('is-empty',!entries.length);
-    // Allocate lanes using real time intervals; never inflate a block’s duration.
-    const clusters = [];
-    for(const entry of entries) {
-      entry.top=(entry.startMinute-startHour*60)*scale;
-      entry.height=(entry.endMinute-entry.startMinute)*scale;
-      let cluster=clusters.at(-1);
-      if(!cluster || entry.top>=cluster.end) { cluster={end:0,entries:[],lanes:[]}; clusters.push(cluster); }
-      let lane=cluster.lanes.findIndex(end=>end<=entry.top);
-      if(lane<0) lane=cluster.lanes.length;
-      cluster.lanes[lane]=entry.top+entry.height;
-      entry.lane=lane; cluster.entries.push(entry); cluster.end=Math.max(cluster.end,entry.top+entry.height);
-    }
-    for(const cluster of clusters) for(const entry of cluster.entries) {
-      const button = document.createElement('button'); button.type='button'; button.className='history-block';
-      const label = `${rangeLabel(entry.start,entry.end)} · ${duration(entry.seconds)} · ${entry.session.task_title}`;
-      button.setAttribute('aria-label',label); button.title=label;
-      button.style.top=`${entry.top}px`; button.style.height=`${entry.height}px`;
-      button.style.left=`calc(${entry.lane/cluster.lanes.length*100}% + 3px)`;
-      button.style.width=`calc(${100/cluster.lanes.length}% - 6px)`;
-      button.classList.toggle('is-short',entry.height<62);
-      button.classList.toggle('is-tiny',entry.height<24);
-      button.innerHTML=`<span class="history-block-time">${escapeHtml(timeLabel(entry.start))}<span> · ${duration(entry.seconds)}</span></span><strong>${escapeHtml(entry.session.task_title)}</strong>`;
-      button.addEventListener('click',()=>openRecord(entry.session,button));
-      body.appendChild(button);
-    }
-
-    column.appendChild(body);grid.appendChild(column);
+  for(const cluster of clusters) for(const entry of cluster.entries) {
+    const button=document.createElement('button');button.type='button';button.className='history-block';
+    const label=`${rangeLabel(entry.start,entry.end)} · ${duration(entry.seconds)} · ${entry.session.task_title}`;
+    button.setAttribute('aria-label',label);button.title=label;
+    button.style.top=`${entry.top}px`;button.style.height=`${entry.height}px`;
+    button.style.left=`calc(${entry.lane/cluster.lanes.length*100}% + 3px)`;
+    button.style.width=`calc(${100/cluster.lanes.length}% - 6px)`;
+    button.classList.toggle('is-short',entry.height<62);button.classList.toggle('is-tiny',entry.height<24);
+    button.innerHTML=`<span class="history-block-time">${escapeHtml(timeLabel(entry.start))}<span> · ${duration(entry.seconds)}</span></span><strong>${escapeHtml(entry.session.task_title)}</strong>`;
+    button.addEventListener('click',()=>openRecord(entry.session,button));body.append(button);
   }
-  if(clockChange) {
-    const note=document.createElement('p');note.className='history-week-empty';
-    note.textContent='This week includes a clock change. Blocks are shown in time order with their actual durations.';
-    container.appendChild(note);
+  if(clockChange || retry || loading) {
+    const message=document.createElement('div');message.className='history-day-message';
+    message.textContent=clockChange?'Clock change. View sessions in the day header.':loading?'Loading…':'Could not load.';
+    if(retry){const button=document.createElement('button');button.type='button';button.textContent='Retry';button.addEventListener('click',retry);message.append(button);}
+    body.append(message);
   }
-  scroll.append(grid); container.append(scroll);
-  // Start at the working day while retaining the complete, stable 24-hour axis.
-  if (!clockChange) scroll.scrollTop = 8*60;
-  if(!segments.length) {
-    const message=document.createElement('p');message.className='history-week-empty';
-    message.textContent='No focus sessions this week.';
-    container.appendChild(message);
-  }
+  column.append(body);return column;
 }

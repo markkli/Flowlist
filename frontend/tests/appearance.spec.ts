@@ -47,7 +47,7 @@ test('every preset coordinates the workspace, controls and heatmap in both modes
         return `rgb(${[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)).join(', ')})`;
       });
       await expect(page.locator('#appearance-done')).toHaveCSS('background-color',accent);
-      await expect(page.locator('#start-pomodoro .timer-time span')).toHaveCSS('color',accent);
+      await expect(page.locator('#start-pomodoro')).toHaveCSS('background-color',accent);
       const colors = await page.evaluate(()=>{
         const style = (selector:string)=>getComputedStyle(document.querySelector(selector)!);
         // Resolve CSS Color 4 values to sRGB for actual rendered contrast.
@@ -59,11 +59,11 @@ test('every preset coordinates the workspace, controls and heatmap in both modes
           return rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722;
         };
         const contrast=(a:string,b:string)=>{const x=luminance(a),y=luminance(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
-        const action=style('#appearance-done'),label=style('#start-pomodoro .timer-time span'),dial=style('#start-pomodoro');
+        const action=style('#appearance-done'),label=style('#start-pomodoro span'),dial=style('#start-pomodoro');
         return {
           background:style('body').backgroundColor,
           action:action.backgroundColor,
-          label:label.color,
+          startBackground:dial.backgroundColor,
           heat:style('.heatmap-scale i:last-child').backgroundColor,
           labelBackground:label.backgroundColor,
           contrast:[contrast(action.color,action.backgroundColor),contrast(label.color,dial.backgroundColor),contrast(dial.color,dial.backgroundColor),contrast(style('.appearance-modal > p').color,style('.appearance-modal').backgroundColor)],
@@ -71,7 +71,7 @@ test('every preset coordinates the workspace, controls and heatmap in both modes
       });
       backgrounds.add(colors.background);
       accents.add(colors.action);
-      expect(colors.label).toBe(colors.action);
+      expect(colors.startBackground).toBe(colors.action);
       expect(colors.heat).toBe(colors.action);
       expect(colors.labelBackground).toBe('rgba(0, 0, 0, 0)');
       for(const ratio of colors.contrast) expect(ratio,`${preset} ${theme} contrast`).toBeGreaterThanOrEqual(4.5);

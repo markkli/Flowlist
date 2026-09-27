@@ -28,7 +28,7 @@ for (const width of [375,768,1440]) for (const empty of [true,false]) {
    await expect(dialog).toContainText('No tasks to update');
    await expect(page.locator('.attribution-summary')).toBeHidden();
   } else {
-   await expect(dialog).toContainText('records progress and keeps the task open');
+   await expect(dialog).toContainText('logs progress.');
    await page.getByLabel('Finished Read the first chapter',{exact:true}).check();
    await expect(page.getByLabel('Worked on Read the first chapter',{exact:true})).toBeChecked();
    await page.getByLabel('Worked on Try an exercise',{exact:true}).check();

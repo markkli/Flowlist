@@ -144,8 +144,8 @@ development, and PostgreSQL for the container stack remain in place.
   The backend commits a fallback title immediately. Optional AI enrichment runs
   after the response with a bounded timeout; failure keeps the local title.
   This enrichment is best effort, not a durable job queue.
-- History opens to a read-only weekly timeline in the browser's timezone, with
-  a daily list on narrow screens. New rituals retain each actual focus interval;
+- History opens to a continuous date grid in the browser's timezone, with
+  horizontal scrolling through days and a fixed time axis on every screen size. New rituals retain each actual focus interval;
   breaks are excluded, sleep recovery credits only the current interval, and
   saving later does not move the work to the save date. Notes and task selections
   describe the entire ritual, not an individual block.
@@ -213,9 +213,11 @@ Sage, Slate, or Clay solids. Artwork can be switched off independently for Focus
 and Plan. Every preset also colors the full workspace, timer, controls, and heatmap
 in light and dark modes. Turning artwork off preserves the palette. Choices persist on this device. See [asset provenance and prompts](docs/APPEARANCE-ASSETS.md).
 
-History uses a full 24-hour weekly grid with proportional blocks. Focus intervals
-under five minutes are grouped in Brief sessions and still open their original
-ritual. Narrow screens and daylight-saving transition weeks use a readable agenda.
+History uses a full 24-hour grid with proportional blocks and continuous horizontal
+scrolling, without week snapping. Dates load near either edge within a bounded
+window. A fixed-height row beneath every day holds sessions under five minutes.
+Clock-change days list their sessions there with actual clock offsets, preserving
+the same grid layout. Select an entry to open its original session.
 
 See [the shipping review](docs/SHIPPING.md) for auth/ownership requirements,
 recommended managed database setup, and the web → macOS → iOS roadmap.

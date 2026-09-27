@@ -2,14 +2,14 @@ import { api, timezoneQuery } from '../../shared/api';
 import { escapeHtml, trapFocus, syncDialogs } from '../../shared/dom';
 import { asDate, dayKey, monday, nextDay, rangeLabel, duration } from './timeline';
 import './history.css';
-import { renderWeekPager } from './pager';
+import { createCalendar } from './calendar';
 
 export function initHistory({ showToast, refresh }) {
   const el = id => document.getElementById(id);
   const history=el('history-view'), more=el('history-more'), deletedToggle=el('history-deleted');
   const overlay=el('history-detail-overlay'), modal=overlay.querySelector('section'), form=el('history-edit-form');
   let mode='week', week=monday(), cursor=null, deleted=false, loading=false, generation=0;
-  let weekCache=new Map(), disposePager=()=>{}, calendarScrollTop=480;
+  let weekCache=new Map(), calendar=null, calendarScrollTop=480;
   function loadWeek(date) {
     const key=dayKey(date), cache=weekCache;
     if (!cache.has(key)) {
@@ -20,9 +20,11 @@ export function initHistory({ showToast, refresh }) {
     return cache.get(key);
   }
   async function moveWeek(days, hour=calendarScrollTop) {
+    calendarScrollTop=calendar?.scrollTop ?? hour;
+    if(days && calendar?.goTo(nextDay(week,days)))return;
     const previous=week;
     if(!days) weekCache=new Map();
-    week=days?nextDay(week,days):monday(); calendarScrollTop=hour;
+    week=days?nextDay(week,days):monday();
     try { await loadHistory(false,true); } catch(error) { week=previous; await loadHistory(false,true); throw error; }
   }
   let record=null, rows=[], original='', opener=null, saving=false, taskOptions=null, detailGeneration=0;
@@ -92,10 +94,20 @@ export function initHistory({ showToast, refresh }) {
       } catch(error) {button.disabled=false;throw error;}
     }));return article;
   }
+  function updateWeekSummary(date,data,hour,error) {
+    week=date;calendarScrollTop=hour;
+    const last=nextDay(week,6);
+    el('history-week-label').textContent=`${week.toLocaleDateString([], {month:'short',day:'numeric'})} – ${last.toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'})}`;
+    el('history-week-total').textContent=data?`${data.days.reduce((total,day)=>total+day.minutes,0)} min focused · ${data.sessions.length} ${data.sessions.length===1?'session':'sessions'}`:error?'Week unavailable':'Loading…';
+    el('history-timezone').textContent=Intl.DateTimeFormat().resolvedOptions().timeZone.replaceAll('_',' ');
+    el('history-error').textContent=error || '';
+    const untimed=(data?.sessions || []).filter(session=>!session.started_at || !session.blocks?.length);
+    el('history-untimed').classList.toggle('hidden',!untimed.length);el('history-untimed-list').replaceChildren(...untimed.map(session=>recordCard(session)));
+  }
   async function loadHistory(append=false, reuseWeek=false) {
     if(append && loading) return;
     if (!reuseWeek) weekCache=new Map();
-    disposePager();
+    calendar?.dispose();calendar=null;
     const request=++generation;loading=true;more.disabled=true;el('history-error').textContent='';
     el('history-week').classList.toggle('hidden',mode!=='week');history.classList.toggle('hidden',mode!=='list');
     el('history-week-tab').setAttribute('aria-pressed',String(mode==='week'));el('history-list-tab').setAttribute('aria-pressed',String(mode==='list'));
@@ -104,15 +116,9 @@ export function initHistory({ showToast, refresh }) {
     try {
       if(mode==='week') {
         const data=await loadWeek(week);if(request!==generation)return;
-        const last=nextDay(week,6);
-        el('history-week-label').textContent=`${week.toLocaleDateString([], {month:'short',day:'numeric'})} – ${last.toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'})}`;
-        el('history-week-total').textContent=`${data.days.reduce((total,day)=>total+day.minutes,0)} min focused · ${data.sessions.length} ${data.sessions.length===1?'session':'sessions'}`;
-        el('history-timezone').textContent=`${Intl.DateTimeFormat().resolvedOptions().timeZone.replaceAll('_',' ')}`;
         const hadCalendarFocus=el('history-timeline').contains(document.activeElement);
-        disposePager=renderWeekPager(el('history-timeline'),week,data,{loadWeek,openRecord,scrollTop:calendarScrollTop,onNavigate:(days,hour)=>run(()=>moveWeek(days,hour))});
-        if(hadCalendarFocus) el('history-timeline').querySelector('.history-week-pager').focus({preventScroll:true});
-        const untimed=data.sessions.filter(session=>!session.started_at || !session.blocks?.length);
-        el('history-untimed').classList.toggle('hidden',!untimed.length);el('history-untimed-list').replaceChildren(...untimed.map(session=>recordCard(session)));
+        calendar=createCalendar(el('history-timeline'),week,data,{loadWeek,openRecord,scrollTop:calendarScrollTop,onWeekChange:updateWeekSummary});
+        if(hadCalendarFocus) el('history-timeline').querySelector('.history-calendar-scroll').focus({preventScroll:true});
       } else {
         const sessions=await api(`/sessions?limit=30&deleted=${deleted}${append&&cursor?`&before_id=${cursor}`:''}`);if(request!==generation)return;
         if(!append)history.replaceChildren();sessions.forEach(session=>history.appendChild(recordCard(session,deleted)));

@@ -50,7 +50,7 @@ function renderSettings() {
   roundsSetting.value = timerSettings.rounds;
   longBreakMinutesSetting.value = timerSettings.longBreak;
   document.getElementById('timer-settings-label').textContent = 'Settings';
-  document.getElementById('hero-time').innerHTML = `${timerSettings.focus}:00<span>Start focus</span>`;
+  document.getElementById('hero-time').textContent = `${timerSettings.focus}:00`;
   document.getElementById('start-pomodoro').setAttribute('aria-label', `Start a ${timerSettings.focus}-minute focus ritual`);
 }
 function setTimerSettingsOpen(open) {
@@ -227,7 +227,7 @@ let attributionTasks = new Map();
 let attributionChildren = new Map();
 const hierarchyNote = document.createElement('p');
 hierarchyNote.id = 'attribution-hierarchy-note';
-hierarchyNote.className = 'attribution-hierarchy-note hidden';
+hierarchyNote.className = 'sr-only hidden';
 hierarchyNote.textContent = 'Finishing a parent includes its subtasks. Finishing subtasks keeps the parent open.';
 attributionOptions.before(hierarchyNote);
 const selectionStatus = document.createElement('p');

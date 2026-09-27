@@ -41,7 +41,7 @@ test('first sign-in teaches the workflow, saves the preference, and does not cre
   await expect(guide(page)).toContainText('Star tasks');
   await page.getByRole('button', {name:'Next',exact:true}).click();
   await expect(page).toHaveURL(/#dashboard$/);
-  await expect(guide(page)).toContainText('Press the dial');
+  await expect(guide(page)).toContainText('Press Start focus');
   await page.getByRole('button', {name:'Back',exact:true}).click();
   await expect(page.locator('#onboarding-count')).toHaveText('1 / 3');
   await page.getByRole('button', {name:'Next',exact:true}).click();

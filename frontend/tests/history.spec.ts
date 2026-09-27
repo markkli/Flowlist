@@ -35,20 +35,21 @@ async function setup(page: Page) {
 
 test('weekly view shows real focus intervals and keeps legacy records outside the clock',async({page})=>{
   await setup(page);
-  await expect(page.locator('.history-week-page[data-current="true"] .history-block')).toHaveCount(2);
+  await expect(page.locator('#history-timeline .history-block')).toHaveCount(2);
   await expect(page.locator('#history-week-total')).toHaveText('67 min focused · 2 sessions');
   await expect(page.locator('#history-untimed-list')).toContainText('Older focus');
   await expect(page.locator('#history-untimed-list')).toContainText('block times unavailable');
-  await expect(page.locator('.history-week-page[data-current="true"] .history-day').nth(4)).toContainText('9:00');
+  await expect(page.locator('.history-day[data-date="2026-09-18"]')).toContainText('9:00');
   await page.getByRole('button',{name:'Previous week'}).click();
-  await expect(page.locator('.history-week-page[data-current="true"] .history-block')).toHaveCount(0);
+  await expect(page.locator('#history-week-label')).toContainText('Sep 7');
+  await expect(page.locator('#history-week-total')).toHaveText('0 min focused · 0 sessions');
   await page.getByRole('button',{name:'This week',exact:true}).click();
-  await expect(page.locator('.history-week-page[data-current="true"] .history-block')).toHaveCount(2);
+  await expect(page.locator('#history-timeline .history-block')).toHaveCount(2);
 });
 
 test('record editing preserves snapshots, includes completed tasks, and only updates history',async({page})=>{
   const {updates,getTaskWrites}=await setup(page);
-  await page.locator('.history-week-page[data-current="true"] .history-block').first().click();
+  await page.locator('#history-timeline .history-block').first().click();
   const dialog=page.getByRole('dialog',{name:'Ship the release',exact:true});
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText('whole session');
@@ -66,7 +67,7 @@ test('record editing preserves snapshots, includes completed tasks, and only upd
 test('failed and conflicting edits preserve the draft and expose recovery',async({page})=>{
   await setup(page);
   await page.route('**/api/sessions/1',async route=>{await route.fulfill(route.request().method()==='PATCH'?{status:409,json:{detail:'This record changed in another window.'}}:{json:blockSession});});
-  await page.locator('.history-week-page[data-current="true"] .history-block').first().click();
+  await page.locator('#history-timeline .history-block').first().click();
   await page.getByLabel('Reflection',{exact:true}).fill('Keep this draft');
   await page.getByRole('button',{name:'Save changes',exact:true}).click();
   await expect(page.getByLabel('Reflection',{exact:true})).toHaveValue('Keep this draft');
@@ -76,7 +77,7 @@ test('failed and conflicting edits preserve the draft and expose recovery',async
   await expect(page.getByLabel('Reflection',{exact:true})).toHaveValue(blockSession.summary);
   await page.keyboard.press('Escape');
   await expect(page.locator('#history-detail-overlay')).toBeHidden();
-  await expect(page.locator('.history-week-page[data-current="true"] .history-block').first()).toBeFocused();
+  await expect(page.locator('#history-timeline .history-block').first()).toBeFocused();
 });
 
 test('export downloads readable versioned data with all saved records',async({page})=>{
@@ -97,7 +98,7 @@ for(const width of [375,768,1440]) test(`history and record dialog fit both them
     await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await page.screenshot({path:testInfo.outputPath(`week-${width}-${theme}.png`),fullPage:true});
-    await page.locator('.history-week-page[data-current="true"] .history-block').first().click();
+    await page.locator('#history-timeline .history-block').first().click();
     await expect(page.getByLabel('Reflection',{exact:true})).toBeVisible();
     for(let i=0;i<7;i++){await page.keyboard.press('Tab');expect(await page.locator('#history-detail-overlay').evaluate(el=>el.contains(document.activeElement))).toBe(true);}
     await page.getByRole('button',{name:'Save changes',exact:true}).scrollIntoViewIfNeeded();
@@ -107,16 +108,16 @@ for(const width of [375,768,1440]) test(`history and record dialog fit both them
   }
 });
 
-test('a daylight-saving week uses an agenda and distinguishes the clock offsets',async({page})=>{
+test('a clock-change day keeps the grid stable and lists the actual clock offsets',async({page})=>{
   await setup(page);
   const session={...blockSession,actual_minutes:20,started_at:'2026-03-08T07:50:00Z',ended_at:'2026-03-08T08:10:00Z',blocks:[{id:1,started_at:'2026-03-08T07:50:00Z',ended_at:'2026-03-08T08:10:00Z'}]};
   await page.route('**/api/history/week?*',route=>route.fulfill({json:{sessions:[session],days:Array.from({length:7},(_,i)=>({date:`2026-03-${String(i+2).padStart(2,'0')}`,minutes:i===6?20:0,seconds:0,session_ids:i===6?[1]:[]}))}}));
   await page.clock.setFixedTime(new Date('2026-03-08T18:00:00Z'));
   await page.getByRole('button',{name:'This week',exact:true}).click();
-  await expect(page.locator('.history-week-page[data-current="true"] .history-week-grid')).toHaveClass(/as-agenda/);
-  await expect(page.locator('.history-week-page[data-current="true"] .history-time-axis')).toBeHidden();
-  await expect(page.locator('.history-week-page[data-current="true"] .history-block')).toHaveAttribute('aria-label',/1:50 AM CST–3:10 AM CDT · 20 min/);
-  await page.locator('.history-week-page[data-current="true"] .history-block').click();
+  await expect(page.locator('.history-time-axis')).toBeVisible();
+  await expect(page.locator('.history-column-header').first()).toHaveCSS('height','108px');
+  await page.locator('.history-day[data-date="2026-03-08"] summary').click();
+  await page.getByRole('button',{name:/1:50 AM CST–3:10 AM CDT · 20 min/}).click();
   await expect(page.locator('.history-block-list')).toContainText('1:50 AM CST–3:10 AM CDT · 20 min');
 });
 
@@ -124,57 +125,114 @@ test('24-hour scale is stable and seven-second sessions remain accessible withou
   const {sessions}=await setup(page);
   sessions.push({...structuredClone(blockSession),id:3,task_title:'A brief check',actual_minutes:0,blocks:[{id:3,started_at:'2026-09-20T03:48:00',ended_at:'2026-09-20T03:48:07'}]});
   await page.getByRole('button',{name:'This week',exact:true}).click();
-  await expect(page.locator('.history-week-page[data-current="true"] .history-time-axis > span')).toHaveCount(24);
-  await expect(page.locator('.history-week-page[data-current="true"] .history-time-axis')).toContainText('00:00');
-  await expect(page.locator('.history-week-page[data-current="true"] .history-time-axis')).toContainText('23:00');
-  await expect(page.locator('.history-week-page[data-current="true"] .history-block')).toHaveCount(2);
-  const heights=await page.locator('.history-week-page[data-current="true"] .history-block').evaluateAll(elements=>elements.map(el=>el.getBoundingClientRect().height));
+  await expect(page.locator('#history-timeline .history-time-axis > span')).toHaveCount(24);
+  await expect(page.locator('#history-timeline .history-time-axis')).toContainText('00:00');
+  await expect(page.locator('#history-timeline .history-time-axis')).toContainText('23:00');
+  await expect(page.locator('#history-timeline .history-block')).toHaveCount(2);
+  const heights=await page.locator('#history-timeline .history-block').evaluateAll(elements=>elements.map(el=>el.getBoundingClientRect().height));
   expect(heights).toEqual([25,30]);
-  await expect(page.locator('.history-week-page[data-current="true"] .history-day-body').first()).toHaveCSS('height','1440px');
-  await page.locator('.history-week-page[data-current="true"] .history-brief-strip summary').click();
+  await expect(page.locator('#history-timeline .history-day-body').first()).toHaveCSS('height','1440px');
+  await page.locator('.history-day[data-date="2026-09-19"] summary').click();
   await expect(page.getByRole('button',{name:/7s · A brief check/})).toBeVisible();
   await page.getByRole('button',{name:/7s · A brief check/}).click();
   await expect(page.getByRole('dialog',{name:'A brief check',exact:true})).toBeVisible();
 });
 
-test('horizontal scroll and arrow keys move across weeks, keep the hour and reuse nearby data',async({page})=>{
+test('continuous scrolling keeps fractional positions and the same DOM, with a fixed axis',async({page})=>{
  const requests:string[]=[];
  page.on('request',request=>{if(request.url().includes('/history/week?'))requests.push(request.url());});
  await setup(page);
- const pager=page.locator('.history-week-pager');
- await expect(page.locator('#history-week-label')).toContainText('Sep 14');
- await expect.poll(()=>requests.length).toBe(3);
- await page.locator('.history-week-page[data-current="true"] .history-clock-scroll').evaluate(node=>node.scrollTop=600);
- await pager.evaluate(node=>{node.dispatchEvent(new WheelEvent('wheel',{deltaX:-100}));node.scrollLeft=0;});
- await expect(page.locator('#history-week-label')).toContainText('Sep 7');
- await expect.poll(()=>page.locator('.history-week-page[data-current="true"] .history-clock-scroll').evaluate(node=>node.scrollTop)).toBe(600);
- await pager.focus(); await page.keyboard.press('ArrowRight');
- await expect(page.locator('#history-week-label')).toContainText('Sep 14');
- await pager.evaluate(node=>{node.dispatchEvent(new WheelEvent('wheel',{deltaX:100}));node.scrollLeft=node.scrollWidth;});
+ const scroll=page.locator('.history-calendar-scroll');
+ await expect.poll(()=>requests.length).toBe(5);
+ const position=await scroll.evaluate(node=>{node.dataset.identity='original';node.scrollTop=600;return node.scrollLeft;});
+ await scroll.evaluate(node=>node.scrollLeft+=175);
+ await page.waitForTimeout(350);
+ expect(await scroll.evaluate(node=>node.scrollLeft)).toBeCloseTo(position+175,0);
+ await expect(scroll).toHaveAttribute('data-identity','original');
+ expect(await scroll.evaluate(node=>node.scrollTop)).toBe(600);
+ const axis=await page.locator('.history-time-axis').boundingBox();
+ const box=await scroll.boundingBox();expect(Math.abs(axis!.x-box!.x)).toBeLessThan(2);
+ await scroll.focus();await page.keyboard.press('ArrowRight');
+ expect(await scroll.evaluate(node=>node.scrollLeft)).toBeGreaterThan(position+175);
+ await page.getByRole('button',{name:'Next week',exact:true}).click();
  await expect(page.locator('#history-week-label')).toContainText('Sep 21');
  expect(requests.filter(url=>url.includes('start=2026-09-14'))).toHaveLength(1);
+ await expect(scroll).toHaveAttribute('data-identity','original');
+});
+
+test('loading more dates at either edge preserves position and failures can be retried',async({page})=>{
+ await setup(page);
+ let fail=true;
+ await page.route('**/api/history/week?start=2026-10-05*',route=>route.fulfill(fail?{status:503,json:{detail:'Try again'}}:{json:{sessions:[],days:Array.from({length:7},(_,i)=>({date:`2026-10-${String(5+i).padStart(2,'0')}`,minutes:0,seconds:0}))}}));
+ const scroll=page.locator('.history-calendar-scroll');
+ await scroll.evaluate(node=>node.scrollLeft=node.scrollWidth-node.clientWidth);
+ const failed=page.locator('.history-day[data-date="2026-10-05"]');
+ await expect(failed.getByRole('button',{name:'Retry'})).toBeAttached();
+ fail=false;
+ await failed.getByRole('button',{name:'Retry'}).click();
+ await expect(failed.getByRole('button',{name:'Retry'})).toHaveCount(0);
+ const end=await page.locator('.history-day').last().getAttribute('data-date');
+ await scroll.evaluate(node=>node.scrollLeft=30);
+ await expect.poll(()=>page.locator('.history-day').first().getAttribute('data-date')).toBe('2026-08-24');
+ await expect(page.locator(`.history-day[data-date="${end}"]`)).toHaveCount(1);
+ expect(await scroll.evaluate(node=>node.scrollLeft)).toBeGreaterThan(30);
+});
+
+test('horizontal trackpad movement remains continuous instead of snapping to a week',async({page})=>{
+ await setup(page);
+ const scroll=page.locator('.history-calendar-scroll');
+ await scroll.scrollIntoViewIfNeeded();
+ const initial=await scroll.evaluate(node=>node.scrollLeft);
+ const box=(await scroll.boundingBox())!;
+ await page.mouse.move(box.x+box.width/2,Math.max(10,box.y+150));
+ await page.mouse.wheel(170,0);
+ await expect.poll(()=>scroll.evaluate(node=>node.scrollLeft)).toBeGreaterThan(initial+100);
+ await page.waitForTimeout(400);
+ expect(await scroll.evaluate(node=>node.scrollLeft)).toBeCloseTo(initial+170,0);
+});
+
+test('brief and empty days keep identical headers across week boundaries',async({page})=>{
+ const {sessions}=await setup(page);
+ sessions.push({...structuredClone(blockSession),id:3,task_title:'A brief check',actual_minutes:0,blocks:[{id:3,started_at:'2026-09-20T03:48:00',ended_at:'2026-09-20T03:48:07'}]});
  await page.getByRole('button',{name:'This week',exact:true}).click();
- await expect(page.locator('.history-week-page[data-current="true"] .history-block')).toHaveCount(2);
+ await expect(page.locator('.history-day[data-date="2026-09-19"] summary')).toBeVisible();
+ await expect.poll(()=>page.locator('.history-column-header').evaluateAll(nodes=>nodes.every(node=>node.getBoundingClientRect().height===108))).toBe(true);
+ await expect(page.locator('.history-day-brief')).toHaveCount(35);
+ await expect(page.locator('.history-brief-strip')).toHaveCount(0);
 });
 
-test('failed adjacent week can be retried without leaving the calendar stuck',async({page})=>{
+test('brief-session menu stays inside a phone calendar and returns focus after review',async({page},testInfo)=>{
+ await page.setViewportSize({width:375,height:900});
+ const {sessions}=await setup(page);
+ sessions.push({...structuredClone(blockSession),id:3,task_title:'A brief check',actual_minutes:0,blocks:[{id:3,started_at:'2026-09-20T03:48:00',ended_at:'2026-09-20T03:48:07'}]});
+ await page.getByRole('button',{name:'This week',exact:true}).click();
+ const summary=page.locator('.history-day[data-date="2026-09-19"] summary');
+ await summary.click();
+ const menu=page.locator('details[open] .history-brief-menu');
+ await expect(menu).toBeVisible();
+ const viewport=(await page.locator('.history-calendar-scroll').boundingBox())!, bounds=(await menu.boundingBox())!;
+ expect(bounds.x).toBeGreaterThanOrEqual(viewport.x+48);
+ expect(bounds.x+bounds.width).toBeLessThanOrEqual(viewport.x+viewport.width);
+ await page.screenshot({path:testInfo.outputPath('brief-mobile.png'),fullPage:true});
+ await menu.getByRole('button').click();
+ await expect(page.getByRole('dialog',{name:'A brief check',exact:true})).toBeVisible();
+ await page.keyboard.press('Escape');
+ await expect(summary).toBeFocused();
+});
+
+test('long calendar browsing retains a bounded number of dates',async({page})=>{
  await setup(page);
- await page.route('**/api/history/week?start=2026-09-28*',route=>route.fulfill({status:503,json:{detail:'Try again'}}));
- await page.getByRole('button',{name:'Next week',exact:true}).click();
- await expect(page.locator('#history-week-label')).toContainText('Sep 21');
- await page.getByRole('button',{name:'Next week',exact:true}).click();
- await expect(page.locator('#history-error')).toContainText('Try again');
- await expect(page.locator('#history-week-label')).toContainText('Sep 21');
- await page.getByRole('button',{name:'Previous week',exact:true}).click();
+ const scroll=page.locator('.history-calendar-scroll');
+ await scroll.evaluate(node=>node.dataset.identity='same');
+ await page.locator('.history-block').first().focus();
+ for(let i=0;i<15;i++) {
+   const last=await page.locator('.history-day').last().getAttribute('data-date');
+   await scroll.evaluate(node=>node.scrollLeft=node.scrollWidth-node.clientWidth);
+   await expect.poll(()=>page.locator('.history-day').last().getAttribute('data-date')).not.toBe(last);
+ }
+ expect(await page.locator('.history-day').count()).toBeLessThanOrEqual(91);
+ await expect(scroll).toHaveAttribute('data-identity','same');
+ await page.getByRole('button',{name:'This week',exact:true}).click();
  await expect(page.locator('#history-week-label')).toContainText('Sep 14');
-});
-
-test('horizontal trackpad scrolling over the calendar moves to the next week',async({page})=>{
- await setup(page);
- const pager=page.locator('.history-week-pager');
- await pager.scrollIntoViewIfNeeded();
- const box=(await pager.boundingBox())!;
- await page.mouse.move(box.x+box.width/2,Math.max(10,box.y+80));
- await page.mouse.wheel(box.width,0);
- await expect(page.locator('#history-week-label')).toContainText('Sep 21');
+ await expect(page.locator('.history-block')).toHaveCount(2);
 });
