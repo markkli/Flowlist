@@ -54,16 +54,14 @@ export function initQueue({ showToast, onChange }) {
   const panel = agenda.closest('.agenda-panel');
   panel.classList.add('queue-panel');
   const heading = panel.querySelector('.panel-heading');
-  const planLink = document.getElementById('open-roadmap');
   const headingActions = element('div', 'queue-heading-actions');
   const editButton = button('Choose priorities', 'secondary-btn queue-edit');
   editButton.id = 'edit-queue';
   editButton.setAttribute('aria-haspopup', 'dialog');
   editButton.setAttribute('aria-controls', 'queue-picker-overlay');
-  headingActions.append(editButton, planLink);
+  headingActions.append(editButton);
   heading.append(headingActions);
-  panel.querySelector('.progress-line').classList.add('queue-summary');
-  document.getElementById('daily-progress-value').closest('.progress-track').hidden = true;
+
 
   const overlay = element('div', 'overlay queue-picker-overlay hidden');
   overlay.id = 'queue-picker-overlay';
@@ -74,10 +72,10 @@ export function initQueue({ showToast, onChange }) {
   overlay.innerHTML = `
     <section class="queue-picker" tabindex="-1">
       <header class="queue-picker-header">
-        <div><p class="kicker">Your shortlist</p><h2 id="queue-picker-title">Choose what comes next</h2></div>
+        <h2 id="queue-picker-title">Choose priorities</h2>
         <button class="queue-icon-button queue-picker-close" type="button" aria-label="Close task picker"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg></button>
       </header>
-      <p class="queue-picker-description" id="queue-picker-description">Star tasks in Plan or choose them here. Priorities stay until you finish or unstar them.</p>
+      <p class="queue-picker-description" id="queue-picker-description">Priorities stay until finished or unstarred.</p>
       <label class="queue-search-label" for="queue-search">Find a task</label>
       <input class="field queue-search" id="queue-search" type="search" placeholder="Search tasks or projects" autocomplete="off">
       <details class="queue-draft">
@@ -243,15 +241,10 @@ export function initQueue({ showToast, onChange }) {
     closeMenu();
     agenda.replaceChildren();
     editButton.textContent = entries.length ? 'Edit priorities' : 'Choose priorities';
-    document.getElementById('daily-progress-copy').textContent = entries.length
-      ? 'Your next steps, in your order' : 'A little less to think about';
-    document.getElementById('daily-progress-number').textContent = `${entries.length} ${entries.length === 1 ? 'task' : 'tasks'}`;
+    document.getElementById('priority-count').textContent = entries.length ? String(entries.length) : '';
     if (!entries.length) {
       const empty = element('div', 'queue-empty');
-      const mark = element('span', 'queue-empty-mark');
-      mark.setAttribute('aria-hidden', 'true');
-      mark.innerHTML = '<svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9 3h6v4H9zm0 9h6m-6 4h4"/></svg>';
-      empty.append(mark, element('h3', '', 'What matters next?'), element('p', '', 'Star a task in Plan to put it here, or choose your priorities here.'));
+      empty.append(element('p', '', 'Star tasks in Plan to prioritize them here.'));
       agenda.append(empty);
       return;
     }

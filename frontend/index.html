@@ -10,7 +10,7 @@
 </head>
 <body>
   <section id="auth-screen" class="auth-screen" aria-label="Sign in to Flowlist">
-    <div class="auth-scene"><div class="auth-wordmark"><img src="/brand/flowlist-mark.svg" alt="">Flowlist</div><div><h1>Make room for focus.</h1><p>A little structure for what matters. Plan your work, protect your time, and see what moved forward.</p></div></div>
+    <div class="auth-scene"><div class="auth-wordmark"><img src="/brand/flowlist-mark.svg" alt="">Flowlist</div><div><h1>Make room for focus.</h1><p>Plan, focus, and track your progress.</p></div></div>
     <div class="auth-content"><div class="auth-inner"><p class="kicker">Your workspace</p><h2>Welcome to Flowlist</h2><p id="auth-beta-note">A quiet place for your work.</p><p id="auth-loading" role="status">Opening your workspace…</p>
     <div id="auth-google-option" class="auth-google-option" hidden>
       <button id="auth-google" class="auth-google" type="button"><img src="/brand/google-g.png" width="20" height="20" alt=""><span id="auth-google-label">Continue with Google</span></button>
@@ -57,27 +57,26 @@
 
       <main id="main-content" tabindex="-1"><div id="connection-error" class="connection-error hidden" role="alert"><span id="connection-error-copy"></span><button id="retry-view" class="secondary-btn" type="button">Retry</button></div>
         <section id="view-dashboard" class="view">
-          <header class="page-heading"><div><p class="kicker">Today</p><h1 id="dashboard-greeting">Good morning.</h1><p class="page-description">Protect the time first. Name the work when the session ends.</p></div><span class="date-stamp" id="today-date-stamp"></span></header>
+          <header class="page-heading"><div><h1 id="dashboard-greeting">Today</h1></div></header>
           <div class="today-grid">
             <article class="focus-card">
               <img class="focus-atmosphere" src="/images/focus-grove.webp" width="1600" height="800" alt="" aria-hidden="true">
-              <div class="focus-top"><span class="status"><i></i>Pomodoro</span><button class="focus-settings" id="timer-settings-toggle" type="button" aria-haspopup="dialog" aria-controls="timer-settings-overlay" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10m4 0h2M4 17h2m4 0h10M14 4v6M7 14v6"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg><span id="timer-settings-label">25 · 5 · 15</span></button></div>
-              <div class="focus-content"><button class="timer-orbit timer-launch" id="start-pomodoro" type="button" aria-label="Start a 25 minute focus ritual"><span class="timer-time" id="hero-time">25:00<span>Start focus</span></span><svg class="timer-play-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7 8 5-8 5Z"/></svg></button><div class="focus-copy"><p class="kicker">A protected interval</p><h2 id="pomodoro-heading">Protect the next 25 minutes.</h2><p>Press the dial to begin. Choose what the time was for when the full ritual ends.</p><div class="cycle-readout"><span id="pomodoro-round-copy">A fresh cycle starts at round one</span></div></div></div>
-              <footer class="focus-footer"><span class="focus-summary" id="timer-summary">25 focus · 5 short break · 15 long break</span><span id="long-break-copy">Long break every 4 rounds</span></footer>
+              <div class="focus-top"><span class="status"><i></i>Pomodoro</span><button class="focus-settings" id="timer-settings-toggle" type="button" aria-haspopup="dialog" aria-controls="timer-settings-overlay" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10m4 0h2M4 17h2m4 0h10M14 4v6M7 14v6"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg><span id="timer-settings-label">Settings</span></button></div>
+              <div class="focus-content"><button class="timer-orbit timer-launch" id="start-pomodoro" type="button" aria-label="Start a 25 minute focus ritual"><span class="timer-time" id="hero-time">25:00<span>Start focus</span></span><svg class="timer-play-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7 8 5-8 5Z"/></svg></button></div>
             </article>
             <article class="panel agenda-panel">
-              <div class="panel-heading"><div><p class="kicker">Your shortlist</p><h2>Priority tasks</h2></div><button class="quiet-link" id="open-roadmap">Open plan</button></div>
-              <div class="progress-line"><div class="progress-meta"><span id="daily-progress-copy">No tasks planned</span><span id="daily-progress-number">0 / 0</span></div><div class="progress-track"><div class="progress-value" id="daily-progress-value"></div></div></div>
+              <div class="panel-heading"><h2>Priority tasks <small id="priority-count"></small></h2></div>
+
               <div class="agenda" id="today-agenda"></div>
             </article>
           </div>
-          <div class="section-heading"><div><p class="kicker">Overview</p><h2>Progress</h2></div><p>Sessions and active goals, at a glance.</p></div>
+
           <div class="lower-grid">
             <article class="panel activity-panel">
               <div class="panel-heading"><h2>Activity</h2><span class="panel-meta">16 weeks</span></div>
               <div class="stat-strip"><div class="stat"><b id="stat-streak">0</b><span>day streak</span></div><div class="stat"><b id="stat-sessions">0</b><span>sessions</span></div><div class="stat"><b id="stat-minutes">0</b><span>minutes</span></div></div>
               <div class="heatmap" aria-label="Focus activity for the last sixteen weeks"><div class="heatmap-labels" aria-hidden="true"><span>Mon</span><span>Wed</span><span>Fri</span></div><div class="heatmap-content"><div class="heatmap-months" id="heatmap-months"></div><div class="heatmap-grid" id="activity-heatmap"></div></div></div>
-              <div class="heatmap-footer"><span>Less</span><div class="heatmap-scale" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><span>More</span></div><p class="panel-note" id="rhythm-copy">Complete a session to start your activity record.</p>
+              <div class="heatmap-footer"><span>Less</span><div class="heatmap-scale" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><span>More</span></div>
             </article>
             <article class="panel goals-panel"><div class="panel-heading"><h2>Active goals</h2><button class="quiet-link" id="open-roadmap-2">See all</button></div><div class="roadmap-list" id="dashboard-goals"></div></article>
           </div>
@@ -87,8 +86,8 @@
           <header class="page-heading plan-page-heading">
             <div class="plan-cover">
               <img class="plan-atmosphere" src="/images/focus-grove.webp" width="1600" height="800" alt="" aria-hidden="true">
-              <div class="plan-cover-copy"><p class="kicker">Room to grow</p><h1>Plan</h1><p class="page-description">Small steps. Meaningful progress.</p></div>
-              <p class="plan-overview" id="plan-overview">Your ideas, taking shape.</p>
+              <div class="plan-cover-copy"><h1>Plan</h1></div>
+              <p class="plan-overview" id="plan-overview">0 projects</p>
             </div>
             <div class="plan-create-actions" aria-label="Add to plan">
               <span>Create</span>
@@ -115,13 +114,13 @@
         </section>
 
         <section id="view-history" class="view hidden">
-          <header class="page-heading history-heading"><div><p class="kicker">Look back</p><h1>History</h1><p class="page-description">The time you protected. The work it made room for.</p></div><button class="secondary-btn" id="history-export" type="button">Export data</button></header>
+          <header class="page-heading history-heading"><div><h1>History</h1></div><button class="secondary-btn" id="history-export" type="button">Export data</button></header>
           <div class="history-toolbar"><div class="history-view-switch" role="group" aria-label="History view"><button type="button" id="history-week-tab" aria-pressed="true">Week</button><button type="button" id="history-list-tab" aria-pressed="false">All records</button></div><button id="history-deleted" class="text-btn" type="button" aria-pressed="false">Show deleted records</button></div>
           <p class="field-error" id="history-error" role="alert"></p>
           <section id="history-week" aria-label="Weekly focus history">
             <div class="history-week-toolbar"><div class="history-week-navigation"><button class="secondary-btn" type="button" id="history-prev" aria-label="Previous week">‹</button><h2 id="history-week-label"></h2><button class="secondary-btn" type="button" id="history-next" aria-label="Next week">›</button><button class="text-btn" type="button" id="history-current">This week</button></div><p id="history-week-total" role="status"></p></div>
             <p class="history-timezone" id="history-timezone"></p><div id="history-timeline"></div>
-            <section id="history-untimed" class="hidden"><h2>Records without focus blocks</h2><p class="page-description">Older rituals appear by save date because their block times were not recorded. Rituals with no focused time also appear here.</p><div id="history-untimed-list" class="archive-list"></div></section>
+            <section id="history-untimed" class="hidden"><h2>Records without focus blocks</h2><p class="page-description">Saved sessions without recorded times.</p><div id="history-untimed-list" class="archive-list"></div></section>
           </section>
           <div id="history-view" class="archive-list hidden"></div><button id="history-more" class="secondary-btn hidden" type="button">Load more</button>
         </section>
@@ -133,7 +132,7 @@
     <section class="history-detail-modal" tabindex="-1">
       <header><div><p class="kicker">Focus record</p><h2 id="history-detail-title"></h2></div><button class="text-btn" id="history-detail-close" type="button" aria-label="Close focus record">×</button></header>
       <p id="history-detail-meta" class="page-description"></p><div id="history-detail-blocks"></div>
-      <form id="history-edit-form"><label for="history-reflection">Reflection</label><textarea class="field" id="history-reflection" rows="4" maxlength="2000" placeholder="What did this time make possible?"></textarea>
+      <form id="history-edit-form"><label for="history-reflection">Reflection</label><textarea class="field" id="history-reflection" rows="4" maxlength="2000" placeholder="Add a note"></textarea>
         <fieldset class="history-edit-work"><legend>Work recorded</legend><p>These choices describe this ritual. Editing them does not change tasks in Plan.</p><div id="history-edit-attributions"></div></fieldset>
         <details id="history-add-work"><summary>Add a task to this record</summary><label for="history-task-search">Find a task</label><input class="field" type="search" id="history-task-search" placeholder="Search task or project"><p id="history-task-status" role="status"></p><div id="history-task-results"></div></details>
         <p class="field-error" id="history-edit-error" role="alert"></p><button type="button" class="text-btn hidden" id="history-reload-record">Reload saved version</button>
@@ -196,8 +195,8 @@
   </template>
 
   <template id="session-template"><article class="session-row panel"><div class="session-copy"><div class="session-title"></div><div class="session-summary-note"></div><div class="session-attributions"></div><div class="session-meta"></div></div><div class="session-actions"><span class="session-status pill"></span><button class="session-delete icon-btn" type="button" aria-label="Delete focus record"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg></button></div></article></template>
-  <div id="focus-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Pomodoro timer"><div class="timer-modal pomodoro-modal" tabindex="-1"><button class="text-btn timer-minimize" id="focus-minimize" type="button">Minimize timer</button><div class="pomodoro-modal-top"><span id="focus-phase-label" class="status"><i></i>Focus</span><span id="focus-cycle-copy">25 minute interval</span></div><h2 id="focus-task-title">Focus session</h2><p id="focus-goal-title">Stay with the work. You can assign it afterward.</p><section id="reminder-invitation" class="reminder-invitation" aria-labelledby="reminder-invitation-title" hidden><strong id="reminder-invitation-title">Know when it’s time to switch</strong><p id="reminder-invitation-copy"></p><div><button type="button" class="text-btn" id="reminder-invitation-later">Not now</button><button type="button" class="secondary-btn" id="reminder-invitation-enable">Enable notifications</button></div><p id="reminder-invitation-status" role="status"></p></section><div class="timer-orbit" id="focus-orbit"><div id="focus-time" class="timer-time">25:00<span>Remaining</span></div></div><div class="focus-actions"><button id="focus-add-plan" class="text-btn timer-plan" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Add to plan</span></button><button id="focus-exit" class="text-btn timer-exit" type="button">End session</button><button id="focus-skip" class="secondary-btn timer-skip" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 6 9 6-9 6V6Zm12 0v12"/></svg><span id="focus-skip-label">Skip to break</span></button></div></div></div>
-  <div id="plan-capture-overlay" class="overlay plan-capture-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="plan-capture-title"><section class="quick-plan-modal" tabindex="-1"><header class="settings-modal-header"><div><p class="kicker">Without leaving the ritual</p><h2 id="plan-capture-title">Add a task</h2></div><button class="icon-btn" id="plan-capture-close" type="button" aria-label="Close add to plan"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg></button></header><form id="plan-capture-form"><label for="plan-capture-name"><span>Task</span></label><input class="field" id="plan-capture-name" type="text" maxlength="120" placeholder="What needs a place?" required><label for="plan-capture-destination"><span>Add to</span></label><select class="field" id="plan-capture-destination"></select><p class="capture-helper">Choose a project or the shared Tasks list. The timer keeps running.</p><p class="field-error" id="plan-capture-error" role="alert"></p><footer class="settings-actions"><button class="text-btn" id="plan-capture-cancel" type="button">Cancel</button><button class="primary-btn" type="submit">Add task</button></footer></form></section></div>
+  <div id="focus-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Pomodoro timer"><div class="timer-modal pomodoro-modal" tabindex="-1"><button class="text-btn timer-minimize" id="focus-minimize" type="button">Minimize timer</button><div class="pomodoro-modal-top"><span id="focus-phase-label" class="status"><i></i>Focus</span><span id="focus-cycle-copy">25 minute interval</span></div><h2 id="focus-task-title">Focus session</h2><section id="reminder-invitation" class="reminder-invitation" aria-labelledby="reminder-invitation-title" hidden><strong id="reminder-invitation-title">Know when it’s time to switch</strong><p id="reminder-invitation-copy"></p><div><button type="button" class="text-btn" id="reminder-invitation-later">Not now</button><button type="button" class="secondary-btn" id="reminder-invitation-enable">Enable notifications</button></div><p id="reminder-invitation-status" role="status"></p></section><div class="timer-orbit" id="focus-orbit"><div id="focus-time" class="timer-time">25:00<span>Remaining</span></div></div><div class="focus-actions"><button id="focus-add-plan" class="text-btn timer-plan" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Add to plan</span></button><button id="focus-exit" class="text-btn timer-exit" type="button">End session</button><button id="focus-skip" class="secondary-btn timer-skip" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 6 9 6-9 6V6Zm12 0v12"/></svg><span id="focus-skip-label">Skip to break</span></button></div></div></div>
+  <div id="plan-capture-overlay" class="overlay plan-capture-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="plan-capture-title"><section class="quick-plan-modal" tabindex="-1"><header class="settings-modal-header"><div><h2 id="plan-capture-title">Add a task</h2></div><button class="icon-btn" id="plan-capture-close" type="button" aria-label="Close add to plan"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg></button></header><form id="plan-capture-form"><label for="plan-capture-name"><span>Task</span></label><input class="field" id="plan-capture-name" type="text" maxlength="120" placeholder="Task name" required><label for="plan-capture-destination"><span>Add to</span></label><select class="field" id="plan-capture-destination"></select><p class="capture-helper">The timer keeps running.</p><p class="field-error" id="plan-capture-error" role="alert"></p><footer class="settings-actions"><button class="text-btn" id="plan-capture-cancel" type="button">Cancel</button><button class="primary-btn" type="submit">Add task</button></footer></form></section></div>
   <div id="session-attribution-overlay" class="overlay attribution-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="attribution-title"><section class="attribution-modal" tabindex="-1"><header class="session-review-heading"><div><p class="kicker" id="attribution-status">Session complete</p><h2 id="attribution-title">Save your progress</h2></div><strong id="attribution-minutes" class="session-duration">25 minutes</strong></header><form id="session-attribution-form">
   <div class="session-note-field"><label for="session-summary">What did you do? <span>Optional note</span></label><textarea class="field session-note" id="session-summary" rows="3" maxlength="2000" placeholder="What moved forward? What is next?"></textarea></div>
   <fieldset><legend>Update your tasks <span>Optional</span></legend>
@@ -220,20 +219,8 @@
     </section>
   </div>
   <div id="onboarding-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="onboarding-title" aria-describedby="onboarding-description">
-    <section class="guide-modal">
-      <header class="guide-top"><p class="kicker">A little guide to Flowlist</p><button class="text-btn" id="onboarding-skip" type="button">Skip guide</button></header>
-      <nav class="guide-steps" aria-label="Guide steps">
-        <button type="button" data-guide-step="0"><span>01</span>Plan</button>
-        <button type="button" data-guide-step="1"><span>02</span>Focus</button>
-        <button type="button" data-guide-step="2"><span>03</span>Review</button>
-        <button type="button" data-guide-step="3"><span>04</span>History</button>
-      </nav>
-      <div class="guide-body" id="onboarding-body">
-        <div class="guide-preview" id="onboarding-preview" aria-hidden="true"></div>
-        <div class="guide-copy"><span class="guide-count" id="onboarding-count"></span><h2 id="onboarding-title" tabindex="-1"></h2><p id="onboarding-description"></p><dl class="guide-tips" id="onboarding-tips"></dl><p class="guide-note" id="onboarding-note"></p></div>
-      </div>
-      <footer class="guide-footer"><button class="text-btn" id="onboarding-back" type="button">Back</button><button class="primary-btn" id="onboarding-next" type="button">Next: Focus</button><div class="guide-finish" id="onboarding-finish" hidden><button class="text-btn" id="onboarding-today" type="button">Go to Today</button><button class="primary-btn" id="onboarding-plan" type="button">Open Plan</button></div></footer>
-    </section>
+    <div id="guide-spotlight" aria-hidden="true"></div>
+    <section class="guide-modal"><header class="guide-top"><span id="onboarding-count"></span><button class="text-btn" id="onboarding-skip" type="button">Skip guide</button></header><h2 id="onboarding-title" tabindex="-1"></h2><p id="onboarding-description"></p><footer class="guide-footer"><button class="text-btn" id="onboarding-back" type="button">Back</button><button class="primary-btn" id="onboarding-next" type="button">Next</button></footer></section>
   </div>
   <script type="module" src="/src/main.js"></script>
 </body>

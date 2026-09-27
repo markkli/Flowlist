@@ -296,7 +296,7 @@ async function loadGoals() {
   renderPlanIndex(activeGoals);
   renderCompletedDirections(finishedGoals);
   if (!activeGoals.length) {
-    goalsContainer.innerHTML = '<section class="plan-empty panel"><p class="kicker">An open page</p><h2>Start with a project or a task.</h2><p>Projects give an idea room for tasks and subtasks. Tasks is a simple list for everything else.</p></section>';
+    goalsContainer.innerHTML = '<section class="plan-empty panel"><p>No projects or tasks yet.</p></section>';
     return;
   }
   const taskLoads = [];

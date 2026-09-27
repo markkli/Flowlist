@@ -53,8 +53,9 @@ intentional mode change.
 
 ## Guide behavior
 
-The first authenticated visit opens a four-step guide: Plan, Focus, Review,
-History. It is skippable with a button or Escape and can be reopened from Help
+The first authenticated visit opens a three-step guide that highlights the
+actual Plan, Pomodoro, and History controls. It is skippable with a button or
+Escape and can be reopened from Help
 in the toolbar. It never creates tasks or starts the timer. Active or unsaved
 rituals take precedence over automatically showing the guide.
 

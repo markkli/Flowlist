@@ -1,13 +1,30 @@
 import { api, timezoneQuery } from '../../shared/api';
 import { escapeHtml, trapFocus, syncDialogs } from '../../shared/dom';
-import { asDate, dayKey, monday, nextDay, rangeLabel, duration, renderTimeline } from './timeline';
+import { asDate, dayKey, monday, nextDay, rangeLabel, duration } from './timeline';
 import './history.css';
+import { renderWeekPager } from './pager';
 
 export function initHistory({ showToast, refresh }) {
   const el = id => document.getElementById(id);
   const history=el('history-view'), more=el('history-more'), deletedToggle=el('history-deleted');
   const overlay=el('history-detail-overlay'), modal=overlay.querySelector('section'), form=el('history-edit-form');
   let mode='week', week=monday(), cursor=null, deleted=false, loading=false, generation=0;
+  let weekCache=new Map(), disposePager=()=>{}, calendarScrollTop=480;
+  function loadWeek(date) {
+    const key=dayKey(date), cache=weekCache;
+    if (!cache.has(key)) {
+      if (cache.size > 8) cache.delete(cache.keys().next().value);
+      const request=api(`/history/week?start=${key}&${timezoneQuery()}`).catch(error=>{cache.delete(key);throw error;});
+      cache.set(key,request);
+    }
+    return cache.get(key);
+  }
+  async function moveWeek(days, hour=calendarScrollTop) {
+    const previous=week;
+    if(!days) weekCache=new Map();
+    week=days?nextDay(week,days):monday(); calendarScrollTop=hour;
+    try { await loadHistory(false,true); } catch(error) { week=previous; await loadHistory(false,true); throw error; }
+  }
   let record=null, rows=[], original='', opener=null, saving=false, taskOptions=null, detailGeneration=0;
   const run = action => Promise.resolve().then(action).catch(error=>{el('history-error').textContent=error.message;});
   const serialize = () => JSON.stringify({summary:el('history-reflection').value, attributions:rows.filter(row=>row.included).map(row=>({...(row.attribution_id ? {attribution_id:row.attribution_id} : {task_id:row.task_id}),completed:row.completed}))});
@@ -50,7 +67,7 @@ export function initHistory({ showToast, refresh }) {
     if(session.started_at && session.blocks?.length) {
       const list=document.createElement('ul');list.className='history-block-list';
       session.blocks.forEach(block=>{const item=document.createElement('li');const start=asDate(block.started_at),end=asDate(block.ended_at);item.textContent=`${start.toLocaleDateString([], {month:'short',day:'numeric'})} · ${rangeLabel(start,end)} · ${duration(Math.round((end-start)/1000))}`;list.appendChild(item);});blocks.appendChild(list);
-      const note=document.createElement('p');note.textContent='Notes and tasks belong to the whole ritual, not an individual block.';blocks.appendChild(note);
+      const note=document.createElement('p');note.textContent='Notes and tasks apply to the whole session.';blocks.appendChild(note);
     } else blocks.textContent=session.started_at ? 'No focused time was recorded.' : 'Block times were not recorded for this older ritual.';
     el('history-reflection').value=session.summary || '';el('history-edit-error').textContent='';el('history-reload-record').classList.add('hidden');
     el('history-add-work').open=false;el('history-task-search').value='';el('history-task-results').replaceChildren();
@@ -75,8 +92,10 @@ export function initHistory({ showToast, refresh }) {
       } catch(error) {button.disabled=false;throw error;}
     }));return article;
   }
-  async function loadHistory(append=false) {
+  async function loadHistory(append=false, reuseWeek=false) {
     if(append && loading) return;
+    if (!reuseWeek) weekCache=new Map();
+    disposePager();
     const request=++generation;loading=true;more.disabled=true;el('history-error').textContent='';
     el('history-week').classList.toggle('hidden',mode!=='week');history.classList.toggle('hidden',mode!=='list');
     el('history-week-tab').setAttribute('aria-pressed',String(mode==='week'));el('history-list-tab').setAttribute('aria-pressed',String(mode==='list'));
@@ -84,19 +103,21 @@ export function initHistory({ showToast, refresh }) {
     more.classList.add('hidden');
     try {
       if(mode==='week') {
-        const data=await api(`/history/week?start=${dayKey(week)}&${timezoneQuery()}`);if(request!==generation)return;
+        const data=await loadWeek(week);if(request!==generation)return;
         const last=nextDay(week,6);
         el('history-week-label').textContent=`${week.toLocaleDateString([], {month:'short',day:'numeric'})} – ${last.toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'})}`;
-        el('history-week-total').textContent=`${data.days.reduce((total,day)=>total+day.minutes,0)} min focused · ${data.sessions.length} ${data.sessions.length===1?'ritual':'rituals'}`;
-        el('history-timezone').textContent=`${Intl.DateTimeFormat().resolvedOptions().timeZone.replaceAll('_',' ')} · 24-hour week · Scroll to see all hours. Breaks excluded; sessions under 5 minutes appear in Brief sessions. Select a block to review its ritual.`;
-        renderTimeline(el('history-timeline'),data,openRecord);
+        el('history-week-total').textContent=`${data.days.reduce((total,day)=>total+day.minutes,0)} min focused · ${data.sessions.length} ${data.sessions.length===1?'session':'sessions'}`;
+        el('history-timezone').textContent=`${Intl.DateTimeFormat().resolvedOptions().timeZone.replaceAll('_',' ')}`;
+        const hadCalendarFocus=el('history-timeline').contains(document.activeElement);
+        disposePager=renderWeekPager(el('history-timeline'),week,data,{loadWeek,openRecord,scrollTop:calendarScrollTop,onNavigate:(days,hour)=>run(()=>moveWeek(days,hour))});
+        if(hadCalendarFocus) el('history-timeline').querySelector('.history-week-pager').focus({preventScroll:true});
         const untimed=data.sessions.filter(session=>!session.started_at || !session.blocks?.length);
         el('history-untimed').classList.toggle('hidden',!untimed.length);el('history-untimed-list').replaceChildren(...untimed.map(session=>recordCard(session)));
       } else {
         const sessions=await api(`/sessions?limit=30&deleted=${deleted}${append&&cursor?`&before_id=${cursor}`:''}`);if(request!==generation)return;
         if(!append)history.replaceChildren();sessions.forEach(session=>history.appendChild(recordCard(session,deleted)));
         cursor=sessions.at(-1)?.id ?? null;more.classList.toggle('hidden',sessions.length<30);
-        if(!history.children.length){const empty=document.createElement('p');empty.className='page-description';empty.textContent=deleted?'No deleted records.':'No focus rituals saved yet.';history.appendChild(empty);}
+        if(!history.children.length){const empty=document.createElement('p');empty.className='page-description';empty.textContent=deleted?'No deleted records.':'No saved sessions.';history.appendChild(empty);}
       }
     } finally {if(request===generation){loading=false;more.disabled=false;}}
   }
@@ -104,7 +125,7 @@ export function initHistory({ showToast, refresh }) {
   el('history-week-tab').addEventListener('click',()=>run(()=>{mode='week';deleted=false;return loadHistory();}));
   el('history-list-tab').addEventListener('click',()=>run(()=>{mode='list';deleted=false;return loadHistory();}));
   deletedToggle.addEventListener('click',()=>run(()=>{mode='list';deleted=!deleted;return loadHistory();}));
-  [['history-prev',-7],['history-next',7],['history-current',0]].forEach(([id,days])=>el(id).addEventListener('click',()=>run(()=>{week=days?nextDay(week,days):monday();return loadHistory();})));
+  [['history-prev',-7],['history-next',7],['history-current',0]].forEach(([id,days])=>el(id).addEventListener('click',()=>run(()=>{return moveWeek(days);})));
   ['history-detail-close','history-edit-cancel'].forEach(id=>el(id).addEventListener('click',()=>closeRecord()));
   el('history-task-search').addEventListener('input',renderTaskResults);
   el('history-add-work').addEventListener('toggle',async()=>{
@@ -132,5 +153,5 @@ export function initHistory({ showToast, refresh }) {
     try {const data=await api('/export');const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download=`flowlist-${dayKey(new Date())}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);showToast('Export downloaded: Plan, queue, and saved history, including deleted records.');}
     finally{button.disabled=false;button.textContent='Export data';}
   }));
-  return {loadHistory,handleKey(event){if(overlay.classList.contains('hidden'))return false;if(event.key==='Escape'){event.preventDefault();closeRecord();}else trapFocus(event,modal);return true;}};
+  return {loadHistory,setWeek(date){week=monday(new Date(`${date}T12:00:00`));},handleKey(event){if(overlay.classList.contains('hidden'))return false;if(event.key==='Escape'){event.preventDefault();closeRecord();}else trapFocus(event,modal);return true;}};
 }

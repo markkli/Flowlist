@@ -24,6 +24,7 @@ async function setup(page: any, { version = 0, failSave = false, id = owner, aut
     if (!['GET', 'HEAD'].includes(route.request().method())) writes.push(path);
     if (path === '/api/config') return route.fulfill({ json: { auth_mode: 'supabase', supabase_url: 'https://beta.supabase.co', supabase_key: 'sb_publishable_test', google_enabled: true, email_enabled: false } });
     if (path === '/api/account') return route.fulfill({ json: { id, email: user().email, onboarding_version: savedVersion, mode: 'supabase' } });
+    if(path==='/api/history/week') { const start=new URL(route.request().url()).searchParams.get('start'); return route.fulfill({json:{sessions:[],days:Array.from({length:7},(_,i)=>{const d=new Date(`${start}T12:00:00Z`);d.setUTCDate(d.getUTCDate()+i);return {date:d.toISOString().slice(0,10),minutes:0,seconds:0,session_ids:[]};})}}); }
     return route.fulfill({ json: path === '/api/dashboard' ? emptyDashboard : [] });
   });
   return writes;
@@ -36,18 +37,19 @@ test('first sign-in teaches the workflow, saves the preference, and does not cre
   await page.goto('/');
   await expect(guide(page)).toBeVisible();
   await expect(page.locator('#onboarding-title')).toBeFocused();
-  await expect(guide(page)).toContainText('something you want to build or learn');
-  await page.getByRole('button', {name:'Next: Focus',exact:true}).click();
-  await expect(guide(page)).toContainText('You do not need to select a task first');
-  await page.getByRole('button', {name:'Back',exact:true}).click();
-  await expect(page.locator('#onboarding-count')).toHaveText('Step 1 of 4');
-  await page.getByRole('button', {name:'Next: Focus',exact:true}).click();
-  await page.getByRole('button', {name:'Next: Review',exact:true}).click();
-  await expect(guide(page)).toContainText('Mark Finished only for work you completed');
-  await page.getByRole('button', {name:'Next: History',exact:true}).click();
-  await page.getByRole('button', {name:'Open Plan',exact:true}).click();
-  await expect(guide(page)).toBeHidden();
   await expect(page).toHaveURL(/#goals$/);
+  await expect(guide(page)).toContainText('Star tasks');
+  await page.getByRole('button', {name:'Next',exact:true}).click();
+  await expect(page).toHaveURL(/#dashboard$/);
+  await expect(guide(page)).toContainText('Press the dial');
+  await page.getByRole('button', {name:'Back',exact:true}).click();
+  await expect(page.locator('#onboarding-count')).toHaveText('1 / 3');
+  await page.getByRole('button', {name:'Next',exact:true}).click();
+  await page.getByRole('button', {name:'Next',exact:true}).click();
+  await expect(page).toHaveURL(/#history$/);
+  await expect(guide(page)).toContainText('Scroll across weeks');
+  await page.getByRole('button', {name:'Done',exact:true}).click();
+  await expect(guide(page)).toBeHidden();
   await expect.poll(() => writes).toEqual(['preference']);
   expect(await page.evaluate(() => Object.keys(localStorage).some(key => key.startsWith('flowlist-ritual-v2')))).toBe(false);
   // Clear the local hint: server preference must still prevent a repeat on another browser.
@@ -118,10 +120,10 @@ for (const [width,height] of [[375,812],[812,375],[1440,900]]) {
     await expect(guide(page)).toBeVisible();
     for (const theme of ['light','dark']) {
       await page.evaluate(theme => document.documentElement.dataset.theme = theme, theme);
-      for (const name of ['01Plan','02Focus','03Review','04History']) {
-        const step = page.locator('.guide-steps button').filter({hasText:name.slice(2)});
-        await step.click();
-        await expect(step).toHaveAttribute('aria-current','step');
+      if(theme==='dark') { await page.getByRole('button',{name:'Back',exact:true}).click(); await page.getByRole('button',{name:'Back',exact:true}).click(); }
+      for (const [i,selector] of ['[data-goal-create=project]','#start-pomodoro','#history-next'].entries()) {
+        if(i>0) await page.getByRole('button',{name:'Next',exact:true}).click();
+        await expect(page.locator('#onboarding-count')).toHaveText(`${i+1} / 3`);
         await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
         const metrics = await page.locator('.guide-modal').evaluate(node => {
           const box = node.getBoundingClientRect();
@@ -132,12 +134,20 @@ for (const [width,height] of [[375,812],[812,375],[1440,900]]) {
         expect(metrics.top).toBeGreaterThanOrEqual(0);
         expect(metrics.bottom).toBeLessThanOrEqual(height);
         expect(metrics.overflow).toBeLessThanOrEqual(1);
-        if (name === '01Plan') await page.screenshot({path:testInfo.outputPath(`guide-${width}-${theme}.png`)});
+        const target=await page.locator(selector).boundingBox();
+        const ring=await page.locator('#guide-spotlight').boundingBox();
+        expect(Math.abs(ring!.x-target!.x)).toBeLessThanOrEqual(6);
+        expect(Math.abs(ring!.y-target!.y)).toBeLessThanOrEqual(6);
+        const card=await page.locator('.guide-modal').boundingBox();
+        const overlapX=Math.max(0,Math.min(card!.x+card!.width,target!.x+target!.width)-Math.max(card!.x,target!.x));
+        const overlapY=Math.max(0,Math.min(card!.y+card!.height,target!.y+target!.height)-Math.max(card!.y,target!.y));
+        expect(overlapX*overlapY).toBe(0);
+        await page.screenshot({path:testInfo.outputPath(`guide-${i}-${width}-${theme}.png`)});
       }
     }
-    await expect(page.getByRole('button',{name:'Open Plan',exact:true})).toBeInViewport();
-    await page.getByRole('button',{name:'Go to Today',exact:true}).click();
-    await expect(page).toHaveURL(/#dashboard$/);
+    await expect(page.getByRole('button',{name:'Done',exact:true})).toBeInViewport();
+    await page.getByRole('button',{name:'Done',exact:true}).click();
+    await expect(page).toHaveURL(/#history$/);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 }

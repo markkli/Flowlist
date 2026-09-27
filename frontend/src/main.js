@@ -9,11 +9,6 @@ import { initTimer } from './features/timer';
 import { initAppearance } from './features/appearance';
 import { initOnboarding } from './features/onboarding';
 let toastTimer;
-function greetingForNow() {
-  const hour = new Date().getHours();
-  return hour < 12 ? "Good morning." : hour < 18 ? "Good afternoon." : "Good evening.";
-}
-
 function showToast(message, isError = false, action = null, duration = action ? 5200 : 2800) {
   const toast = document.getElementById("app-toast");
   toast.replaceChildren();
@@ -40,13 +35,8 @@ function showToast(message, isError = false, action = null, duration = action ? 
 
 function setDateCopy() {
   const today = new Date();
-  document.getElementById("dashboard-greeting").textContent = greetingForNow();
   document.getElementById("top-date").innerHTML = `<strong>${today.toLocaleDateString("en", { weekday: "long" })}</strong> · ${today.toLocaleDateString("en", { month: "long", day: "numeric" })}`;
-  document.getElementById("today-date-stamp").textContent = today.toLocaleDateString("en", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+
 }
 
 function applyTheme(theme) {
@@ -71,7 +61,7 @@ const auth = await initAuth();
 if (!auth) return;
 const appearance = initAppearance({ showToast });
 const plan = initPlan({ showToast });
-const dashboard = initDashboard({ setDateCopy, showToast });
+const dashboard = initDashboard({ setDateCopy, showToast, openHistory: date => { historyView.setWeek(date); navigate('history'); } });
 const historyView = initHistory({ showToast, refresh: () => dashboard.loadDashboard() });
 const timer = initTimer({ showToast, loadGoals: () => plan.loadGoals(), loadDashboard: () => dashboard.loadDashboard() });
 const loaders = { dashboard: dashboard.loadDashboard, goals: plan.loadGoals, history: historyView.loadHistory };
@@ -96,7 +86,7 @@ async function switchView(name) {
 }
 function navigate(name) { location.hash = name; }
 Object.keys(loaders).forEach(name => document.getElementById(`nav-${name}`).addEventListener('click', () => navigate(name)));
-['open-roadmap','open-roadmap-2'].forEach(id => document.getElementById(id).addEventListener('click', () => navigate('goals')));
+['open-roadmap-2'].forEach(id => document.getElementById(id).addEventListener('click', () => navigate('goals')));
 document.querySelector('.brand').addEventListener('click', event => { event.preventDefault(); navigate('dashboard'); });
 document.getElementById('retry-view').addEventListener('click', () => switchView(location.hash.slice(1)));
 window.addEventListener('hashchange', () => {
@@ -107,7 +97,7 @@ window.addEventListener('unhandledrejection', event => {
   event.preventDefault();
   showToast(event.reason?.message || 'Could not finish that action. Please try again.', true);
 });
-const onboarding = initOnboarding({ preferences: auth.onboarding, showToast, navigate });
+const onboarding = initOnboarding({ preferences: auth.onboarding, showToast, navigate: name => { window.history.replaceState(null,'',`#${name}`); switchView(name); } });
 document.addEventListener('keydown', event => { if (!onboarding.handleKey(event) && !appearance.handleKey(event) && !historyView.handleKey(event) && !timer.handleKey(event)) plan.handleKey(event); });
 setDateCopy();
 switchView(location.hash.slice(1));

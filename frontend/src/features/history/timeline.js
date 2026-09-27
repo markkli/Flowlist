@@ -46,7 +46,7 @@ export function renderTimeline(container, data, openRecord) {
   const brief = segments.filter(entry => entry.seconds < 300);
   if (brief.length && !clockChange) {
     const strip = document.createElement('section'); strip.className = 'history-brief-strip';
-    strip.innerHTML = '<div><h3>Brief sessions</h3><p>Under 5 minutes · kept here to keep the calendar readable.</p></div>';
+    strip.innerHTML = '<div><h3>Brief sessions</h3><p>Under 5 minutes</p></div>';
     for (const day of data.days) {
       const entries = brief.filter(entry => entry.date === day.date);
       if (!entries.length) continue;
@@ -109,7 +109,7 @@ export function renderTimeline(container, data, openRecord) {
       button.addEventListener('click',()=>openRecord(entry.session,button));
       body.appendChild(button);
     }
-    if(!entries.length) { const empty=document.createElement('p');empty.className='history-day-empty';empty.textContent=brief.some(entry=>entry.date===day.date) ? 'Brief sessions above' : day.session_ids?.length ? 'Record below' : 'No focus blocks';body.appendChild(empty); }
+
     column.appendChild(body);grid.appendChild(column);
   }
   if(clockChange) {
@@ -122,7 +122,7 @@ export function renderTimeline(container, data, openRecord) {
   if (!clockChange) scroll.scrollTop = 8*60;
   if(!segments.length) {
     const message=document.createElement('p');message.className='history-week-empty';
-    message.textContent='No recorded focus blocks this week. New rituals will appear here with their actual focus times.';
+    message.textContent='No focus sessions this week.';
     container.appendChild(message);
   }
 }

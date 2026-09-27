@@ -49,12 +49,8 @@ function renderSettings() {
   breakMinutesSetting.value = timerSettings.break;
   roundsSetting.value = timerSettings.rounds;
   longBreakMinutesSetting.value = timerSettings.longBreak;
-  document.getElementById('timer-settings-label').textContent = `${timerSettings.focus} / ${timerSettings.break} · ${timerSettings.rounds} rounds`;
-  document.getElementById('timer-summary').textContent = `${timerSettings.focus} focus · ${timerSettings.break} short break · ${timerSettings.longBreak} long break`;
-  document.getElementById('long-break-copy').textContent = `Long break every ${timerSettings.rounds} rounds`;
+  document.getElementById('timer-settings-label').textContent = 'Settings';
   document.getElementById('hero-time').innerHTML = `${timerSettings.focus}:00<span>Start focus</span>`;
-  document.getElementById('pomodoro-heading').textContent = `Protect the next ${timerSettings.focus} minutes.`;
-  document.getElementById('pomodoro-round-copy').textContent = 'Begin with one focus interval';
   document.getElementById('start-pomodoro').setAttribute('aria-label', `Start a ${timerSettings.focus}-minute focus ritual`);
 }
 function setTimerSettingsOpen(open) {
@@ -86,10 +82,9 @@ function renderTimer() {
     const seconds = remaining(state);
     const label = state.phase === 'focus' ? 'Focus' : state.breakKind === 'long' ? 'Long break' : 'Short break';
     document.getElementById('focus-phase-label').textContent = label;
-    document.getElementById('focus-task-title').textContent = `${label} · round ${state.round} of ${state.settings.rounds}`;
-    document.getElementById('focus-goal-title').textContent = state.phase === 'focus' ? 'Stay with the work. Name it afterward.' : 'Step away for a moment. The next focus interval begins after this break.';
+    document.getElementById('focus-task-title').textContent = `Round ${state.round} of ${state.settings.rounds}`;
     document.getElementById('focus-cycle-copy').textContent = `${Math.floor(state.elapsedSeconds/60)} minutes accumulated`;
-    document.getElementById('focus-time').innerHTML = `${formatTime(seconds)}<span>Remaining</span>`;
+    document.getElementById('focus-time').innerHTML = formatTime(seconds);
     document.getElementById('focus-orbit').style.setProperty('--timer-progress', String(seconds / state.blockSeconds));
     document.getElementById('focus-skip-label').textContent = state.phase === 'focus' ? 'Skip to break' : 'Skip to focus';
     document.getElementById('timer-mini-copy').textContent = `${label} · ${formatTime(seconds)} · Round ${state.round}`;

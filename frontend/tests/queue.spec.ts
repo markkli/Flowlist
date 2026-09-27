@@ -74,12 +74,12 @@ async function mockQueueApi(page: Page, initialQueue: number[] = []) {
 }
 
 const queueTitles = (page: Page) => page.locator('#today-agenda .agenda-title');
-const picker = (page: Page) => page.getByRole('dialog', { name: 'Choose what comes next' });
+const picker = (page: Page) => page.getByRole('dialog', { name: 'Choose priorities' });
 
 test('picker offers parents and smaller steps and saves chosen tasks in a custom order that survives reload', async ({ page }) => {
   const state = await mockQueueApi(page);
   await page.goto('/#dashboard');
-  await expect(page.getByRole('heading', { name: 'What matters next?' })).toBeVisible();
+  await expect(page.locator('.queue-empty')).toHaveText('Star tasks in Plan to prioritize them here.');
   await page.locator('#edit-queue').click();
   await expect(picker(page).getByRole('checkbox', { name: 'Research section', exact: true })).toBeVisible();
   await expect(picker(page).getByRole('checkbox', { name: 'Finished draft', exact: true })).toHaveCount(0);

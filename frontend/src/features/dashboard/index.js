@@ -1,7 +1,7 @@
 import { api, timezoneQuery } from '../../shared/api';
 import { escapeHtml } from '../../shared/dom';
 import { initQueue } from './queue';
-export function initDashboard({ setDateCopy, showToast }) {
+export function initDashboard({ setDateCopy, showToast, openHistory }) {
 function localDateKey(date) { return [date.getFullYear(), String(date.getMonth()+1).padStart(2,'0'), String(date.getDate()).padStart(2,'0')].join('-'); }
 
 function renderGoalsSummary(goalsWithTasks) {
@@ -51,14 +51,15 @@ function renderActivityHeatmap(days) {
       const dayActivity = current > today ? null : activity.get(key);
       const count = dayActivity?.sessions || 0;
       const level = count === 0 ? 0 : count === 1 ? 1 : count === 2 ? 2 : count === 3 ? 3 : 4;
-      const cell = document.createElement("span");
+      const cell = document.createElement(current > today ? "span" : "button");
       cell.className = `heatmap-cell level-${level}${current > today ? " future" : ""}`;
-      if (dayActivity) {
+      if (current <= today) {
         const date = current.toLocaleDateString("en", { month: "short", day: "numeric" });
-        const tooltip = `${date} · ${dayActivity.minutes} min · ${count} ${count === 1 ? "ritual" : "rituals"}`;
+        const tooltip = `${date} · ${dayActivity?.minutes || 0} min · ${count} ${count === 1 ? "session" : "sessions"}`;
         cell.dataset.tooltip = tooltip;
         cell.setAttribute("aria-label", tooltip);
-        cell.tabIndex = 0;
+        cell.type = 'button'; cell.tabIndex = key===localDateKey(today) ? 0 : -1;
+        cell.addEventListener('click', () => openHistory(key));
       } else {
         cell.setAttribute("aria-hidden", "true");
       }
@@ -67,6 +68,20 @@ function renderActivityHeatmap(days) {
   }
 }
 
+const heatmap = document.getElementById('activity-heatmap');
+heatmap.addEventListener('focusin', event => {
+  heatmap.querySelectorAll('button').forEach(cell=>cell.tabIndex=cell===event.target ? 0 : -1);
+});
+heatmap.addEventListener('keydown', event => {
+  const moves={ArrowUp:-1,ArrowDown:1,ArrowLeft:-7,ArrowRight:7};
+  if (!(event.key in moves) && !['Home','End'].includes(event.key)) return;
+  const cells=[...heatmap.querySelectorAll('button')], index=cells.indexOf(event.target);
+  if(index<0)return;
+  event.preventDefault();
+  const target=event.key==='Home'?0:event.key==='End'?cells.length-1:Math.max(0,Math.min(cells.length-1,index+moves[event.key]));
+  cells[target].focus();
+});
+
 function renderMomentum(data) {
   const stats = data.stats;
   document.getElementById("stat-streak").textContent = stats.current_streak;
@@ -74,7 +89,6 @@ function renderMomentum(data) {
   document.getElementById("stat-minutes").textContent = stats.total_minutes;
   document.getElementById("side-session-count").textContent = `${data.week_sessions} ${data.week_sessions === 1 ? "session" : "sessions"}`;
   renderActivityHeatmap(data.activity);
-  document.getElementById("rhythm-copy").textContent = stats.current_streak ? `${stats.current_streak}-day focus streak` : "Log at least one focused minute to begin a streak.";
 }
 async function loadDashboard() {
   setDateCopy();

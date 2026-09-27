@@ -150,3 +150,12 @@
 
 .as-agenda .history-block.is-tiny { padding:8px 10px; }
 .as-agenda .history-block.is-tiny > * { visibility:visible; }
+
+.history-week-pager { display:flex; overflow-x:auto; scroll-snap-type:x mandatory; overscroll-behavior-x:contain; scrollbar-width:thin; }
+.history-week-page { flex:0 0 100%; min-width:0; scroll-snap-align:start; scroll-snap-stop:always; }
+.history-week-pager:focus-visible { outline:3px solid var(--focus-ring); outline-offset:-3px; }
+.history-week-page .history-clock-scroll { scrollbar-gutter:stable; }
+
+.history-week-pager { overflow-anchor:none; }
+
+.history-week-page .history-clock-scroll { overscroll-behavior-x:auto; overscroll-behavior-y:contain; }
