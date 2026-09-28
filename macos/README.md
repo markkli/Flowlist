@@ -98,7 +98,8 @@ they do not claim to verify Google's production redirect or macOS Keychain promp
   After acknowledgement, edit the corresponding cloud history record normally.
 - History initially caches 100 records, supports older-page loading, and fetches
   the displayed calendar window separately. Visited pages read cached data immediately
-  and revalidate in the background. Uncached history and historical-record edits
+  and revalidate in the background. Confirmed uploads and history edits invalidate
+  the affected response cache, including reads already in flight. Uncached history and historical-record edits
   still use the server; the Mac is not yet a complete offline replica of all history.
 
 The **Mac menu, app, and desktop widget share one timer**. The existing web timer

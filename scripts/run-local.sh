@@ -13,7 +13,7 @@ fi
 
 if [[ ! -f "$BACKEND_DIR/local-development.env" ]]; then
   cp "$BACKEND_DIR/local-development.env.example" "$BACKEND_DIR/local-development.env"
-  echo "Created backend/local-development.env (AI breakdown remains disabled until you add a key)."
+  echo "Created backend/local-development.env (optional AI history titles are disabled by default)."
 fi
 
 cd "$BACKEND_DIR"

@@ -22,9 +22,28 @@ jobs:
       - run: npx playwright install --with-deps chromium webkit
         working-directory: frontend
       - run: npm --prefix frontend run test:e2e
-      - run: npm --prefix frontend run test:e2e -- auth.spec.ts ritual.spec.ts --workers=2
+      - run: npm --prefix frontend run test:e2e -- --workers=2
         env:
           FLOWLIST_TEST_BROWSER: webkit
+
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm --prefix frontend ci
+      - run: bash macos/scripts/build-web.sh
+      - run: bash macos/scripts/test.sh
+      # Compile the application and WidgetKit extension without a developer's
+      # signing identity. This is a build check, not widget installation testing.
+      - run: >-
+          xcodebuild -project macos/Flowlist.xcodeproj -scheme Flowlist
+          -configuration Debug -derivedDataPath macos/build/CI
+          CODE_SIGNING_ALLOWED=NO build
 
   postgres-release:
     runs-on: ubuntu-latest

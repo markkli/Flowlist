@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app import schemas
 from app.database import get_db
 from app.models import FocusSessionModel, FocusSessionTaskModel, GoalModel, TaskModel
-from app.services.plan import find_goal, find_task, next_task_position, reopen_task_lineage, task_plan_key, complete_task
+from app.services.plan import find_task, next_task_position, reopen_task_lineage, task_plan_key, complete_task
 
 router = APIRouter()
 MAX_DEPTH = 2

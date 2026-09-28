@@ -11,16 +11,43 @@ private final class APIAuthVault: AuthVault {
 }
 private final class APITransport: URLProtocol {
     static var respond: ((URLRequest) throws -> (Int, String))!
+    static var delayedResponse: ((URLRequest) async -> (Int, String))?
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
-        do {
-            let (status, body) = try Self.respond(request)
+        Task {
+          do {
+            let (status, body): (Int, String)
+            if let delayed = Self.delayedResponse { (status, body) = await delayed(request) }
+            else { (status, body) = try Self.respond(request) }
             client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])!, cacheStoragePolicy: .notAllowed)
             client?.urlProtocol(self, didLoad: Data(body.utf8)); client?.urlProtocolDidFinishLoading(self)
-        } catch { client?.urlProtocol(self, didFailWithError: error) }
+          } catch { client?.urlProtocol(self, didFailWithError: error) }
+        }
     }
     override func stopLoading() {}
+}
+
+/// Coordinates two in-flight requests without timing-dependent sleeps.
+private actor ResponseGate {
+    private var response: CheckedContinuation<(Int, String), Never>?
+    private var arrival: CheckedContinuation<Void, Never>?
+
+    func receive() async -> (Int, String) {
+        await withCheckedContinuation { continuation in
+            response = continuation
+            arrival?.resume()
+            arrival = nil
+        }
+    }
+    func waitUntilRequested() async {
+        if response != nil { return }
+        await withCheckedContinuation { arrival = $0 }
+    }
+    func finish(_ body: String) {
+        response?.resume(returning: (200, body))
+        response = nil
+    }
 }
 
 @Suite(.serialized) @MainActor struct WebWorkspaceAPITests {
@@ -33,7 +60,7 @@ private final class APITransport: URLProtocol {
         let child = try #require(try await local.request(path: "/tasks/\(taskID)/subtasks", method: "POST", body: ["title": "Read abstract"]) as? [String: Any])
         let childID = try #require(child["id"] as? Int)
         _ = try await local.request(path: "/queue/\(childID)", method: "POST")
-        #expect(store.priorities.map(\.id) == [childID])
+        #expect(store.plan.priorityIds == [childID])
         let options = try #require(try await local.request(path: "/focus-options") as? [[String: Any]])
         #expect(options.count == 2)
         #expect(options[1]["ancestor_titles"] as? [String] == ["Read paper"])
@@ -42,7 +69,7 @@ private final class APITransport: URLProtocol {
         #expect(!store.plan.projects[0].tasks[0].completed)
         #expect((try await local.request(path: "/queue") as? [[String: Any]])?.isEmpty == true)
         _ = try await local.request(path: "/tasks/\(childID)", method: "PATCH", body: ["completed": false])
-        #expect(store.priorities.map(\.id) == [childID])
+        #expect(store.plan.priorityIds == [childID])
         _ = try await local.request(path: "/tasks/\(taskID)", method: "PATCH", body: ["completed": true])
         #expect(store.plan.projects[0].tasks.allSatisfy { $0.completed })
         _ = try await local.request(path: "/goals/\(goalID)", method: "PATCH", body: ["completed": true])
@@ -161,6 +188,25 @@ private final class APITransport: URLProtocol {
         store.account = CloudIdentity(id: UUID().uuidString, email: "other@example.invalid")
         APITransport.respond = { _ in throw URLError(.notConnectedToInternet) }
         await #expect(throws: (any Error).self) { _ = try await api.request(path: "/stats") }
+    }
+
+    @Test func historyReadStartedDuringAnEditCannotRepopulateStaleCache() async throws {
+        let store = try signedStore()
+        let api = WebWorkspaceAPI(store: store)
+        let editGate = ResponseGate(), readGate = ResponseGate()
+        APITransport.delayedResponse = { request in
+            await (request.httpMethod == "PATCH" ? editGate : readGate).receive()
+        }
+        defer { APITransport.delayedResponse = nil }
+        let edit = Task { try await api.request(path: "/sessions/10", method: "PATCH", body: ["revision": 0, "summary": "Updated", "attributions": []]) }
+        await editGate.waitUntilRequested()
+        let read = Task { try await api.request(path: "/sessions/10") }
+        await readGate.waitUntilRequested()
+        await editGate.finish(#"{"id":10,"summary":"Updated"}"#)
+        _ = try await edit.value
+        await readGate.finish(#"{"id":10,"summary":"Old"}"#)
+        _ = try await read.value
+        #expect(store.workspace.webResponseCache?["/sessions/10"] == nil)
     }
 
     private func signedStore() throws -> TimerStore {

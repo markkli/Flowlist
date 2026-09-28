@@ -1,11 +1,10 @@
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, HTTPException
-from app.config import public_config, auth_mode
+from fastapi import FastAPI, HTTPException
+from app.config import public_config
 from app.security import RequestSafety
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.api import goals, tasks, sessions, dashboard, queue, history, account
 

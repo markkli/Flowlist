@@ -15,6 +15,20 @@ test.beforeEach(async({page})=>{
  });
 });
 
+test('unregistered URL fragments fall back to Home without blanking the workspace',async({page})=>{
+ const errors:string[]=[];
+ page.on('pageerror',error=>errors.push(error.message));
+ for(const fragment of ['constructor','toString','not-a-view']) {
+  await page.goto(`/#${fragment}`);
+  await expect(page.locator('#view-dashboard')).toBeVisible();
+  await expect(page.getByRole('button',{name:'Home',exact:true})).toHaveAttribute('aria-current','page');
+  await expect(page.locator('#hero-time')).toHaveText('25:00');
+  await expect(page.locator('#connection-error')).toBeHidden();
+  await expect(page.locator('#app-toast')).not.toHaveClass(/visible/);
+ }
+ expect(errors).toEqual([]);
+});
+
 test('heatmap shows details on hover and opens the matching week by click or keyboard',async({page})=>{
  await page.goto('/');
  const day=page.getByRole('button',{name:'Sep 18 · 25 min · 1 session',exact:true});
@@ -24,7 +38,7 @@ test('heatmap shows details on hover and opens the matching week by click or key
  await day.click();
  await expect(page).toHaveURL(/#history$/);
  await expect(page.locator('#history-week-label')).toContainText('Sep 12');
- await page.getByRole('button',{name:'Today',exact:true}).click();
+ await page.getByRole('button',{name:'Home',exact:true}).click();
  await expect(page).toHaveURL(/#dashboard$/);
  await expect(page.locator('#activity-heatmap button[tabindex="0"]')).toHaveAttribute('aria-label',/^Sep 27/);
  await page.locator('#activity-heatmap button[tabindex="0"]').focus();
@@ -33,7 +47,7 @@ test('heatmap shows details on hover and opens the matching week by click or key
  await expect(page.locator('#history-week-label')).toContainText('Sep 14');
 });
 
-for(const width of [375,1440])test(`Today has one clear timer and priority action at ${width}px`,async({page},testInfo)=>{
+for(const width of [375,1440])test(`Home has one clear timer and priority action at ${width}px`,async({page},testInfo)=>{
  await page.setViewportSize({width,height:900});
  await page.emulateMedia({reducedMotion:"reduce"});
  await page.goto('/');

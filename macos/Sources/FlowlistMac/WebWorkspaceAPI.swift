@@ -8,7 +8,6 @@ import FlowlistCore
 /// user-supplied URL. Credentials remain in CloudClient and Keychain.
 @MainActor final class WebWorkspaceAPI {
     let store: TimerStore
-    private var cacheGeneration = 0
     private var refreshedPaths: [String: Date] = [:]
     private var recording: (String, String, [String: Any])?
     init(store: TimerStore) { self.store = store }
@@ -47,24 +46,21 @@ import FlowlistCore
             refreshCachedRead(path: path, owner: owner, route: route)
             return localPlanOverlay(value, route: route)
         }
-        if method != "GET" { cacheGeneration += 1 }
-        let generation = cacheGeneration
+        if method != "GET" { store.webCacheGeneration += 1 }
+        let generation = store.webCacheGeneration
         do {
             let payload = method == "GET" ? nil : try JSONSerialization.data(withJSONObject: body)
             let response = try await store.cloud.requestJSON(path, method: method, body: payload, owner: owner)
             guard store.account?.id == owner else { throw failure("The account changed. Refresh the workspace.", 409) }
             if method == "GET" {
-                if generation == cacheGeneration {
+                if generation == store.webCacheGeneration {
                     cache(response, path: path)
-                    if route.parts.first != "dashboard" { updateNativeCache(response, route: route) }
-                }
-            } else {
-                store.change { $0.webResponseCache = nil }
-                if ["goals", "tasks", "standalone-tasks", "queue", "guide"].contains(route.parts.first ?? "") {
-                    await refreshNativePlan(owner: owner)
-                } else if route.parts.first == "sessions" {
                     updateHistoryCache(response, route: route)
                 }
+            } else {
+                // Also invalidate reads started while the mutation was in flight.
+                store.invalidateWebCache()
+                updateHistoryCache(response, route: route)
             }
             return localPlanOverlay(response, route: route)
         } catch let error as CloudFailure where error.isTransport && method == "GET" && store.account?.id == owner {
@@ -77,6 +73,8 @@ import FlowlistCore
             throw error
         }
     }
+
+    // MARK: - Allowed routes and cloud history cache
 
     private struct Route {
         let method: String
@@ -137,81 +135,34 @@ import FlowlistCore
     private func refreshCachedRead(path: String, owner: String, route: Route) {
         guard Date().timeIntervalSince(refreshedPaths[path] ?? .distantPast) > 60 else { return }
         refreshedPaths[path] = Date()
-        let generation = cacheGeneration
+        let generation = store.webCacheGeneration
         Task {
             do {
                 let response = try await store.cloud.requestJSON(path, owner: owner)
-                guard store.account?.id == owner, cacheGeneration == generation else { return }
+                guard store.account?.id == owner, store.webCacheGeneration == generation else { return }
                 cache(response, path: path)
-                if route.parts.first != "dashboard" { updateNativeCache(response, route: route) }
+                updateHistoryCache(response, route: route)
             } catch { if store.account?.id == owner { store.syncError = error.localizedDescription } }
         }
     }
-    private func updateNativeCache(_ value: Any, route: Route) {
-        guard let data = try? JSONSerialization.data(withJSONObject: value) else { return }
-        if route.parts == ["goals"], route.query["include_tasks"] == "true", let projects = try? CloudJSON.decoder().decode([PlanProject].self, from: data) {
-            store.change { state in var plan = state.plan ?? PlanCache(); plan.projects = projects; plan.refreshedAt = Date(); state.plan = plan }
-        } else if route.parts == ["focus-options"], let options = value as? [[String: Any]] {
-            // The user can create tasks in the website while the Mac is open.
-            // Reconcile these fresh choices before the native review validates
-            // their IDs; a stale background Plan cache must not reject them.
-            store.change { state in
-                var plan = state.plan ?? PlanCache()
-                for option in options {
-                    guard let id = option["id"] as? Int, let goalID = option["goal_id"] as? Int,
-                          let title = option["title"] as? String, let goalTitle = option["goal_title"] as? String else { continue }
-                    let gi: Int
-                    if let index = plan.projects.firstIndex(where: { $0.id == goalID }) { gi = index }
-                    else {
-                        plan.projects.append(PlanProject(id: goalID, title: goalTitle, goalType: option["goal_type"] as? String ?? "project", position: plan.projects.count))
-                        gi = plan.projects.count - 1
-                    }
-                    plan.projects[gi].title = goalTitle; plan.projects[gi].completed = false
-                    let task = PlanTask(id: id, goalId: goalID, parentId: option["parent_id"] as? Int, title: title, position: option["position"] as? Int ?? 0)
-                    if let ti = plan.projects[gi].tasks.firstIndex(where: { $0.id == id }) { plan.projects[gi].tasks[ti] = task }
-                    else { plan.projects[gi].tasks.append(task) }
-                }
-                state.plan = plan
-            }
-        } else if route.parts == ["dashboard"], let dashboard = value as? [String: Any], let rows = dashboard["goals"] as? [[String: Any]] {
-            let active: [PlanProject] = rows.compactMap { row in
-                guard var goal = row["goal"] as? [String: Any] else { return nil }
-                goal["tasks"] = row["tasks"] ?? []
-                guard let data = try? JSONSerialization.data(withJSONObject: goal) else { return nil }
-                return try? CloudJSON.decoder().decode(PlanProject.self, from: data)
-            }
-            store.change { state in
-                var plan = state.plan ?? PlanCache()
-                let activeIDs = Set(active.map(\.id))
-                plan.projects = active + plan.projects.filter { $0.completed && !activeIDs.contains($0.id) }
-                if let queue = dashboard["queue"] as? [[String: Any]] { plan.priorityIds = queue.compactMap { ($0["task"] as? [String: Any])?["id"] as? Int } }
-                plan.refreshedAt = Date(); state.plan = plan
-            }
-        } else if route.parts == ["queue"], let queue = value as? [[String: Any]] {
-            let ids = queue.compactMap { ($0["task"] as? [String: Any])?["id"] as? Int }
-            store.change { state in var plan = state.plan ?? PlanCache(); plan.priorityIds = ids; state.plan = plan }
-        } else if route.parts == ["sessions"], route.query["deleted"] != "true", let sessions = try? CloudJSON.decoder().decode([RemoteSession].self, from: data) {
+    private func updateHistoryCache(_ value: Any, route: Route) {
+        guard route.parts.first == "sessions" else { return }
+        if route.parts.count == 1 {
+            guard route.query["deleted"] != "true",
+                  let data = try? JSONSerialization.data(withJSONObject: value),
+                  let sessions = try? CloudJSON.decoder().decode([RemoteSession].self, from: data) else { return }
             store.change { state in
                 let incoming = Set(sessions.map(\.id))
                 state.cloudHistory = sessions + (state.cloudHistory ?? []).filter { !incoming.contains($0.id) }
             }
+            return
         }
-    }
-    private func refreshNativePlan(owner: String) async {
-        do {
-            let projects = try await store.cloud.requestJSON("/goals?include_tasks=true", owner: owner)
-            let queue = try await store.cloud.requestJSON("/queue", owner: owner)
-            guard store.account?.id == owner else { return }
-            updateNativeCache(projects, route: try Route(path: "/goals?include_tasks=true", method: "GET"))
-            updateNativeCache(queue, route: try Route(path: "/queue", method: "GET"))
-            cache(projects, path: "/goals?include_tasks=true"); cache(queue, path: "/queue")
-        } catch { if store.account?.id == owner { store.syncError = "Your change was saved. Reconnect to refresh the Mac’s cached Plan." } }
-    }
-    private func updateHistoryCache(_ value: Any, route: Route) {
         if route.method == "DELETE", let id = route.parts.dropFirst().first.flatMap(Int.init) { store.change { $0.cloudHistory?.removeAll { $0.id == id } }; return }
         guard let data = try? JSONSerialization.data(withJSONObject: value), let session = try? CloudJSON.decoder().decode(RemoteSession.self, from: data) else { return }
         store.change { $0.cloudHistory = [session] + ($0.cloudHistory ?? []).filter { $0.id != session.id } }
     }
+
+    // MARK: - Local Plan operations (guest and signed-in accounts)
 
     private func local(_ route: Route, _ body: [String: Any]) throws -> Any {
         var workspace = store.workspace
@@ -348,6 +299,8 @@ import FlowlistCore
         }
         throw failure("Unsupported workspace request.", 404)
     }
+
+    // MARK: - Plan serialization and durable outbox
 
     private func addTask(_ title: String, index: Int, parent: Int?, plan: inout PlanCache) -> PlanTask {
         let siblings = plan.projects[index].tasks.filter { $0.parentId == parent }
@@ -489,6 +442,8 @@ private extension WebWorkspaceAPI {
             return end > start ? (start, end) : nil
         }
     }
+    // MARK: - Guest history
+
     private func history(_ route: Route, _ body: [String: Any], workspace: inout LocalWorkspace, plan: PlanCache) throws -> Any {
         let parts = route.parts, method = route.method
         let metadata = workspace.webHistoryMetadata ?? [:]

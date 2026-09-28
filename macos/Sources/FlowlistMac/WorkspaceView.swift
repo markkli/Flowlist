@@ -78,7 +78,7 @@ struct PreferencesView: View {
                 }
             }
             Section("Storage") {
-                Text("The timer works offline. Signed-in sessions sync when connected; changes to a synced Plan need a connection.")
+                Text("Plan edits and sessions save on this Mac and sync in the background. Uncached history and changes to cloud records need a connection.")
                     .font(.callout).foregroundStyle(.secondary)
                 Button("Open data folder", action: store.openDataFolder)
                 Button("Export sessions", action: store.exportSessions).disabled(store.workspace.sessions.isEmpty)

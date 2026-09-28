@@ -1,38 +1,43 @@
-# Flowlist: web MVP and native roadmap
+# Release status and next phase
 
-Reviewed September 21, 2026. The account and deployment implementation is now in place; see [BETA-SETUP.md](BETA-SETUP.md) for the current setup instructions and acceptance checklist. The sections below capture the launch requirements and platform roadmap.
+Updated September 28, 2026. Repository cleanup is the current phase. The following
+product changes remain proposals until the owner approves proceeding.
 
-## Product decision
+## Current state
 
-Keep the MVP to Plan → Focus → Reflect → History. Projects cover work and learning, with tasks and one subtask level. Tasks is the flat list. The history calendar is retrospective; scheduling, social features, more AI planning, and integrations would add little at this stage. Keep Vite, the existing feature modules, FastAPI, SQLAlchemy, and Alembic. There is no reason to introduce Next.js, microservices, or a frontend rewrite for this launch.
+The hosted beta provides the shared Home, Plan, and History workspace through
+FastAPI and Supabase authentication. The Mac development build bundles that same
+interface and adds local Plan/session saving, background account sync, a compact
+menu timer, and a WidgetKit target. Native Google sign-in and guest use exist.
 
-## What must change before public access
+Local signing/build success is not distribution readiness. The Mac has no
+notarized download, updater, or App Store release process yet. Pending sync
+limitations and remaining manual integration checks are listed in
+[REPOSITORY-REVIEW.md](REPOSITORY-REVIEW.md).
 
-1. **Authentication and ownership.** Implemented: user-owned projects and focus records, with related data scoped by the request session. Require verified access tokens in FastAPI, add an application user mapped to the auth subject, and scope every read/write, queue reorder, dashboard aggregation, history edit, delete/restore, and export. Derive ownership on the server, never trust a submitted user ID. Validate task/project/session relationships within that same owner. Add negative tests with two users, guessed IDs, expired tokens, and mixed-owner payloads. A login screen alone does not solve this.
-2. **Local drafts and account changes.** Namespace timer drafts and collapsed-plan state by user, clear in-memory data on logout, and ensure a draft cannot save into a different account. Appearance can remain device-specific. Claim the existing local database only through an explicit import into its owner's account; never give it to the first visitor who signs in.
-3. **Production database and release checks.** Use managed PostgreSQL, run migrations as a release step, and validate them against PostgreSQL in CI as well as SQLite. Test backup restoration and SQLite-to-PostgreSQL transfer with record counts and attribution relationships. A dedicated PostgreSQL release check now exercises migrations, restricted roles, and account isolation. Export exists, but a general import/restore UI does not.
-4. **Deployment and operations.** Serve frontend and API behind HTTPS on one origin. Keep database credentials server-side, use a restricted database role, configure health checks, error monitoring, backups, and request/body/rate limits. Replace the example Compose password. Dockerfiles and a local Compose stack already exist; Kubernetes and a separate container per user are unnecessary.
-5. **Account lifecycle and privacy.** Add verification, recovery, logout, account deletion, and an explanation of stored data. Optional AI history titles currently send note/task context to the model provider when a server key is configured. For the first public beta, leave AI enrichment disabled until there is an explicit user-facing choice and usage limits; the local title fallback already works.
-6. **Release validation.** Test Safari as well as Chromium, especially sleep/resume, refreshed drafts, multiple tabs, failed saves, and phone layouts. Interval reminders now provide in-app notices and optional silent desktop notifications. Test permission denial, suspended tabs, OS notification settings, and cross-tab deduplication on each target browser. Browser timers cannot promise alarms after the browser is closed. Clearly state that limitation instead of implying a native background service. Pin a release only after these checks pass.
+## Proposed next phase — not implemented in the cleanup
 
-## Recommended services and what to set up
+1. An explanatory product home page and a Mac download page. Decide whether to
+   keep the current web workspace at a separate path/subdomain before replacing
+   it; existing users and auth redirects must keep working.
+2. A first-launch choice of Google, Apple, email, or guest. Guest data stays local;
+   any later transfer to an account should be an explicit, reviewable action.
+3. The Guide, followed by menu-bar and widget setup prompts. Explain what is
+   already enabled and avoid repeatedly asking for granted permissions.
+4. A distribution choice: direct notarized download or App Store. Resolve signing,
+   installer/update delivery, privacy information, and support/recovery first.
 
-My recommendation is **Supabase Auth + managed PostgreSQL**, keeping Flowlist's FastAPI API as the application boundary. That combines identity and database provisioning in one provider and supports browser and future Swift clients. This is a project-specific recommendation, not a requirement to change the current framework. See [Supabase's auth architecture](https://supabase.com/docs/guides/auth/architecture).
+Future iOS clients can share account data through the existing API. Active timer
+handoff and concurrent editing require explicit conflict rules; saving records
+to the same account alone does not implement those features.
 
-Clerk is a valid alternative if its hosted account experience is preferred, but it would still need a database and the same ownership work. Do not install both auth systems. Backend verification must validate signatures and relevant token claims; see [Clerk's verification guidance](https://clerk.com/docs/guides/sessions/manual-jwt-verification).
+## Existing operational guides
 
-For the next implementation phase, the owner should create a Supabase development project, choose its region, and identify the intended web domain. We will configure redirect URLs and production email delivery when wiring auth. The project URL and publishable key are client configuration; database passwords and any privileged keys belong in local/hosting secret settings, not chat or source control. Keep staging separate from production.
+- [Render setup](RENDER-SETUP.md)
+- [Authentication, PostgreSQL, backups, and local-data import](BETA-SETUP.md)
+- [Invite-only tester onboarding](TESTER-ONBOARDING.md)
+- [Open signup configuration](OPEN-BETA.md)
+- [Mac build/signing and current sync limitations](../macos/README.md)
 
-FastAPI can keep SQLAlchemy. Choose the appropriate direct or session-pool connection for the hosting network and require TLS, following [Supabase's connection guide](https://supabase.com/docs/guides/database/connecting-to-postgres). If using Supabase, keep Flowlist tables in a private schema or otherwise prevent the public Data API from exposing them; browser auth does not automatically protect SQLAlchemy queries. Database grants/RLS and application ownership need an explicit design.
-
-Supabase integration is implemented. Provider provisioning, hosted acceptance testing, and public deployment still require the owner’s project and domain configuration.
-
-## Platform sequence
-
-| Phase | Deliverable | Boundary |
-|---|---|---|
-| 1 | Responsive website with accounts and isolated data | First public MVP; retain the current core workflow |
-| 2 | macOS app with a menu-bar timer and queue | Prefer a small SwiftUI companion using the same API if native integration is the goal; choose packaging after validating the web beta |
-| 3 | macOS/iOS widgets and an iOS app | Shared API/auth, native timer state synchronization, platform-specific lifecycle handling |
-
-Apple provides [MenuBarExtra](https://developer.apple.com/documentation/swiftui/menubarextra) for a Mac menu-bar interface and [WidgetKit](https://developer.apple.com/documentation/widgetkit) for widgets. These require native work; an installable website alone does not provide those integrations. Design widget content around a current timer, today's focus, and the next task, without assuming an unrestricted background process or a refresh every second. Resolve timer ownership/conflicts across devices before exposing Start/Stop in several clients.
+These are distinct deployment/access modes. Do not apply every guide to a single
+environment or assume that a documented configuration has been deployed.

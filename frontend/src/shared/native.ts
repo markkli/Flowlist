@@ -24,6 +24,13 @@ export class NativeError extends Error { constructor(message:string, public stat
 export const isNative = () => Boolean(window.webkit?.messageHandlers?.flowlist);
 let snapshot: NativeState | null = null;
 export const nativeState = () => snapshot;
+export function nativeConnectionLabel(state: NativeState): string {
+  if (state.error || state.planSyncIssue) return 'Sync needs attention';
+  if (state.syncing) return 'Syncing';
+  const pending = (state.pendingCount || 0) + (state.planPendingCount || 0);
+  if (pending) return `${pending} to sync`;
+  return state.account ? 'Connected' : 'On this Mac';
+}
 export async function nativeCall<T=any>(op:string, args:Record<string,unknown>={}):Promise<T> {
   const handler=window.webkit?.messageHandlers?.flowlist;
   if(!handler) throw new NativeError('The Mac connection is unavailable. Reopen Flowlist.');

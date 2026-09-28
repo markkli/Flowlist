@@ -114,7 +114,7 @@ import WebKit
             try await click(web, "[name=appearance-preset][value=coast]")
             try await click(web, "#appearance-done")
             try await click(web, "#nav-dashboard")
-            try await wait(web, "!document.querySelector('#view-dashboard').classList.contains('hidden')", label: "return to Today")
+            try await wait(web, "!document.querySelector('#view-dashboard').classList.contains('hidden')", label: "return to Home")
 
             try await click(web, "#start-pomodoro")
             try await wait(web, "!document.querySelector('#focus-overlay').classList.contains('hidden')", label: "native focus start")

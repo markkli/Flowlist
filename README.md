@@ -1,234 +1,104 @@
 # Flowlist
 
-Flowlist is a private focus app: organize projects and a
-shared Tasks list; run a focus ritual; then attribute the time to the work.
+Flowlist combines a project checklist, a Pomodoro timer, and a record of focused
+work. The website and Mac main window share one interface. The Mac app adds a
+local timer, local storage, background account sync, a menu-bar panel, and a
+WidgetKit extension.
 
-## Local development
+## Start here
+
+- [Architecture and code ownership](docs/ARCHITECTURE.md)
+- [Product behavior](docs/PRODUCT-BEHAVIOR.md)
+- [Mac build, signing, local storage, and sync](macos/README.md)
+- [Render deployment](docs/RENDER-SETUP.md) and [backend/auth setup](docs/BETA-SETUP.md)
+- [Review findings and validation](docs/REPOSITORY-REVIEW.md)
+- [Release status and next phase](docs/SHIPPING.md)
+
+## Run the website locally
 
 Requires Python 3.13 and Node.js 22.12+.
 
-```bash
+```sh
 python3 -m venv backend/.venv
 backend/.venv/bin/pip install -r backend/requirements.txt -r backend/requirements-dev.txt
 npm --prefix frontend ci
 ./scripts/run-local.sh
 ```
 
-Open http://127.0.0.1:5500. The launcher applies migrations, runs FastAPI on
-port 8000, and starts Vite with an `/api` proxy. It creates
-`backend/local-development.env` from the example on first use and reuses an
-existing `backend/.env` API key without printing it. AI features are optional.
-The local database is `backend/flowlist.local.db`.
+Open [localhost:5500](http://127.0.0.1:5500). The launcher applies migrations to
+`backend/flowlist.local.db`, starts FastAPI on port 8000, and starts Vite with an
+`/api` proxy. It creates the ignored `backend/local-development.env` from its
+example on first use. AI history titles are optional and disabled by default.
+Logs are `.flowlist-backend.log` and `.flowlist-frontend.log`.
 
-To run the servers separately:
+For separate terminals, configure `DATABASE_URL` locally, then run:
 
-```bash
-# Terminal 1, from backend (configure DATABASE_URL first)
+```sh
+# From backend/
 export FLOWLIST_AUTH_MODE=local FLOWLIST_ENV=development
 .venv/bin/alembic upgrade head
 .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
 
-# Terminal 2, from the repository root
+# From the repository root in a second terminal
 npm --prefix frontend run dev
 ```
 
-Set `FLOWLIST_API_TARGET` for the Vite process if your API uses another port.
-The frontend now requires Vite or a production build; do not serve its source
-with `python -m http.server` or open `index.html` directly.
+`FLOWLIST_API_TARGET` overrides Vite's API target. Use Vite or a production build;
+opening the source `index.html` directly does not load the application.
+Local mode is single-user and must stay on loopback. Hosted mode requires
+verified authentication and per-account database ownership; see the setup guides.
 
-## Production build and local preview
+## Build and preview
 
-```bash
+```sh
 npm --prefix frontend run build
-cd backend
-# Configure DATABASE_URL, then explicitly select private local mode:
-export FLOWLIST_AUTH_MODE=local FLOWLIST_ENV=development
-.venv/bin/alembic upgrade head
+# From backend/, with DATABASE_URL and explicit local mode configured as above:
 .venv/bin/uvicorn preview:app --host 127.0.0.1 --port 8010
 ```
 
-The preview serves `frontend/dist` and the API together at
-http://127.0.0.1:8010. Assets are fingerprinted by Vite.
+The preview serves the built UI and API at [localhost:8010](http://127.0.0.1:8010).
+Alternatively, copy `.env.example` to `.env` and use `docker compose up --build`.
+That local PostgreSQL/FastAPI/Nginx stack binds only to `127.0.0.1:8080`.
 
-Alternatively, copy `.env.example` to `.env` and run:
-
-```bash
-docker compose up --build
-```
-
-The Compose stack uses PostgreSQL, FastAPI, and Nginx. The frontend is exposed
-on **127.0.0.1:8080 only**; the API and database stay inside the Docker network.
-The website beta includes Supabase email-code authentication, optional Google sign-in, and per-user ownership. Local development remains explicitly single-user. See [beta setup](docs/BETA-SETUP.md) for provider configuration before hosting.
-Do not expose this single-user build publicly. Back up the database before
-upgrades. `.env` files, database files, logs, builds, and caches are ignored.
-
-## Repository structure
-
-```text
-macos/                  # native Mac workspace, menu timer, sync, WidgetKit target
-backend/
-  app/
-    main.py             # app assembly, CORS, health
-    api/                # goals, tasks, sessions, dashboard HTTP routes
-    services/           # shared completion/ordering and title enrichment
-    models.py           # SQLAlchemy tables
-    schemas.py          # request/response validation
-    database.py         # database connections
-    ai.py               # optional AI integration
-  migrations/           # Alembic schema history
-  tests/                # API and migration regression tests
-  preview.py            # combined local production preview
-frontend/
-  src/
-    shared/             # typed API client, domain types, safe DOM helpers
-    features/
-      timer/            # typed timer transitions plus UI adapter
-      plan/
-      history/
-      dashboard/
-    main.js             # navigation, theme, feature initialization
-  public/images/        # original artwork
-  tests/                # isolated Playwright browser tests
-  styles.css            # existing forest theme and responsive styles
-  index.html            # semantic page and dialog templates
-```
-
-The frontend uses Vite and TypeScript for shared services and timer state.
-Existing view adapters remain ES modules in JavaScript, allowing gradual typing
-without rewriting the interface. FastAPI, SQLAlchemy, Alembic, SQLite for local
-development, and PostgreSQL for the container stack remain in place.
-
-The [Mac companion](macos/README.md) is a native SwiftUI app in this repository.
-Build a local `.app` with `bash macos/scripts/build-local.sh`. It includes native Plan and History,
-a compact menu timer, and account-specific offline session sync. Native Google
-sign-in requires one additional Supabase redirect URL; widget installation requires
-an Xcode signing team. See the companion README for setup and release limits.
-
-## Product behavior
-
-- Today’s task queue is a persistent shortlist that you choose and order. Use
-  **Choose tasks / Edit queue**, or a leaf task’s menu in Plan. Removing a task
-  from the queue leaves it in Plan; completing it hides it and Undo restores it.
-  Queue order is independent of Plan order and does not reset each day. Closed
-  directions are excluded. There are no priorities or prescribed task durations.
-- Plan uses compact, collapsible outlines, a floating navigator on long plans, and action menus.
-  Flat tasks do not reserve hierarchy columns. Feature styles live alongside
-  their view code in `frontend/src/features/plan/plan.css` and
-  `frontend/src/features/dashboard/queue.css`.
-- Projects support tasks plus one subtask level. The
-  shared Tasks list stays flat. Every task has a checkbox; parents also have a
-  disclosure arrow. Explicitly completing a parent completes its descendants,
-  while completing its subtasks leaves the parent open. Reopening a child
-  reopens its ancestors. Finished subtasks remain visible under an open parent.
-- Ritual checkout includes tasks at every level and uses the same completion
-  rules. Parent completion selects its descendants; the ritual’s minutes are
-  still counted once. Progress counts both parent tasks and subtasks.
-- Migration `20260919_11` lifts legacy deeper tasks into their root task’s
-  subtask list, preserving IDs, titles, completion states, history, and queue
-  membership. It journals old structure for rollback and refuses to roll back
-  after conflicting structural edits. Back up the database before upgrading.
-- Planning is manual: Projects hold tasks and one subtask level; Tasks stays flat.
-  Legacy learning projects migrate without changing task or history IDs.
-
-- Start a ritual without choosing a task. Defaults are 25 minutes of focus,
-  5 minutes of rest, and a 15-minute break after four rounds. Settings apply to
-  the next ritual. Skip credits only elapsed focus, never break time. Minutes
-  are rounded down once across the whole ritual.
-- Minimize the timer to browse the app while it continues. Escape minimizes
-  the running timer. After sleep, only the current focus block is credited;
-  additional unattended focus rounds are never invented.
-- Ending a ritual opens attribution. Worked on and Finished are independent
-  choices, except that Finished implies Worked on. Time is counted once.
-  Long rituals are supported beyond eight hours.
-- Running state, unsaved reflections, and selections are stored **on this
-  browser/device** until saved or deliberately discarded. Refresh restores them.
-  Escape and Save later retain the draft. Discard asks for confirmation. Browser
-  storage is not a cloud backup; clearing it removes unsaved work.
-- A stable ritual ID makes save retries safe after a lost response. Tabs share
-  the ritual state, using browser locks where available. A saved ritual clears
-  its local reflection and selections.
-- Reflections are preserved even if unusual or written in another language.
-  The backend commits a fallback title immediately. Optional AI enrichment runs
-  after the response with a bounded timeout; failure keeps the local title.
-  This enrichment is best effort, not a durable job queue.
-- History opens to seven fixed days ending today in the browser's timezone.
-  Arrows move the window by seven days, with vertical hour scrolling only. New rituals retain each actual focus interval;
-  breaks are excluded, sleep recovery credits only the current interval, and
-  saving later does not move the work to the save date. Notes and task selections
-  describe the entire ritual, not an individual block.
-- Legacy records and pre-upgrade timer drafts retain their aggregate minutes
-  without invented intervals. They appear below the weekly grid by save date.
-  Migration `20260919_12` adds nullable ritual timestamps and a focus-block table;
-  it refuses downgrade once recorded intervals would be lost.
-- Open a block or record title to edit its reflection and task attribution.
-  Historical Finished labels do not change task state in Plan. Removed-task
-  snapshots are preserved; edits use revision checks to prevent silent overwrite.
-- **Export data** downloads versioned JSON containing Plan, queue, and all saved
-  history, including soft-deleted records and focus blocks. It excludes secrets,
-  browser settings, and unsaved rituals. This is a portable data export; there is
-  no import UI yet. Keep database backups for complete recovery.
-- All records loads in pages. Delete hides a record from totals and offers Undo;
-  Show deleted records allows later restoration. Deletion never changes tasks.
-  There is currently no permanent purge control.
-- Activity cells allocate recorded focus to the local days when it occurred,
-  splitting midnight crossings and rounding minutes once per ritual. Legacy
-  totals continue to use save date. Weekly ritual counts do not double-count
-  rituals spanning multiple days. Activity and streaks use the browser's IANA
-  timezone, with Monday-aligned
-  weeks. Streaks require at least one focused minute that day. This week is a
-  weekly count; the activity totals are lifetime figures.
-- Navigation uses URL fragments so refresh and browser Back preserve the view.
+For the Mac app, follow [macos/README.md](macos/README.md). Xcode and the local
+packaging script both rebuild and bundle `frontend/`; no separate Mac dashboard
+implementation needs to be maintained. Signing is needed for widget installation.
+The local development `.app` is not a notarized installer.
 
 ## Tests
 
-```bash
+```sh
 backend/.venv/bin/python -m pytest backend/tests -q
 npm --prefix frontend run build
 npm --prefix frontend test
-cd frontend
-npx playwright install chromium
-npm run test:e2e
+npm --prefix frontend exec -- playwright install chromium webkit
+npm --prefix frontend run test:e2e -- --workers=4
+FLOWLIST_TEST_BROWSER=webkit npm --prefix frontend run test:e2e -- --workers=2
+# On macOS, with Xcode installed:
+bash macos/scripts/build-web.sh
+bash macos/scripts/test.sh
+bash macos/scripts/verify-web.sh
 ```
 
-API tests use a uniquely named disposable SQLite database. Migration tests check
-upgrades and downgrades against seeded data. Browser tests use intercepted API
-responses and isolated browser profiles, never the user's database. Timer tests
-cover skipped blocks, long breaks, sleep recovery, and long rituals. Playwright
-checks draft recovery, failed saves, safe title rendering, history Undo,
-keyboard behavior, navigation, and responsive layouts.
+Backend tests use disposable SQLite databases. Playwright intercepts API calls
+and uses isolated browser profiles. Native tests use temporary files and fake
+network responses. The WebKit smoke app uses a separate synthetic workspace;
+it never reads personal account files. PostgreSQL release checks and unsigned
+app/widget compilation also run in [CI](.github/workflows/tests.yml).
 
-## Interval reminders
+## Repository map
 
-Every automatic focus, short-break, and long-break completion shows a twenty-second
-in-app popup and a gentle chime without opening the timer or moving keyboard focus.
-The first Pomodoro click offers desktop notifications for reminders while working
-elsewhere. The browser permission request happens only after clicking Enable;
-granted permissions, prior opt-outs, and a dismissed invitation are respected.
-Chime and desktop reminder preferences can be changed in Timer settings and persist
-per browser. Desktop notifications are silent to avoid duplicating the chime.
-Manual Skip and End do not generate completion alerts. Shared tabs coordinate the
-transition with Web Locks so only one plays the chime and sends a desktop notification.
+```text
+frontend/       Shared Vite interface, browser timer, features, browser tests
+backend/        FastAPI, ownership checks, persistence, migrations, API tests
+macos/          Swift timer/storage/sync, WKWebView bridge, menu panel, widget
+scripts/        Local development launcher
+deploy/         Render and self-hosted deployment configuration
+docs/           Architecture, behavior, setup, review, and release notes
+design-system/  Visual design reference
+```
 
-Keep a Flowlist tab open. Browser suspension and device sleep can delay reminders;
-this is not a closed-browser alarm service. Denied or unsupported desktop
-notifications leave in-app reminders available.
-
-## Appearance and launch planning
-
-The toolbar's Appearance button selects Grove, Coast, or Hills artwork, or Linen,
-Sage, Slate, or Clay solids. Artwork can be switched off independently for Focus
-and Plan. Every preset also colors the full workspace, timer, controls, and heatmap
-in light and dark modes. Turning artwork off preserves the palette. Choices persist on this device. See [asset provenance and prompts](docs/APPEARANCE-ASSETS.md).
-
-History uses a full 24-hour grid with proportional blocks and seven fixed columns.
-The initial window covers today and the preceding six days; arrows step seven days
-at a time, and Today returns to the current window. Every day has the same compact
-row for sessions under five minutes. Clock-change days list their sessions there
-with actual clock offsets. Select an entry to open its original session.
-
-See [the shipping review](docs/SHIPPING.md) for auth/ownership requirements,
-recommended managed database setup, and the web → macOS → iOS roadmap.
-
-## Website beta
-
-See [BETA-SETUP.md](docs/BETA-SETUP.md) for Supabase/SMTP setup, invite-only access, PostgreSQL release migrations, HTTPS deployment, explicit local-data import, and the remaining hosted acceptance checks.
+Build output, caches, local databases, credentials, and personal Xcode settings
+are not source artifacts. Keep migrations and legacy data readers: removing
+those would break existing installations. Artwork provenance is documented in
+[APPEARANCE-ASSETS.md](docs/APPEARANCE-ASSETS.md).

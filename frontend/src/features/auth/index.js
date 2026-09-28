@@ -246,7 +246,6 @@ async function initNativeAuth() {
     const renderSync=value=>{
       current=value;
       const pending=(value.planPendingCount||0)+(value.pendingCount||0);
-      el('connection-label').textContent=value.planSyncIssue?'Sync needs attention':value.syncing?'Syncing…':pending?'Saved on Mac · sync pending':'Synced';
       issue.textContent=value.planSyncIssue||(pending?value.error:'')||'';retry.hidden=!issue.textContent;
       sync.disabled=Boolean(value.syncing);retry.disabled=Boolean(value.syncing);
     };

@@ -12,12 +12,8 @@ function renderGoalsSummary(goalsWithTasks) {
     const percent = tasks.length ? (done / tasks.length) * 100 : 0;
     const row = document.createElement("div");
     row.className = "goal-line";
-    const isTaskList = goal.goal_type === "standalone";
-    const goalName = isTaskList ? "Tasks" : goal.title;
-    const detail = tasks.length
-      ? `${tasks.length - done} ${isTaskList ? "tasks" : "steps"} remaining`
-      : isTaskList ? "No tasks yet" : "No steps yet";
-    row.innerHTML = `<div><div class="goal-name">${escapeHtml(goalName)}</div><div class="goal-detail">${detail}</div></div><div class="mini-progress"><div class="progress-track"><div class="progress-value" style="width:${percent}%"></div></div><small>${done}/${tasks.length}</small></div>`;
+    const detail = tasks.length ? `${tasks.length - done} steps remaining` : "No steps yet";
+    row.innerHTML = `<div><div class="goal-name">${escapeHtml(goal.title)}</div><div class="goal-detail">${detail}</div></div><div class="mini-progress"><div class="progress-track"><div class="progress-value" style="width:${percent}%"></div></div><small>${done}/${tasks.length}</small></div>`;
     container.appendChild(row);
   });
   if (!goalsWithTasks.some(({goal}) => goal.goal_type !== "standalone")) {

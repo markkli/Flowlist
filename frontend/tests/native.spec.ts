@@ -71,6 +71,23 @@ test('Mac uses all approved dashboard cards and saves timer settings through nat
   await expect(page.getByText('Collect references',{exact:true})).toBeVisible();
 });
 
+test('Mac status includes pending Plan changes and gives sync errors precedence', async ({page}) => {
+  await installBridge(page);
+  await page.goto('/');
+  await expect(page.locator('#connection-label')).toHaveText('On this Mac');
+  await page.evaluate(() => {
+    Object.assign((window as any).__nativeHost, {planPendingCount: 2, pendingCount: 1});
+    (window as any).__emitNative();
+  });
+  await expect(page.locator('#connection-label')).toHaveText('3 to sync');
+  await page.evaluate(() => {
+    (window as any).__nativeHost.error = 'The server may have received this item.';
+    (window as any).__emitNative();
+  });
+  await expect(page.locator('#connection-label')).toHaveText('Sync needs attention');
+  await expect(page.locator('#connection-label')).toHaveAttribute('title', 'The server may have received this item.');
+});
+
 test('Mac timer has one native authority, pause/resume and durable review before save',async({page})=>{
   await installBridge(page);await page.goto('/');
   await page.locator('#start-pomodoro').click();

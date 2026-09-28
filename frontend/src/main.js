@@ -1,127 +1,177 @@
-import { isNative, nativeCall, nativeState, onNativeState } from './shared/native';
-import { initAuth } from './features/auth';
 import '../styles.css';
+import { isNative, nativeCall, nativeConnectionLabel, nativeState, onNativeState } from './shared/native';
 import { observeDialogs } from './shared/dom';
-observeDialogs();
+import { initAuth } from './features/auth';
 import { initPlan } from './features/plan';
 import { initDashboard } from './features/dashboard';
 import { initHistory } from './features/history';
 import { initTimer } from './features/timer';
 import { initAppearance } from './features/appearance';
 import { initOnboarding } from './features/onboarding';
+
 let toastTimer;
+
 function showToast(message, isError = false, action = null, duration = action ? 5200 : 2800) {
-  const toast = document.getElementById("app-toast");
+  const toast = document.getElementById('app-toast');
   toast.replaceChildren();
-  const copy = document.createElement("span");
+  const copy = document.createElement('span');
   copy.textContent = message;
   toast.appendChild(copy);
   if (action) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = action.label || "Undo";
-    button.addEventListener("click", async () => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = action.label || 'Undo';
+    button.addEventListener('click', async () => {
       clearTimeout(toastTimer);
-      toast.classList.remove("visible");
+      toast.classList.remove('visible');
       await action.run();
     });
     toast.appendChild(button);
   }
-  toast.classList.toggle("error", isError);
-  toast.classList.toggle("has-action", Boolean(action));
-  toast.classList.add("visible");
+  toast.classList.toggle('error', isError);
+  toast.classList.toggle('has-action', Boolean(action));
+  toast.classList.add('visible');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove("visible"), duration);
+  toastTimer = setTimeout(() => toast.classList.remove('visible'), duration);
 }
 
 function setDateCopy() {
   const today = new Date();
-  document.getElementById("top-date").innerHTML = `<strong>${today.toLocaleDateString("en", { weekday: "long" })}</strong> · ${today.toLocaleDateString("en", { month: "long", day: "numeric" })}`;
+  document.getElementById('top-date').innerHTML = `<strong>${today.toLocaleDateString('en', { weekday: 'long' })}</strong> · ${today.toLocaleDateString('en', { month: 'long', day: 'numeric' })}`;
+}
 
+function systemTheme() {
+  return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
-  if(!isNative())localStorage.setItem("flowlist-theme", theme);
-  document.getElementById("theme-icon").innerHTML = theme === "dark"
+  if (!isNative()) localStorage.setItem('flowlist-theme', theme);
+  document.getElementById('theme-icon').innerHTML = theme === 'dark'
     ? '<path d="M20.2 15.5A8.5 8.5 0 0 1 8.5 3.8 8.5 8.5 0 1 0 20.2 15.5Z"/>'
     : '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>';
 }
 
-applyTheme(
-  localStorage.getItem("flowlist-theme")
-  || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
-);
-document.getElementById("theme-toggle").addEventListener("click", () => {
-  applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
-  if(isNative())nativeCall('appearance',{theme:document.documentElement.dataset.theme}).catch(error=>showToast(error.message,true));
-});
+function updateNativeStatus(state) {
+  const theme = state.preferences?.theme;
+  if (['light', 'dark'].includes(theme) && theme !== document.documentElement.dataset.theme) {
+    applyTheme(theme);
+  }
+  const label = document.getElementById('connection-label');
+  label.textContent = nativeConnectionLabel(state);
+  label.title = state.error || state.planSyncIssue || '';
+}
 
+observeDialogs();
+applyTheme(localStorage.getItem('flowlist-theme') || systemTheme());
+document.getElementById('theme-toggle').addEventListener('click', () => {
+  applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+  if (isNative()) {
+    nativeCall('appearance', {theme: document.documentElement.dataset.theme})
+      .catch(error => showToast(error.message, true));
+  }
+});
 
 async function boot() {
-const auth = await initAuth();
-if (!auth) return;
-if(isNative()) {
-  const theme=nativeState()?.preferences?.theme;
-  applyTheme(['light','dark'].includes(theme)?theme:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
-  const updateNativeStatus=state=>{
-    if(['light','dark'].includes(state.preferences?.theme)&&state.preferences.theme!==document.documentElement.dataset.theme)applyTheme(state.preferences.theme);
-    const label=document.getElementById('connection-label');
-    label.textContent=state.syncing?'Syncing':state.pendingCount?`${state.pendingCount} to sync`:state.error?'Sync paused':state.account?'Connected':'On this Mac';
-    label.title=state.error || '';
-  };
-  updateNativeStatus(nativeState());onNativeState(updateNativeStatus);
-}
-const appearance = initAppearance({ showToast });
-const plan = initPlan({ showToast });
-const dashboard = initDashboard({ setDateCopy, showToast, openHistory: date => { historyView.setWeek(date); navigate('history'); } });
-const historyView = initHistory({ showToast, refresh: () => dashboard.loadDashboard() });
-const timer = initTimer({ showToast, loadGoals: () => plan.loadGoals(), loadDashboard: () => dashboard.loadDashboard() });
-const loaders = { dashboard: dashboard.loadDashboard, goals: plan.loadGoals, history: historyView.loadHistory };
-let navigationId = 0;
-async function switchView(name) {
-  if (!(name in loaders)) name = 'dashboard';
-  const request = ++navigationId;
-  Object.keys(loaders).forEach(view => {
-    document.getElementById(`view-${view}`).classList.toggle('hidden', view !== name);
-    const button = document.getElementById(`nav-${view}`);
-    button.classList.toggle('active', view === name);
-    if (view === name) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current');
-  });
-  document.getElementById('connection-error').classList.add('hidden');
-  const section = document.getElementById(`view-${name}`);
-  section.setAttribute("aria-busy", "true");
-  try { await loaders[name](); } catch(error) {
-    if (request !== navigationId) return;
-    document.getElementById('connection-error').classList.remove('hidden');
-    document.getElementById('connection-error-copy').textContent = error.message;
-  } finally { section.removeAttribute("aria-busy"); }
-}
-function navigate(name) { location.hash = name; }
-Object.keys(loaders).forEach(name => document.getElementById(`nav-${name}`).addEventListener('click', () => navigate(name)));
-['open-roadmap-2'].forEach(id => document.getElementById(id).addEventListener('click', () => navigate('goals')));
-document.querySelector('.brand').addEventListener('click', event => { event.preventDefault(); navigate('dashboard'); });
-document.getElementById('retry-view').addEventListener('click', () => switchView(location.hash.slice(1)));
-window.addEventListener('hashchange', () => {
-  if (location.hash === '#main-content') { document.getElementById('main-content').focus(); return; }
-  switchView(location.hash.slice(1)); window.scrollTo(0,0);
-});
-window.addEventListener('unhandledrejection', event => {
-  event.preventDefault();
-  showToast(event.reason?.message || 'Could not finish that action. Please try again.', true);
-});
-const onboarding = initOnboarding({ preferences: auth.onboarding, showToast, prepareExample:plan.prepareExample, navigate: name => { window.history.replaceState(null,'',`#${name}`); const loading=switchView(name); return name==='goals'?loading:Promise.resolve(); } });
-document.addEventListener('keydown', event => { if (!onboarding.handleKey(event) && !appearance.handleKey(event) && !historyView.handleKey(event) && !timer.handleKey(event)) plan.handleKey(event); });
-setDateCopy();
-switchView(location.hash.slice(1));
-onboarding.startIfNew();
-if(isNative()) {
-  window.addEventListener('flowlist:native-refresh',()=>switchView(location.hash.slice(1)));
-  window.addEventListener('flowlist:native-timer-settings',()=>document.getElementById('timer-settings-toggle').click());
-}
-if (['goals','history'].includes(location.hash.slice(1))) dashboard.loadDashboard().catch(error => showToast(error.message,true));
-// Deliver deferred menu navigation only after all native event listeners exist.
-if(isNative())nativeCall('ready').catch(error=>showToast(error.message,true));
+  const auth = await initAuth();
+  if (!auth) return;
+  if (isNative()) {
+    const theme = nativeState()?.preferences?.theme;
+    applyTheme(['light', 'dark'].includes(theme) ? theme : systemTheme());
+    updateNativeStatus(nativeState());
+    onNativeState(updateNativeStatus);
+  }
 
+  const appearance = initAppearance({showToast});
+  const plan = initPlan({showToast});
+  const dashboard = initDashboard({
+    setDateCopy,
+    showToast,
+    openHistory: date => {
+      historyView.setWeek(date);
+      navigate('history');
+    },
+  });
+  const historyView = initHistory({showToast, refresh: () => dashboard.loadDashboard()});
+  const timer = initTimer({showToast, loadGoals: () => plan.loadGoals(), loadDashboard: () => dashboard.loadDashboard()});
+  const loaders = {dashboard: dashboard.loadDashboard, goals: plan.loadGoals, history: historyView.loadHistory};
+  let navigationId = 0;
+
+  async function switchView(name) {
+    if (!Object.hasOwn(loaders, name)) name = 'dashboard';
+    const request = ++navigationId;
+    Object.keys(loaders).forEach(view => {
+      document.getElementById(`view-${view}`).classList.toggle('hidden', view !== name);
+      const button = document.getElementById(`nav-${view}`);
+      button.classList.toggle('active', view === name);
+      if (view === name) button.setAttribute('aria-current', 'page');
+      else button.removeAttribute('aria-current');
+    });
+    document.getElementById('connection-error').classList.add('hidden');
+    const section = document.getElementById(`view-${name}`);
+    section.setAttribute('aria-busy', 'true');
+    try {
+      await loaders[name]();
+    } catch (error) {
+      if (request !== navigationId) return;
+      document.getElementById('connection-error').classList.remove('hidden');
+      document.getElementById('connection-error-copy').textContent = error.message;
+    } finally {
+      section.removeAttribute('aria-busy');
+    }
+  }
+
+  function navigate(name) { location.hash = name; }
+  Object.keys(loaders).forEach(name => {
+    document.getElementById(`nav-${name}`).addEventListener('click', () => navigate(name));
+  });
+  document.getElementById('open-roadmap-2').addEventListener('click', () => navigate('goals'));
+  document.querySelector('.brand').addEventListener('click', event => {
+    event.preventDefault();
+    navigate('dashboard');
+  });
+  document.getElementById('retry-view').addEventListener('click', () => switchView(location.hash.slice(1)));
+  window.addEventListener('hashchange', () => {
+    if (location.hash === '#main-content') {
+      document.getElementById('main-content').focus();
+      return;
+    }
+    switchView(location.hash.slice(1));
+    window.scrollTo(0, 0);
+  });
+  window.addEventListener('unhandledrejection', event => {
+    event.preventDefault();
+    showToast(event.reason?.message || 'Could not finish that action. Please try again.', true);
+  });
+
+  const onboarding = initOnboarding({
+    preferences: auth.onboarding,
+    showToast,
+    prepareExample: plan.prepareExample,
+    navigate: name => {
+      window.history.replaceState(null, '', `#${name}`);
+      const loading = switchView(name);
+      // Plan needs its task targets; other Guide targets are already in the DOM.
+      return name === 'goals' ? loading : Promise.resolve();
+    },
+  });
+  document.addEventListener('keydown', event => {
+    if (!onboarding.handleKey(event) && !appearance.handleKey(event)
+      && !historyView.handleKey(event) && !timer.handleKey(event)) plan.handleKey(event);
+  });
+
+  setDateCopy();
+  switchView(location.hash.slice(1));
+  onboarding.startIfNew();
+  if (isNative()) {
+    window.addEventListener('flowlist:native-refresh', () => switchView(location.hash.slice(1)));
+    window.addEventListener('flowlist:native-timer-settings', () => document.getElementById('timer-settings-toggle').click());
+  }
+  if (['goals', 'history'].includes(location.hash.slice(1))) {
+    dashboard.loadDashboard().catch(error => showToast(error.message, true));
+  }
+  // Deliver deferred menu navigation only after all native event listeners exist.
+  if (isNative()) nativeCall('ready').catch(error => showToast(error.message, true));
 }
-boot().catch(error=>{document.getElementById("auth-error").textContent=error.message;});
+
+boot().catch(error => { document.getElementById('auth-error').textContent = error.message; });

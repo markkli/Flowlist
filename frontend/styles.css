@@ -309,31 +309,7 @@ h3 { margin: 0 0 5px; font-size: 16px; }
 .timer-orbit::before { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: var(--surface-strong); border: 1px solid var(--border); }
 .timer-time { position: relative; text-align: center; font-size: 29px; font-weight: 590; letter-spacing: -.045em; font-variant-numeric: tabular-nums; }
 .timer-time span { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; font-weight: 650; letter-spacing: .13em; text-transform: uppercase; }
-.timer-launch {
-  padding:0; border:1px solid color-mix(in srgb,var(--accent) 55%,var(--border));
-  background:var(--surface-strong); color:var(--ink); cursor:pointer; isolation:isolate;
-  box-shadow:0 8px 28px #0002, inset 0 1px 0 color-mix(in srgb,var(--ink) 8%,transparent);
-  transition:box-shadow .18s ease, border-color .18s ease, background .18s ease;
-}
-.timer-launch::before { inset:5px; border:1px solid var(--border); background:transparent; }
-.timer-launch:hover { border-color:var(--accent); background:var(--surface); box-shadow:0 12px 32px #0003,0 0 0 4px color-mix(in srgb,var(--accent) 12%,transparent); }
-.timer-launch:focus-visible { outline-color:var(--focus-ring); outline-offset:5px; }
-.timer-launch .timer-time { font-size:34px; font-weight:500; letter-spacing:-.055em; }
-.timer-launch .timer-time span { display:flex; align-items:center; justify-content:center; gap:7px; margin-top:12px; color:var(--accent); font-size:12px; font-weight:600; letter-spacing:0; text-transform:none; }
-.timer-launch .timer-time span::before { content:''; width:9px; height:10px; background:currentColor; clip-path:polygon(0 0,100% 50%,0 100%); }
-.timer-play-mark { display:none; }
-.focus-copy { max-width: 350px; }
-.focus-copy .kicker { color: var(--accent); }
-.focus-copy h2 { max-width: 13ch; margin: 0 0 10px; font-size: clamp(27px, 3vw, 38px); line-height: 1.02; letter-spacing: -.05em; }
-.focus-copy > p:last-of-type { max-width: 33ch; margin: 0; color: var(--muted); font-size: 13px; }
-.cycle-readout { display: flex; align-items: center; gap: 11px; margin-top: 18px; color: var(--muted); font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.cycle-dots { display: flex; align-items: center; gap: 5px; }
-.cycle-dots i { width: 6px; height: 6px; border: 1px solid var(--border-strong); border-radius: 50%; background: transparent; }
-.cycle-dots i.complete { border-color: var(--accent); background: var(--accent); }
-.cycle-dots i.current { border-color: var(--accent); box-shadow: 0 0 0 2px var(--border); }
 .focus-actions { display: flex; align-items: center; gap: 9px; position: relative; z-index: 1; }
-.focus-summary { color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
-.focus-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 28px; padding-top: 13px; border-top: 1px solid var(--border); color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
 .focus-card .primary-btn { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
 .focus-card .primary-btn:hover { background: var(--ink); }
 .focus-card .secondary-btn { border-color: rgba(232,229,221,.28); background: rgba(232,229,221,.08); color: var(--ink); }
@@ -657,8 +633,6 @@ label > span { display: block; margin-bottom: 5px; color: var(--muted); font-siz
   .focus-content { grid-template-columns: 148px minmax(0,1fr); align-content: center; gap: 20px; }
   .timer-orbit { width: 148px; height: 148px; }
   .focus-atmosphere { object-position: 58% center; opacity: .86; }
-  .focus-copy h2 { font-size: 29px; }
-  .focus-footer { align-items: flex-start; flex-direction: column; gap: 2px; }
   .section-heading { align-items: flex-start; }
   .section-heading > p { display: none; }
   .quiet-link, .text-btn { min-height: 44px; }
@@ -691,11 +665,6 @@ label > span { display: block; margin-bottom: 5px; color: var(--muted); font-siz
   .timer-orbit { width: 128px; height: 128px; }
   .timer-orbit::before { inset: 7px; }
   .timer-time { font-size: 25px; }
-  .timer-play-mark { right: 18px; bottom: 23px; width: 12px; height: 12px; }
-  .focus-copy h2 { font-size: 25px; }
-  .focus-copy > p:last-of-type { font-size: 12px; }
-  .cycle-readout { align-items: flex-start; flex-direction: column; gap: 7px; margin-top: 13px; }
-  .focus-footer { font-size: 9px; }
   .stat { padding: 11px 8px; }
   .heatmap { grid-template-columns: minmax(0,1fr); }
   .heatmap-labels { display: none; }
@@ -712,11 +681,6 @@ label > span { display: block; margin-bottom: 5px; color: var(--muted); font-siz
   .attribution-task-copy strong { font-size: 11px; }
   .attribution-worked, .attribution-finished { min-height: 60px; }
   .session-note-label { align-items: flex-start; flex-direction: column; gap: 2px; }
-
-  .attribution-new-group { grid-template-columns: 1fr; }
-  .attribution-new-group > label,
-  .attribution-new-group > #attribution-new-group-name,
-  .attribution-new-group > .type-picker { grid-column: 1; grid-row: auto; }
   .session-row { align-items: flex-start; flex-direction: column; gap: 11px; }
   .session-actions { width: 100%; justify-content: space-between; }
 }
@@ -725,16 +689,9 @@ label > span { display: block; margin-bottom: 5px; color: var(--muted); font-siz
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 
-/* Plan — quiet structure, progressive disclosure, and tactile hierarchy. */
-.action-ai { position: relative; }
-.action-tooltip { position: absolute; right: 0; bottom: calc(100% + 7px); width: max-content; padding: 5px 7px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-strong); color: var(--muted); box-shadow: var(--shadow-1); font-size: 9px; opacity: 0; pointer-events: none; transform: translateY(3px); transition: opacity .14s ease, transform .14s ease; }
-.action-ai:hover .action-tooltip, .action-ai:focus-visible .action-tooltip { opacity: 1; transform: none; }
+/* Toast actions. */
 .app-toast.has-action { display: flex; align-items: center; gap: 15px; pointer-events: auto; }
 .app-toast button { min-height: 28px; padding: 0 8px; border: 0; border-radius: 5px; background: var(--surface-muted); color: var(--ink); font-size: 11px; font-weight: 700; }
-
-@media (hover: none) {
-  .action-tooltip { display: none; }
-}
 
 /* Recovery, compact navigation, and accessible timer controls. */
 .connection-error { display:flex; align-items:center; gap:16px; padding:14px; margin-bottom:16px; border:1px solid var(--danger); border-radius:10px; color:var(--danger); }
@@ -770,15 +727,13 @@ body:has(.timer-mini:not(.hidden)) .app-toast { bottom:100px; }
 .timer-reminders .reminders-note { font-size:11px; margin-bottom:0; }
 .timer-reminders button { min-height:40px; }
 
-/* A single focal control and only actionable copy on Today. */
+/* A single focal control and only actionable copy on Home. */
 .focus-card .focus-content { display:flex; align-items:center; justify-content:center; padding:24px 0; }
-.focus-card .timer-orbit { width:200px; height:200px; }
 #priority-count { color:var(--muted); font-size:12px; font-weight:400; margin-left:6px; }
 .queue-panel .queue-empty { min-height:120px; }
 .queue-panel .queue-heading-actions .queue-edit { min-height:44px; }
 .heatmap-cell { padding:0; border:0; min-width:0; font:inherit; }
 .lower-grid { margin-top:28px; }
-@media(max-width:520px) { .focus-card .timer-orbit { width:180px; height:180px; } }
 @media(max-width:1050px) {
   .today-grid { grid-auto-rows:auto; }
   .focus-card { height:340px; min-height:340px; }

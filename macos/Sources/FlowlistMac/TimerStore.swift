@@ -24,7 +24,8 @@ import FlowlistCore
     @Published var connecting = false
     @Published var syncError: String?
     @Published var lastSynced: Date?
-    @Published var historyHasMore = true
+    // Shared by the sync worker and web adapter to reject obsolete HTTP reads.
+    var webCacheGeneration = 0
     var lastSyncAttempt = Date.distantPast
     private var pulse: AnyCancellable?
     private var activation: AnyCancellable?

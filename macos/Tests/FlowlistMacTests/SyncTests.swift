@@ -44,21 +44,26 @@ private final class StubTransport: URLProtocol {
     }
     @Test func localPlanCRUDAndReviewWorkWithoutNetwork() async throws {
         let store = TimerStore(preview: LocalWorkspace())
-        #expect(await store.createProject(title: "Learn Flowlist"))
-        let projectId = try #require(store.plan.projects.first?.id)
-        #expect(await store.createTask(title: "Focus", projectId: projectId, parentId: nil))
+        let bridge = WebBridge(store: store)
+        _ = try await bridge.api.request(path: "/goals/with-task", method: "POST", body: [
+            "title": "Learn Flowlist", "task": ["title": "Focus"]
+        ])
         let parent = try #require(store.plan.projects.first?.tasks.first)
-        #expect(await store.createTask(title: "Clock settings", projectId: projectId, parentId: parent.id))
+        _ = try await bridge.api.request(path: "/tasks/\(parent.id)/subtasks", method: "POST", body: ["title": "Clock settings"])
         let child = try #require(store.plan.projects.first?.tasks.last)
-        await store.prioritize(child)
-        #expect(store.priorities.map(\.id) == [child.id])
-        store.selectWork(child, finished: true, value: true)
-        #expect(store.workspace.selections?.first?.completed == true)
+        _ = try await bridge.api.request(path: "/queue/\(child.id)", method: "POST")
+        #expect(store.plan.priorityIds == [child.id])
         store.change {
             $0.timer.start(configuration: $0.configuration, at: Date().addingTimeInterval(-70))
             $0.timer.finish(at: Date())
         }
-        store.saveSession()
+        _ = try await bridge.handle([
+            "op": "timer", "action": "draft", "id": store.timer.id.uuidString,
+            "summary": "Learned the clock", "selections": [["task_id": child.id, "completed": true]]
+        ])
+        _ = try await bridge.handle([
+            "op": "api", "path": "/sessions", "method": "POST", "body": ["client_id": store.timer.id.uuidString]
+        ])
         #expect(store.workspace.sessions.count == 1)
         #expect(store.plan.projects[0].tasks[1].completed)
         #expect(!store.plan.projects[0].tasks[0].completed)
@@ -95,6 +100,32 @@ private final class StubTransport: URLProtocol {
         await store.sync()
         #expect(uploads == 1)
     }
+    @Test func acknowledgedSessionInvalidatesCachedDashboardAndHistory() async throws {
+        let (client, _) = try client()
+        var workspace = pending()
+        workspace.webCacheOwner = user.id
+        workspace.webResponseCache = [
+            "/dashboard?timezone=UTC": Data(#"{"stats":{"total_sessions":0}}"#.utf8),
+            "/sessions?limit=100": Data("[]".utf8)
+        ]
+        let store = TimerStore(preview: workspace, client: client)
+        store.account = user
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        store.file = WorkspaceFile(url: folder.appendingPathComponent("workspace.json"))
+        let remote = self.remote
+        StubTransport.respond = { request in
+            if request.httpMethod == "POST" { return (200, remote) }
+            return (200, request.url!.path == "/api/sessions" ? "[\(remote)]" : "[]")
+        }
+        await store.sync()
+        #expect(store.pendingCount == 0)
+        #expect(store.workspace.webResponseCache == nil)
+        let restored = try #require(store.file).load()
+        #expect(restored.sessions[0].needsUpload == false)
+        #expect(restored.webResponseCache == nil)
+    }
+
     @Test func expiredCredentialsRefreshOnceAndUseNewToken() async throws {
         let (client, vault) = try client(expired: true)
         let user = self.user

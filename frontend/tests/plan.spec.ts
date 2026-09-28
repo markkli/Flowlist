@@ -192,7 +192,7 @@ test('floating navigation stays fixed, uses minimal space, and hides on short pl
   await page.getByRole('button',{name:'Jump to Tasks',exact:true}).focus();
   await expect(page.locator('.plan-index-tooltip')).toHaveText('Tasks');
   await expect(page.locator('.plan-index-tooltip')).toBeVisible();
-  await page.getByRole('button',{name:'Today',exact:true}).click();
+  await page.getByRole('button',{name:'Home',exact:true}).click();
   await expect(rail).toBeHidden();
   await page.setViewportSize({width:1440,height:1600});
   await page.getByRole('button',{name:'Plan',exact:true}).click();

@@ -86,17 +86,6 @@ struct PrimaryButtonStyle: ButtonStyle {
     }
 }
 
-struct FlowlistMark: View {
-    var body: some View {
-        Text("F").font(.system(size: 29, weight: .semibold, design: .serif))
-            .foregroundStyle(Color(red: 0.95, green: 0.92, blue: 0.85))
-            .frame(width: 42, height: 42)
-            .background(Color(red: 0.14, green: 0.15, blue: 0.13), in: RoundedRectangle(cornerRadius: 11))
-            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.white.opacity(0.25)).padding(4))
-            .accessibilityHidden(true)
-    }
-}
-
 func focusDuration(_ seconds: TimeInterval) -> String {
     let count = Int(seconds)
     if count < 60 { return "\(count) \(count == 1 ? "second" : "seconds")" }

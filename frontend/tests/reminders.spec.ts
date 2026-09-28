@@ -57,7 +57,7 @@ test('desktop reminders require opt-in, persist, remain silent and can be turned
   await page.clock.fastForward(25*60000);
   await expect.poll(()=>page.evaluate(()=>(window as any).__reminders.messages.length)).toBe(1);
   expect(await page.evaluate(()=>(window as any).__reminders.messages[0])).toMatchObject({title:'Focus round 1 complete',options:{silent:true,requireInteraction:false,tag:'flowlist-interval'}});
-  await page.getByRole('button',{name:'Today',exact:true}).click();
+  await page.getByRole('button',{name:'Home',exact:true}).click();
   await page.locator('#timer-settings-toggle').click();
   await page.getByRole('button',{name:'Turn off desktop reminders'}).click();
   await page.getByRole('button',{name:'Close timer settings'}).click();
@@ -148,7 +148,7 @@ test('chime is on by default, fires at a boundary, and can be muted without hidi
  await page.screenshot({path:testInfo.outputPath('interval-popup.png')});
  await page.getByRole('button',{name:'Got it',exact:true}).click();
  await expect(page.locator('#interval-reminder')).toBeHidden();
- await page.getByRole('button',{name:'Today',exact:true}).click();
+ await page.getByRole('button',{name:'Home',exact:true}).click();
  await page.locator('#timer-settings-toggle').click();
  await expect(page.getByRole('checkbox',{name:'Gentle chime',exact:true})).toBeChecked();
  await page.getByRole('checkbox',{name:'Gentle chime',exact:true}).uncheck();
@@ -157,7 +157,7 @@ test('chime is on by default, fires at a boundary, and can be muted without hidi
  await expect(page.locator('#interval-reminder')).toContainText('Time to focus');
  expect(await page.evaluate(()=>(window as any).__tones)).toBe(2);
  await page.reload();
- await page.getByRole('button',{name:'Today',exact:true}).click();
+ await page.getByRole('button',{name:'Home',exact:true}).click();
  await page.locator('#timer-settings-toggle').click();
  await expect(page.getByRole('checkbox',{name:'Gentle chime',exact:true})).not.toBeChecked();
 });
