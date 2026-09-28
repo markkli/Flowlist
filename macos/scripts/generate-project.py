@@ -3,9 +3,26 @@
 from pathlib import Path
 import hashlib
 import json
+import subprocess
 
 root = Path(__file__).resolve().parents[1]
 objects = {}
+project = root / "Flowlist.xcodeproj"
+previous_objects = {}
+if (project / "project.pbxproj").exists():
+    # Xcode may have added the developer's team/certificate selection. Preserve
+    # those settings instead of silently resetting them whenever sources change.
+    result = subprocess.run(
+        ["/usr/bin/plutil", "-convert", "json", "-o", "-", str(project / "project.pbxproj")],
+        check=True, capture_output=True, text=True,
+    )
+    previous_objects = json.loads(result.stdout).get("objects", {})
+
+signing_keys = {
+    "DEVELOPMENT_TEAM", "CODE_SIGN_IDENTITY", "CODE_SIGN_STYLE",
+    "CODE_SIGNING_ALLOWED", "CODE_SIGNING_REQUIRED", "PROVISIONING_PROFILE",
+    "PROVISIONING_PROFILE_SPECIFIER", "OTHER_CODE_SIGN_FLAGS",
+}
 
 def identifier(key):
     return hashlib.sha1(key.encode()).hexdigest()[:24].upper()
@@ -24,11 +41,13 @@ def serialize(value, indent=0):
 
 core = sorted(str(p.relative_to(root)) for p in (root / "Sources/FlowlistCore").glob("*.swift"))
 app = sorted(str(p.relative_to(root)) for p in (root / "Sources/FlowlistMac").glob("*.swift"))
-resources = sorted(str(p.relative_to(root)) for p in (root / "Sources/FlowlistMac/Resources").glob("*"))
-paths = core + app + resources + ["Widget/FlowlistWidget.swift"]
+resources = sorted(str(p.relative_to(root)) for p in (root / "Sources/FlowlistMac/Resources").glob("*") if p.name != "WebUI")
+web_resource = "Sources/FlowlistMac/Resources/WebUI"
+paths = core + app + resources + ["Widget/FlowlistWidget.swift", web_resource, "Configuration/Signing.xcconfig"]
 files = {}
 for path in paths:
-    kind = "sourcecode.swift" if path.endswith(".swift") else "image.icns" if path.endswith(".icns") else "image.jpeg"
+    kind = ("folder" if path == web_resource else "text.xcconfig" if path.endswith(".xcconfig")
+            else "sourcecode.swift" if path.endswith(".swift") else "image.icns" if path.endswith(".icns") else "image.jpeg")
     files[path] = add("file:" + path, "PBXFileReference", path=path, sourceTree="<group>", lastKnownFileType=kind)
 
 app_product = add("product:app", "PBXFileReference", path="Flowlist.app", sourceTree="BUILT_PRODUCTS_DIR", explicitFileType="wrapper.application")
@@ -48,7 +67,16 @@ def configurations(name, settings):
         values["DEBUG_INFORMATION_FORMAT"] = "dwarf" if mode == "Debug" else "dwarf-with-dsym"
         if mode == "Debug":
             values["SWIFT_ACTIVE_COMPILATION_CONDITIONS"] = "DEBUG"
-        ids.append(add("config:" + name + mode, "XCBuildConfiguration", name=mode, buildSettings=values))
+        old_values = previous_objects.get(identifier("config:" + name + mode), {}).get("buildSettings", {})
+        for key, value in old_values.items():
+            # The original generated project used ad-hoc signing by default.
+            # Let automatic/xcconfig signing take over once a team is selected.
+            if key == "CODE_SIGN_IDENTITY" and value == "-" and not old_values.get("DEVELOPMENT_TEAM"):
+                continue
+            if key.split("[", 1)[0] in signing_keys:
+                values[key] = value
+        extra = {"baseConfigurationReference": files["Configuration/Signing.xcconfig"]} if name != "project" else {}
+        ids.append(add("config:" + name + mode, "XCBuildConfiguration", name=mode, buildSettings=values, **extra))
     return add("configs:" + name, "XCConfigurationList", buildConfigurations=ids, defaultConfigurationIsVisible=0, defaultConfigurationName="Release")
 
 base = dict(ALWAYS_SEARCH_USER_PATHS="NO", SWIFT_VERSION="5.0", MACOSX_DEPLOYMENT_TARGET="14.0", SDKROOT="macosx", CODE_SIGN_STYLE="Automatic", ENABLE_HARDENED_RUNTIME="YES", PRODUCT_NAME="$(TARGET_NAME)", COMBINE_HIDPI_IMAGES="YES")
@@ -60,11 +88,16 @@ proxy = add("proxy:widget", "PBXContainerItemProxy", containerPortal=identifier(
 dependency = add("depends:widget", "PBXTargetDependency", target=widget_target, targetProxy=proxy)
 embed_file = add("embed:widget", "PBXBuildFile", fileRef=widget_product, settings={"ATTRIBUTES": ["RemoveHeadersOnCopy"]})
 embed = add("embed-phase", "PBXCopyFilesBuildPhase", name="Embed App Extensions", buildActionMask=2147483647, dstPath="", dstSubfolderSpec=13, files=[embed_file], runOnlyForDeploymentPostprocessing=0)
-app_settings = dict(base, PRODUCT_BUNDLE_IDENTIFIER="dev.flowlist.mac", INFOPLIST_FILE="Configuration/App-Info.plist", CODE_SIGN_ENTITLEMENTS="Configuration/App.entitlements")
-app_target = add("target:app", "PBXNativeTarget", name="Flowlist", productName="Flowlist", productReference=app_product, productType="com.apple.product-type.application", buildConfigurationList=configurations("app", app_settings), buildPhases=[build_phase("app-sources", "PBXSourcesBuildPhase", core + app), build_phase("app-resources", "PBXResourcesBuildPhase", resources), embed], buildRules=[], dependencies=[dependency])
+web_build = add("phase:build-web", "PBXShellScriptBuildPhase", name="Build bundled dashboard", buildActionMask=2147483647,
+                shellPath="/bin/bash", shellScript='set -euo pipefail\n/bin/bash "$SRCROOT/scripts/build-web.sh"\n',
+                inputPaths=[], outputPaths=["$(SRCROOT)/" + web_resource], files=[],
+                alwaysOutOfDate=1, runOnlyForDeploymentPostprocessing=0)
+app_settings = dict(base, PRODUCT_BUNDLE_IDENTIFIER="dev.flowlist.mac", INFOPLIST_FILE="Configuration/App-Info.plist", CODE_SIGN_ENTITLEMENTS="Configuration/App.entitlements", ENABLE_USER_SCRIPT_SANDBOXING="NO")
+app_target = add("target:app", "PBXNativeTarget", name="Flowlist", productName="Flowlist", productReference=app_product, productType="com.apple.product-type.application", buildConfigurationList=configurations("app", app_settings), buildPhases=[web_build, build_phase("app-sources", "PBXSourcesBuildPhase", core + app), build_phase("app-resources", "PBXResourcesBuildPhase", resources + [web_resource]), embed], buildRules=[], dependencies=[dependency])
 
-project_id = add("project", "PBXProject", attributes={"LastSwiftUpdateCheck": "1600", "LastUpgradeCheck": "1600", "TargetAttributes": {app_target: {"ProvisioningStyle": "Automatic"}, widget_target: {"ProvisioningStyle": "Automatic"}}}, buildConfigurationList=configurations("project", {}), compatibilityVersion="Xcode 14.0", developmentRegion="en", knownRegions=["en", "Base"], mainGroup=group, productRefGroup=products, projectDirPath="", projectRoot="", targets=[app_target, widget_target])
-project = root / "Flowlist.xcodeproj"
+previous_target_attributes = previous_objects.get(identifier("project"), {}).get("attributes", {}).get("TargetAttributes", {})
+target_attributes = {target: {"ProvisioningStyle": "Automatic", **previous_target_attributes.get(target, {})} for target in [app_target, widget_target]}
+project_id = add("project", "PBXProject", attributes={"LastSwiftUpdateCheck": "1600", "LastUpgradeCheck": "1600", "TargetAttributes": target_attributes}, buildConfigurationList=configurations("project", {}), compatibilityVersion="Xcode 14.0", developmentRegion="en", knownRegions=["en", "Base"], mainGroup=group, productRefGroup=products, projectDirPath="", projectRoot="", targets=[app_target, widget_target])
 project.mkdir(exist_ok=True)
 (project / "project.pbxproj").write_text("// !$*UTF8*$!\n" + serialize(dict(archiveVersion=1, classes={}, objectVersion=56, objects=objects, rootObject=project_id)) + "\n")
 schemes = project / "xcshareddata/xcschemes"

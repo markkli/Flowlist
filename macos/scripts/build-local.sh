@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+bash scripts/build-web.sh
 swift build -c release
 FLOWLIST_BIN_DIR="$(swift build -c release --show-bin-path)"
 mkdir -p "$PWD/build"
@@ -10,7 +11,7 @@ FLOWLIST_DESTINATION="$PWD/build/Flowlist.app"
 mkdir -p "$FLOWLIST_APP/Contents/MacOS" "$FLOWLIST_APP/Contents/Resources"
 cp "$FLOWLIST_BIN_DIR/Flowlist" "$FLOWLIST_APP/Contents/MacOS/Flowlist"
 # Bundle native resources in the standard location; the app prefers Bundle.main.
-cp Sources/FlowlistMac/Resources/* "$FLOWLIST_APP/Contents/Resources/"
+cp -R Sources/FlowlistMac/Resources/. "$FLOWLIST_APP/Contents/Resources/"
 python3 - "$FLOWLIST_APP" <<'PY'
 import plistlib, pathlib, sys, shutil
 old_resource_bundle = pathlib.Path(sys.argv[1]) / "Contents/MacOS/Flowlist_FlowlistMac.bundle"

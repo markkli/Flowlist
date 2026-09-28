@@ -1,3 +1,5 @@
+import { initPendingRecords } from './native-pending';
+import { isNative, nativeCall } from '../../shared/native';
 import { api, timezoneQuery } from '../../shared/api';
 import { escapeHtml, trapFocus, syncDialogs } from '../../shared/dom';
 import { asDate, dayKey, nextDay, rangeLabel, duration } from './timeline';
@@ -7,6 +9,7 @@ import { workRowContent, groupWorkRows } from '../../shared/work-row';
 import { createCalendar } from './calendar';
 
 export function initHistory({ showToast, refresh }) {
+  if(isNative())initPendingRecords({showToast});
   const el = id => document.getElementById(id);
   const history=el('history-view'), more=el('history-more'), deletedToggle=el('history-deleted');
   const overlay=el('history-detail-overlay'), modal=overlay.querySelector('section'), form=el('history-edit-form');
@@ -179,7 +182,7 @@ export function initHistory({ showToast, refresh }) {
   });
   el('history-export').addEventListener('click',()=>run(async()=>{
     const button=el('history-export');button.disabled=true;button.textContent='Exporting…';
-    try {const data=await api('/export');const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download=`flowlist-${dayKey(new Date())}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);showToast('Export downloaded: Plan, queue, and saved history, including deleted records.');}
+    try {const data=await api('/export');if(isNative()){const result=await nativeCall('download',{filename:`flowlist-${dayKey(new Date())}.json`,text:JSON.stringify(data,null,2)});if(result?.saved)showToast('Export saved.');return;}const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download=`flowlist-${dayKey(new Date())}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);showToast('Export downloaded: Plan, queue, and saved history, including deleted records.');}
     finally{button.disabled=false;button.textContent='Export data';}
   }));
   return {loadHistory,setWeek(date){week=trailingStart(new Date(`${date}T12:00:00`));},handleKey(event){if(overlay.classList.contains('hidden'))return false;if(event.key==='Escape'){event.preventDefault();closeRecord();}else trapFocus(event,modal);return true;}};

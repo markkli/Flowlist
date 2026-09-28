@@ -70,6 +70,26 @@ struct FocusTimerTests {
         #expect(timer.recordedSeconds == 90)
         #expect(timer.segments.count == 1)
     }
+    @Test func testSkipRecordsActualTimeAndBreakWaitsForExplicitStart() {
+        var timer = running()
+        timer.skip(at: start.addingTimeInterval(12))
+        #expect(timer.phase == .shortBreak)
+        #expect(timer.recordedSeconds == 12)
+        timer.skip(at: start.addingTimeInterval(20))
+        #expect(timer.phase == .ready)
+        #expect(timer.recordedSeconds == 12)
+        timer.startNext(at: start.addingTimeInterval(60))
+        #expect(timer.phase == .focus)
+        #expect(timer.round == 2)
+    }
+    @Test func testSkipPausedFocusDoesNotCountPausedTime() {
+        var timer = running()
+        timer.pause(at: start.addingTimeInterval(8))
+        timer.skip(at: start.addingTimeInterval(100))
+        #expect(timer.recordedSeconds == 8)
+        #expect(timer.phase == .shortBreak)
+        #expect(!timer.isPaused)
+    }
     @Test func testInvalidConfigurationCannotStart() {
         var settings = TimerConfiguration()
         settings.focusMinutes = -1

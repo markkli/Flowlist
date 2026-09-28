@@ -14,10 +14,26 @@ public struct LocalWorkspace: Codable, Equatable, Sendable {
     public var plan: PlanCache?
     public var selections: [WorkSelection]?
     public var cloudHistory: [RemoteSession]?
+    public var webOnboardingVersion: Int?
+    public var webResponseCache: [String: Data]?
+    public var webHistoryMetadata: [String: WebHistoryMetadata]?
     public init() {}
+    public var planForEditing: PlanCache {
+        var result = plan ?? PlanCache()
+        let referenced = (sessions.flatMap { ($0.selections ?? []).map(\.taskId) } + (selections ?? []).map(\.taskId)).min() ?? 0
+        result.lowestAllocatedId = min(result.lowestLocalId, referenced)
+        return result
+    }
+    /// Never reuse a deleted local ID: saved history intentionally keeps task
+    /// snapshots and must not attach them to unrelated work created later.
+    public mutating func preserveLocalIdentifiers(from previous: LocalWorkspace) {
+        var cache = planForEditing
+        cache.lowestAllocatedId = min(cache.lowestLocalId, previous.planForEditing.lowestLocalId)
+        plan = cache
+    }
     public var isValid: Bool {
         version == 1 && configuration.isValid && timer.isValid
-        && ["coast", "grove", "hills"].contains(theme)
+        && ["coast", "grove", "hills", "linen", "sage", "slate", "clay"].contains(theme)
         && sessions.allSatisfy { $0.endedAt >= $0.startedAt && $0.configuration.isValid }
     }
     public mutating func saveSession(upload: Bool = false) {

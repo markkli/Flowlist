@@ -1,3 +1,4 @@
+import { isNative, bootstrapNative, nativeCall } from '../../shared/native';
 import { createClient } from '@supabase/supabase-js';
 import { configureAccount, lockAccount, accountLocked, clearAccountDrafts, accountKey } from '../../shared/account';
 import './auth.css';
@@ -5,6 +6,7 @@ import { captureGoogleCallback, startGoogleSignIn, finishGoogleSignIn } from './
 
 const el = id => document.getElementById(id);
 export async function initAuth() {
+  if (isNative()) return initNativeAuth();
   const googleCallback = captureGoogleCallback();
   let config;
   try {
@@ -194,4 +196,36 @@ export async function initAuth() {
   if(error) el('auth-error').textContent=error.message;
   if(data.session) await accept(data.session);
   return signedIn;
+}
+
+async function initNativeAuth() {
+  const state=await bootstrapNative();
+  configureAccount(state.account?.id || 'local-mac', null);
+  document.documentElement.classList.add('native-app');
+  document.body.classList.add('app-ready');
+  el('auth-screen').hidden=true;
+  el('account-controls').hidden=false;
+  el('account-email').textContent=state.account?.email || 'On this Mac';
+  el('connection-label').textContent=state.account ? 'Connected' : 'On this Mac';
+  const signout=el('account-signout');
+  signout.textContent=state.account ? 'Sign out' : 'Continue with Google';
+  const error=el('account-error');
+  // Account deletion remains in the web account page; native switching preserves local files.
+  const deleteSection=el('account-delete-form').closest('details');deleteSection.hidden=true;
+  deleteSection.before(error);
+  const action=async (button,name)=>{
+    button.disabled=true;error.textContent='';
+    try { await nativeCall('account',{action:name}); }
+    catch(failure) {error.textContent=failure.message;}
+    finally {button.disabled=false;}
+  };
+  signout.onclick=()=>action(signout,state.account?'disconnect':'connect');
+  if(state.account) {
+    const sync=document.createElement('button');sync.type='button';sync.className='text-btn';sync.textContent='Sync now';
+    sync.onclick=()=>action(sync,'sync');signout.after(sync);
+  }
+  const settings=document.createElement('button');settings.type='button';settings.className='text-btn';settings.textContent='Mac settings';
+  settings.onclick=()=>action(settings,'settings');deleteSection.before(settings);
+  return {onboarding:{automatic:true, version:state.onboarding?.version || 0,
+    save:version=>nativeCall('api',{path:'/account/onboarding',method:'PATCH',body:{version}})}};
 }

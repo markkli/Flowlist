@@ -1,8 +1,15 @@
+import { isNative, nativeCall } from './native';
 import { requestToken, accountLocked } from './account';
 export class ApiError extends Error {
   constructor(message: string, public status = 0) { super(message); }
 }
 export async function api<T = any>(path: string, options: RequestInit = {}): Promise<T> {
+  if (isNative()) {
+    if (accountLocked()) throw new ApiError('Your account changed. Reload to continue.');
+    const result = await nativeCall<T>('api', {path, method: options.method || 'GET', body: typeof options.body === 'string' ? JSON.parse(options.body) : null});
+    if (accountLocked()) throw new ApiError('Your account changed. Reload to continue.');
+    return result;
+  }
   const token = await requestToken();
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');

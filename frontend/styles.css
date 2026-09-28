@@ -813,3 +813,6 @@ body:has(.timer-mini:not(.hidden)) .app-toast { bottom:100px; }
   .focus-cycle-summary small { font-size:10px; }
 }
 @media(max-width:360px) { .focus-display { font-size:46px; } .focus-start-button { gap:6px; padding:0 12px; } }
+
+/* The Mac timer has native pause/resume in addition to the shared timer actions. */
+.native-app .native-focus-control { min-width: 160px; margin: 0 auto 18px; }

@@ -1,3 +1,4 @@
+import { isNative, nativeState } from '../../shared/native';
 import { api } from '../../shared/api';
 import { liftPriority } from './live-priority';
 import { accountKey, accountLocked } from '../../shared/account';
@@ -151,7 +152,7 @@ export function initOnboarding({preferences={},showToast,prepareExample=()=>{},n
     (returnFocus?.isConnected&&returnFocus.getClientRects().length?returnFocus:trigger).focus();
   }
   function advance(){if(next.disabled||preparing)return;if(!error.hidden&&!sample){prepare();return;}if(index<steps.length-1){index++;render();}else finish();}
-  function startIfNew(){const ritual=readRitual();if(preferences.automatic&&!acknowledged&&(!ritual||ritual.phase==='saved'))open(true);}
+  function startIfNew(){const ritual=isNative()?nativeState()?.timer:readRitual();if(preferences.automatic&&!acknowledged&&(!ritual||ritual.phase==='saved'))open(true);}
   trigger.addEventListener('click',()=>open(Boolean(preferences.automatic&&!acknowledged)));
   closeButton.addEventListener('click',()=>close());
   back.addEventListener('click',()=>{if(index>0){index--;render();}});next.addEventListener('click',advance);

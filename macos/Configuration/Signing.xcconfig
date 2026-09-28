@@ -1,0 +1,3 @@
+// Optional local signing settings are intentionally excluded from Git.
+// Xcode's per-target signing selections remain supported too.
+#include? "Signing.local.xcconfig"

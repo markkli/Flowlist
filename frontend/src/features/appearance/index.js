@@ -1,3 +1,4 @@
+import { isNative, nativeCall, nativeState, onNativeState } from '../../shared/native';
 import { syncDialogs, trapFocus } from '../../shared/dom';
 import './appearance.css';
 import './palettes.css';
@@ -22,7 +23,8 @@ function readPreferences() {
   } catch { return {...defaults}; }
 }
 export function initAppearance({showToast}) {
-  let preferences = readPreferences();
+  let preferences = isNative() && nativeState()?.preferences?.appearance ? {...nativeState().preferences.appearance} : readPreferences();
+  let writes=Promise.resolve(),pendingWrites=0;
   const overlay = document.getElementById('appearance-overlay');
   const trigger = document.getElementById('appearance-toggle');
   const focusToggle = document.getElementById('focus-artwork');
@@ -52,6 +54,12 @@ export function initAppearance({showToast}) {
   };
   const save = () => {
     render();
+    if(isNative()){
+      const appearance={...preferences};pendingWrites++;
+      writes=writes.catch(()=>{}).then(()=>nativeCall('appearance',{appearance})).finally(()=>pendingWrites--);
+      writes.catch(error=>showToast(error.message,true));
+      return;
+    }
     try { localStorage.setItem(KEY,JSON.stringify(preferences)); }
     catch { showToast('Appearance applied, but this browser could not save the preference.',true); }
   };
@@ -76,7 +84,8 @@ export function initAppearance({showToast}) {
   document.getElementById('appearance-done').addEventListener('click',close);
   document.getElementById('appearance-reset').addEventListener('click',()=>{preferences={...defaults};save();});
   overlay.addEventListener('click',event=>{if(event.target===overlay)close();});
-  window.addEventListener('storage',event=>{if(event.key===KEY || event.key===null){preferences=readPreferences();render();}});
+  if(isNative())onNativeState(state=>{if(!pendingWrites && state.preferences?.appearance && JSON.stringify(state.preferences.appearance)!==JSON.stringify(preferences)){preferences={...state.preferences.appearance};render();}});
+  window.addEventListener('storage',event=>{if(!isNative() && (event.key===KEY || event.key===null)){preferences=readPreferences();render();}});
   render();
   return { handleKey(event) {
     if(overlay.classList.contains('hidden'))return false;

@@ -1,3 +1,4 @@
+import { isNative, nativeCall, nativeState, onNativeState } from '../../shared/native';
 import { accountKey, accountLocked } from '../../shared/account';
 import './reminders.css';
 const SOUND_KEY = 'flowlist-reminder-sound';
@@ -20,6 +21,7 @@ function reminderCopy(previous, next) {
 }
 
 export function initReminders({ showToast }) {
+  if(isNative()) return initNativeReminders({showToast});
   const button = document.getElementById('desktop-reminders-toggle');
   const status = document.getElementById('desktop-reminders-status');
   const soundButton = document.getElementById('reminder-sound-toggle');
@@ -179,4 +181,54 @@ export function initReminders({ showToast }) {
       } catch { /* Some browsers expose Notification but cannot construct one; in-app notice remains. */ }
     },
   };
+}
+
+function initNativeReminders({showToast}) {
+  const button=document.getElementById('desktop-reminders-toggle');
+  const status=document.getElementById('desktop-reminders-status');
+  const sound=document.getElementById('reminder-sound-toggle');
+  const invitation=document.getElementById('reminder-invitation');
+  const enable=document.getElementById('reminder-invitation-enable');
+  let busy=false,seen=Boolean(nativeState()?.reminderPromptSeen);
+  const render=()=>{
+    const state=nativeState();
+    const granted=state?.notifications==='granted',denied=state?.notifications==='denied';
+    sound.checked=state?.sound!==false;
+    button.disabled=busy || granted;
+    button.textContent=granted?'Notifications enabled':denied?'Open notification settings':'Enable notifications';
+    button.setAttribute('aria-pressed',String(granted));
+    status.textContent=granted?'Messages appear when focus or a break ends.':denied?'Allow Flowlist in macOS notification settings.':'Enable notifications for reminders while you’re in another app.';
+    enable.disabled=busy;
+    enable.textContent=busy?'Waiting for permission…':'Enable notifications';
+    if(granted||denied)invitation.hidden=true;
+  };
+  const remember=()=>{
+    seen=true;
+    nativeCall('reminders',{action:'dismiss'}).catch(error=>showToast(error.message,true));
+  };
+  const request=async()=>{
+    if(busy)return;busy=true;render();
+    try {await nativeCall('reminders',{action:nativeState()?.notifications==='denied'?'settings':'enable'});invitation.hidden=true;}
+    catch(error) {showToast(error.message,true);}
+    finally {busy=false;render();}
+  };
+  button.onclick=request;enable.onclick=request;
+  document.getElementById('reminder-invitation-later').onclick=()=>{remember();invitation.hidden=true;};
+  sound.onchange=async()=>{
+    sound.disabled=true;
+    try {await nativeCall('reminders',{action:'sound',sound:sound.checked});}
+    catch(error){showToast(error.message,true);}
+    finally {sound.disabled=false;render();}
+  };
+  // The native process owns reminders even with the main window closed.
+  document.querySelector('.timer-reminders > p').textContent='Chimes play when focus and breaks end.';
+  document.querySelector('.reminders-note').textContent='Flowlist keeps time from the menu bar when this window is closed.';
+  onNativeState(render);render();
+  return {render,prepareAudio(){},notify(){},offerNotifications(){
+    const state=nativeState();
+    if(seen||state?.reminderPromptSeen||state?.notifications!=='default')return;
+    invitation.hidden=false;
+    document.getElementById('reminder-invitation-copy').textContent='Get a gentle reminder when focus or a break ends, even while you’re in another app.';
+    remember();
+  }};
 }

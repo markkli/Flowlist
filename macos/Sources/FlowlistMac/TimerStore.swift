@@ -13,6 +13,7 @@ import FlowlistCore
     @Published var error: String?
     @Published var permission: UNAuthorizationStatus = .notDetermined
     @Published var showReminderPrompt = false
+    private var requestingReminders = false
     @Published var selectedTab = AppTab.today
     @Published var storageUnavailable = false
     var file: WorkspaceFile?
@@ -93,6 +94,7 @@ import FlowlistCore
         guard !storageUnavailable else { return false }
         var next = workspace
         update(&next)
+        next.preserveLocalIdentifiers(from: workspace)
         do {
             try file?.save(next)
             let timerChanged = workspace.timer != next.timer
@@ -149,15 +151,19 @@ import FlowlistCore
         }
     }
     func enableReminders() {
+        Task { await requestReminders() }
+    }
+    func requestReminders() async {
+        guard !requestingReminders else { return }
+        requestingReminders = true
+        defer { requestingReminders = false }
         showReminderPrompt = false
         change { $0.reminderPromptSeen = true }
-        Task {
-            do {
-                _ = try await reminders.center.requestAuthorization(options: [.alert, .sound])
-                await updatePermission()
-                refreshReminders()
-            } catch { self.error = "Notifications couldn’t be enabled. You can retry in Settings." }
-        }
+        do {
+            _ = try await reminders.center.requestAuthorization(options: [.alert, .sound])
+            await updatePermission()
+            refreshReminders()
+        } catch { self.error = "Notifications couldn’t be enabled. You can retry in Settings." }
     }
     func dismissReminders() { showReminderPrompt = false; change { $0.reminderPromptSeen = true } }
     func refreshPermission() { Task { await updatePermission() } }
@@ -242,9 +248,16 @@ final class Reminders: NSObject, UNUserNotificationCenterDelegate {
     // notification clicks can reopen it while only the menu bar is present.
     static var openToday: (() -> Void)?
     static var openTab: ((AppTab) -> Void)?
-    static func showTab(_ tab: AppTab) { openTab?(tab) }
+    static var pendingTab: AppTab?
+    static var pendingWebAction: String?
+    static func showTab(_ tab: AppTab) { pendingTab = tab; openTab?(tab) }
+    static func webAction(_ name: String) {
+        pendingWebAction = name
+        NotificationCenter.default.post(name: .flowlistWebAction, object: name)
+    }
     static var pending = false
     static func showToday() {
+        pendingTab = .today
         if let openToday { openToday() } else { pending = true }
     }
 }

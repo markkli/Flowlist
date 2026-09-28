@@ -39,5 +39,8 @@ frontend/playwright-report/
 macos/.build/
 macos/build/
 macos/.swiftpm/
+macos/Sources/FlowlistMac/Resources/WebUI/
+macos/build-web.*/
+macos/Configuration/Signing.local.xcconfig
 *.xcuserstate
 xcuserdata/

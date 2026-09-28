@@ -9,6 +9,7 @@ import FlowlistCore
 struct CloudFailure: LocalizedError {
     let message: String
     var status = 0
+    var isTransport = false
     var errorDescription: String? { message }
 }
 struct PublicConfiguration: Codable {
@@ -154,11 +155,23 @@ private final class NoRedirects: NSObject, URLSessionTaskDelegate {
         NSApplication.shared.keyWindow ?? NSApplication.shared.windows.first ?? ASPresentationAnchor()
     }
     func request<T: Decodable>(_ path: String, method: String = "GET", body: Data? = nil, owner: String) async throws -> T {
+        let data = try await requestData(path, method: method, body: body, owner: owner)
+        do { return try CloudJSON.decoder().decode(T.self, from: data) }
+        catch { throw CloudFailure(message: "The server response couldn’t be read. Refresh before trying again.") }
+    }
+    /// Preserve backend JSON keys for the shared web UI; typed native requests
+    /// continue to use the snake-case decoder above.
+    func requestJSON(_ path: String, method: String = "GET", body: Data? = nil, owner: String) async throws -> Any {
+        let data = try await requestData(path, method: method, body: body, owner: owner)
+        if data.isEmpty { return NSNull() }
+        return try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
+    }
+    private func requestData(_ path: String, method: String, body: Data?, owner: String) async throws -> Data {
         let epoch = generation
         guard identity?.id == owner else { throw CloudFailure(message: "The account changed. Please try again.") }
         let token = try await accessToken()
         do {
-            let result: T = try await fetch(URL(string: Self.origin + "/api" + path)!, method: method, body: body, bearer: token)
+            let result = try await fetchData(URL(string: Self.origin + "/api" + path)!, method: method, body: body, bearer: token)
             guard epoch == generation, identity?.id == owner else { throw CloudFailure(message: "The account changed. Your previous request has been ignored.") }
             return result
         } catch let error as CloudFailure where error.status == 401 {
@@ -166,7 +179,7 @@ private final class NoRedirects: NSObject, URLSessionTaskDelegate {
             // with a refreshed token; never retry uncertain transport failures.
             let token = try await accessToken(forceRefresh: true)
             guard epoch == generation, identity?.id == owner else { throw CloudFailure(message: "The account changed.") }
-            let result: T = try await fetch(URL(string: Self.origin + "/api" + path)!, method: method, body: body, bearer: token)
+            let result = try await fetchData(URL(string: Self.origin + "/api" + path)!, method: method, body: body, bearer: token)
             guard epoch == generation else { throw CloudFailure(message: "The account changed.") }
             return result
         }
@@ -194,6 +207,11 @@ private final class NoRedirects: NSObject, URLSessionTaskDelegate {
                         body: JSONSerialization.data(withJSONObject: body), key: configuration.supabaseKey)
     }
     private func fetch<T: Decodable>(_ url: URL, method: String = "GET", body: Data? = nil, bearer: String? = nil, key: String? = nil) async throws -> T {
+        let data = try await fetchData(url, method: method, body: body, bearer: bearer, key: key)
+        do { return try CloudJSON.decoder().decode(T.self, from: data) }
+        catch { throw CloudFailure(message: "The server response couldn’t be read. Refresh before trying again.") }
+    }
+    private func fetchData(_ url: URL, method: String = "GET", body: Data? = nil, bearer: String? = nil, key: String? = nil) async throws -> Data {
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 25)
         request.httpMethod = method; request.httpBody = body
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -201,14 +219,13 @@ private final class NoRedirects: NSObject, URLSessionTaskDelegate {
         if let key { request.setValue(key, forHTTPHeaderField: "apikey") }
         let data: Data, response: URLResponse
         do { (data, response) = try await transport.data(for: request) }
-        catch { throw CloudFailure(message: "Couldn’t connect. Your local work is safe; check your connection and retry.") }
+        catch { throw CloudFailure(message: "Couldn’t connect. Your local work is safe; check your connection and retry.", isTransport: true) }
         guard let http = response as? HTTPURLResponse else { throw CloudFailure(message: "The server returned an invalid response.") }
         guard (200...299).contains(http.statusCode) else {
             let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
             let message = object?["detail"] as? String ?? object?["msg"] as? String ?? object?["error_description"] as? String
             throw CloudFailure(message: message ?? "Couldn’t complete the request. Please retry.", status: http.statusCode)
         }
-        do { return try CloudJSON.decoder().decode(T.self, from: data) }
-        catch { throw CloudFailure(message: "The server response couldn’t be read. Refresh before trying again.") }
+        return data
     }
 }

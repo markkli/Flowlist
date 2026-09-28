@@ -118,6 +118,23 @@ public struct FocusTimer: Codable, Equatable, Sendable {
         if phase == .focus { segmentStartedAt = now }
         pausedSeconds = 0
     }
+    /// Skipping records only work already performed, never the remainder of a block.
+    public mutating func skip(at now: Date) {
+        guard isActive else { return }
+        let previousPhase = phase
+        reconcile(at: now)
+        guard phase == previousPhase else { return }
+        if phase == .focus {
+            if let end = deadline { recordFocus(until: min(now, end)) }
+            phase = round >= configuration.rounds ? .longBreak : .shortBreak
+            let minutes = phase == .longBreak ? configuration.longBreakMinutes : configuration.breakMinutes
+            deadline = now.addingTimeInterval(Double(minutes * 60))
+        } else {
+            phase = .ready
+            deadline = nil
+        }
+        pausedSeconds = 0
+    }
     public mutating func finish(at now: Date) {
         guard ![.idle, .review].contains(phase) else { return }
         reconcile(at: now)

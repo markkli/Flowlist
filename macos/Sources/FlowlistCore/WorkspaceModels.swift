@@ -20,12 +20,24 @@ public struct PlanProject: Codable, Equatable, Identifiable, Sendable {
     public var completed: Bool
     public var position: Int
     public var tasks: [PlanTask]
+    public var description: String?
+    public var isExample: Bool?
     public init(id: Int, title: String, goalType: String = "project", position: Int = 0) {
         self.id = id; self.title = title; self.goalType = goalType; self.position = position
         completed = false; tasks = []
     }
     public var roots: [PlanTask] { tasks.filter { $0.parentId == nil }.sorted { $0.position < $1.position } }
     public func children(of task: PlanTask) -> [PlanTask] { tasks.filter { $0.parentId == task.id }.sorted { $0.position < $1.position } }
+}
+
+/// Web history identifiers and edit revisions are kept separately from the
+/// original timer record so existing local workspaces decode without a migration.
+public struct WebHistoryMetadata: Codable, Equatable, Sendable {
+    public var id: Int
+    public var revision: Int = 0
+    public var deletedAt: Date?
+    public var attributionIDs: [String: Int] = [:]
+    public init(id: Int) { self.id = id }
 }
 public struct WorkSelection: Codable, Equatable, Identifiable, Sendable {
     public var taskId: Int
@@ -41,8 +53,10 @@ public struct PlanCache: Codable, Equatable, Sendable {
     public var projects: [PlanProject] = []
     public var priorityIds: [Int] = []
     public var refreshedAt: Date?
+    public var lowestAllocatedId: Int?
     public init() {}
-    public var nextLocalId: Int { min(0, (projects.map(\.id) + projects.flatMap { $0.tasks.map(\.id) }).min() ?? 0) - 1 }
+    public var lowestLocalId: Int { min(0, lowestAllocatedId ?? 0, (projects.map(\.id) + projects.flatMap { $0.tasks.map(\.id) }).min() ?? 0) }
+    public var nextLocalId: Int { lowestLocalId - 1 }
     public var availableTasks: [PlanTask] { projects.filter { !$0.completed }.flatMap(\.tasks).filter { !$0.completed } }
     public mutating func setCompleted(_ id: Int, completed: Bool) {
         guard let gi = projects.firstIndex(where: { $0.tasks.contains { $0.id == id } }),

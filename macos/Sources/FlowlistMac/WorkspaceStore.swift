@@ -7,7 +7,7 @@ private struct QueueItem: Decodable { let task: PlanTask }
 struct IgnoredResponse: Decodable {}
 
 @MainActor extension TimerStore {
-    var plan: PlanCache { workspace.plan ?? PlanCache() }
+    var plan: PlanCache { workspace.planForEditing }
     var pendingCount: Int { workspace.sessions.filter { $0.needsUpload == true }.count }
     var canSwitchAccount: Bool { timer.phase == .idle && !busy && !connecting && !storageUnavailable }
     var priorities: [PlanTask] {

@@ -1,14 +1,16 @@
 import SwiftUI
 
 enum Landscape: String, CaseIterable, Identifiable {
-    case coast, grove, hills
+    case coast, grove, hills, linen, sage, slate, clay
     var id: String { rawValue }
-    var title: String { switch self { case .coast: "Coast"; case .grove: "Grove"; case .hills: "Hills" } }
+    var title: String { rawValue.capitalized }
     var accent: Color {
         switch self {
-        case .coast: Color(red: 0.67, green: 0.82, blue: 0.87)
-        case .grove: Color(red: 0.78, green: 0.83, blue: 0.65)
+        case .coast, .slate: Color(red: 0.67, green: 0.82, blue: 0.87)
+        case .grove, .sage: Color(red: 0.78, green: 0.83, blue: 0.65)
         case .hills: Color(red: 0.92, green: 0.78, blue: 0.62)
+        case .linen: Color(red: 0.87, green: 0.83, blue: 0.76)
+        case .clay: Color(red: 0.86, green: 0.75, blue: 0.71)
         }
     }
     var tint: Color {
@@ -16,17 +18,19 @@ enum Landscape: String, CaseIterable, Identifiable {
         return Color(nsColor: NSColor(name: nil) { appearance in
             let dark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
             switch theme {
-            case .coast: return dark ? NSColor(red: 0.67, green: 0.82, blue: 0.87, alpha: 1) : NSColor(red: 0.20, green: 0.40, blue: 0.48, alpha: 1)
-            case .grove: return dark ? NSColor(red: 0.78, green: 0.83, blue: 0.65, alpha: 1) : NSColor(red: 0.33, green: 0.42, blue: 0.23, alpha: 1)
-            case .hills: return dark ? NSColor(red: 0.92, green: 0.78, blue: 0.62, alpha: 1) : NSColor(red: 0.51, green: 0.34, blue: 0.20, alpha: 1)
+            case .coast, .slate: return dark ? NSColor(red: 0.67, green: 0.82, blue: 0.87, alpha: 1) : NSColor(red: 0.20, green: 0.40, blue: 0.48, alpha: 1)
+            case .grove, .sage: return dark ? NSColor(red: 0.78, green: 0.83, blue: 0.65, alpha: 1) : NSColor(red: 0.33, green: 0.42, blue: 0.23, alpha: 1)
+            case .hills, .linen: return dark ? NSColor(red: 0.92, green: 0.78, blue: 0.62, alpha: 1) : NSColor(red: 0.51, green: 0.34, blue: 0.20, alpha: 1)
+            case .clay: return dark ? NSColor(red: 0.86, green: 0.75, blue: 0.71, alpha: 1) : NSColor(red: 0.51, green: 0.32, blue: 0.29, alpha: 1)
             }
         })
     }
     var ink: Color {
         switch self {
-        case .coast: Color(red: 0.07, green: 0.13, blue: 0.16)
-        case .grove: Color(red: 0.12, green: 0.16, blue: 0.10)
-        case .hills: Color(red: 0.20, green: 0.14, blue: 0.10)
+        case .coast, .slate: Color(red: 0.07, green: 0.13, blue: 0.16)
+        case .grove, .sage: Color(red: 0.12, green: 0.16, blue: 0.10)
+        case .hills, .linen: Color(red: 0.20, green: 0.14, blue: 0.10)
+        case .clay: Color(red: 0.20, green: 0.16, blue: 0.16)
         }
     }
 }

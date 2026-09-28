@@ -1,3 +1,4 @@
+import { isNative, nativeCall, nativeState, onNativeState } from './shared/native';
 import { initAuth } from './features/auth';
 import '../styles.css';
 import { observeDialogs } from './shared/dom';
@@ -41,7 +42,7 @@ function setDateCopy() {
 
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
-  localStorage.setItem("flowlist-theme", theme);
+  if(!isNative())localStorage.setItem("flowlist-theme", theme);
   document.getElementById("theme-icon").innerHTML = theme === "dark"
     ? '<path d="M20.2 15.5A8.5 8.5 0 0 1 8.5 3.8 8.5 8.5 0 1 0 20.2 15.5Z"/>'
     : '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>';
@@ -53,12 +54,24 @@ applyTheme(
 );
 document.getElementById("theme-toggle").addEventListener("click", () => {
   applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+  if(isNative())nativeCall('appearance',{theme:document.documentElement.dataset.theme}).catch(error=>showToast(error.message,true));
 });
 
 
 async function boot() {
 const auth = await initAuth();
 if (!auth) return;
+if(isNative()) {
+  const theme=nativeState()?.preferences?.theme;
+  applyTheme(['light','dark'].includes(theme)?theme:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+  const updateNativeStatus=state=>{
+    if(['light','dark'].includes(state.preferences?.theme)&&state.preferences.theme!==document.documentElement.dataset.theme)applyTheme(state.preferences.theme);
+    const label=document.getElementById('connection-label');
+    label.textContent=state.syncing?'Syncing':state.pendingCount?`${state.pendingCount} to sync`:state.error?'Sync paused':state.account?'Connected':'On this Mac';
+    label.title=state.error || '';
+  };
+  updateNativeStatus(nativeState());onNativeState(updateNativeStatus);
+}
 const appearance = initAppearance({ showToast });
 const plan = initPlan({ showToast });
 const dashboard = initDashboard({ setDateCopy, showToast, openHistory: date => { historyView.setWeek(date); navigate('history'); } });
@@ -102,7 +115,13 @@ document.addEventListener('keydown', event => { if (!onboarding.handleKey(event)
 setDateCopy();
 switchView(location.hash.slice(1));
 onboarding.startIfNew();
+if(isNative()) {
+  window.addEventListener('flowlist:native-refresh',()=>switchView(location.hash.slice(1)));
+  window.addEventListener('flowlist:native-timer-settings',()=>document.getElementById('timer-settings-toggle').click());
+}
 if (['goals','history'].includes(location.hash.slice(1))) dashboard.loadDashboard().catch(error => showToast(error.message,true));
+// Deliver deferred menu navigation only after all native event listeners exist.
+if(isNative())nativeCall('ready').catch(error=>showToast(error.message,true));
 
 }
 boot().catch(error=>{document.getElementById("auth-error").textContent=error.message;});

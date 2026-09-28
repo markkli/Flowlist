@@ -24,6 +24,10 @@ import SwiftUI
                 Button("Open web dashboard", action: openDashboard)
             }
         }
+        Window("Mac settings", id: "mac-settings") {
+            ScrollView { PreferencesView().environmentObject(store).padding(16) }
+                .frame(minWidth: 480, minHeight: 560)
+        }.defaultSize(width: 540, height: 700)
         MenuBarExtra {
             MenuPanel().environmentObject(store)
         } label: {

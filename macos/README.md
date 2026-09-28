@@ -1,8 +1,10 @@
 # Flowlist for Mac
 
-The native macOS 14+ app lives alongside the web dashboard and FastAPI service.
-SwiftUI owns the windows and menu panel; `FlowlistCore` owns the timer, local data,
-and shared widget snapshot. There are no third-party native dependencies.
+The macOS 14+ app lives alongside the web dashboard and FastAPI service. Its main
+window bundles the existing website UI in WKWebView, so dashboard cards, Plan,
+History, themes, and Guide share the same implementation. SwiftUI owns the compact
+menu panel; `FlowlistCore` owns the timer, local data, and widget snapshot. There
+are no third-party native dependencies.
 
 ## Run locally
 
@@ -12,6 +14,12 @@ bash scripts/build-local.sh
 open build/Flowlist.app
 ```
 
+Install frontend dependencies once with `cd frontend && npm ci` from the repository
+root. The Mac build needs Node.js/npm and runs the frontend build before Swift.
+Xcode builds also rebuild the dashboard automatically; neither workflow ships an
+old `frontend/dist` directory. Homebrew Node is detected when Xcode launches from
+Finder. Other Node installations must be available on Xcode's `PATH`.
+
 This produces an ad-hoc-signed development app for the current Mac architecture,
 not a notarized installer. Closing the window leaves the menu timer running.
 Use **… → Quit Flowlist** in the menu panel to quit explicitly.
@@ -20,7 +28,7 @@ Use **… → Quit Flowlist** in the menu panel to quit explicitly.
 
 - Compact menu dial with Start, Pause, Resume, round indicators, and Finish.
   Finish opens Today in the main app; the panel never embeds a record editor.
-- Native Today, Plan, History, and Settings, plus keyboard navigation (⌘1–3).
+- The website's Today, Plan, and History inside the app, plus keyboard navigation (⌘1–3).
 - Projects, standalone tasks, one subtask level, completion, rename, deletion,
   and priorities. Task creation uses a destination tree. Projects can close when
   all tasks are finished; completed items can be shown and reopened.
@@ -28,7 +36,8 @@ Use **… → Quit Flowlist** in the menu panel to quit explicitly.
   completes its children; completing a child leaves its parent open.
 - Rolling seven-day history with arrows, a full-day time grid, proportional
   blocks, and separate brief-session summaries. Record editing does not alter Plan.
-- Coast, Grove, and Hills with matching controls; native light/dark appearance, solid backgrounds, and optional login startup.
+- Coast, Grove, Hills, Linen, Sage, Slate, and Clay with matching controls;
+  light/dark appearance, independent card artwork, and optional login startup.
 - OS-scheduled focus/break reminders, optional chime, and one-time opt-in.
 - Local Google sign-in via ASWebAuthenticationSession and Supabase PKCE, verified
   against the existing API. Access/refresh tokens live only in Keychain.
@@ -50,7 +59,7 @@ flowlist://auth-callback
 
 Keep the existing website URLs. This is an additional native callback, not a new
 Google client or a change to Google's existing Supabase redirect URI. Then open
-Flowlist **Settings → Continue with Google**. The existing beta access rules still
+Flowlist **Account → Continue with Google**. The existing beta access rules still
 apply. No client secret, database URL, or service-role key belongs in the app.
 
 Native sign-in needs a real browser/account pass after this dashboard setting is
@@ -81,11 +90,23 @@ is still independent: saved work syncs, but an active countdown does not transfe
 between devices. Use one running timer at a time. Cross-device timer ownership
 and conflict warnings remain a separate feature, not an implied part of sync.
 
+## Bundled dashboard
+
+`scripts/build-web.sh` builds `frontend/` and stages the complete output into
+`Sources/FlowlistMac/Resources/WebUI/`. This generated folder is excluded from Git.
+The installed app has `Contents/Resources/WebUI/index.html` and its original asset
+directory structure. SwiftPM preserves the same tree under its resource bundle's
+`Resources/WebUI/` directory. The widget excludes the web bundle entirely.
+
+For a direct `swift run` or `swift build`, run `bash scripts/build-web.sh` first.
+The local packaging script and Xcode build phase already do this every time.
+
 ## Test and inspect
 
 ```sh
 bash scripts/test.sh
 bash scripts/preview-ui.sh
+bash scripts/verify-web.sh
 xcodebuild -project Flowlist.xcodeproj -scheme Flowlist -configuration Debug \
   -derivedDataPath build/Xcode CODE_SIGNING_ALLOWED=NO build
 ```
@@ -93,8 +114,14 @@ xcodebuild -project Flowlist.xcodeproj -scheme Flowlist -configuration Debug \
 Tests cover deadlines, pause/sleep, persistence, old prototype files, hierarchy,
 account separation, PKCE, API date/payload formats, offline retry, refresh tokens,
 missing tasks, and native local CRUD. Sync tests use URLProtocol and a memory
-credential vault; no live account is contacted. Preview rendering captures only
-the app's own views into `build/previews/`, never the user's desktop.
+credential vault; no live account is contacted. Native preview rendering captures
+the compact menu views; the WebKit smoke test covers the main workspace.
+Both write only the app's own views into `build/previews/`, never the user's desktop.
+The WebKit smoke test briefly presents a separate test app with synthetic
+tasks and a disposable workspace file. It exercises the actual bundled page,
+timer settings, Plan hierarchy, History, appearance, and session review through
+the native bridge, and saves `web-*.png` snapshots. It never signs in or loads
+personal workspace files.
 
 ## Desktop widget
 
@@ -112,6 +139,20 @@ Unsigned compilation has been checked. Signing, registration in the widget galle
 and notification delivery still need a manual Mac integration pass. The SwiftPM
 local package intentionally omits the extension/app group. Do not assume an unsigned
 Xcode build is enough to register a working widget.
+
+Logging into Xcode alone does not select the project's signing team or create a
+signing identity. A Personal Team can be selected for local testing; verify the
+signed app and widget before deciding whether paid distribution membership is
+needed. macOS team-prefixed app groups do not require separate group registration,
+but their prefix must match the team in both code signatures.
+
+`generate-project.py` preserves existing per-target signing selections. For a
+local setting that does not appear in the tracked project, copy
+`Configuration/Signing.local.xcconfig.example` to
+`Configuration/Signing.local.xcconfig` and put your team ID there. Both targets
+include this ignored optional file. Explicit signing choices made in the Xcode
+target settings take precedence over the config file. Do not commit private
+signing material or another developer's team configuration.
 
 Regenerate after adding source/resource files:
 

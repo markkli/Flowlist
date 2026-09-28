@@ -1,3 +1,4 @@
+import { isNative, nativeCall, nativeState, onNativeState } from '../../shared/native';
 import { accountKey, accountLocked } from '../../shared/account';
 import { api } from '../../shared/api';
 import { escapeHtml, trapFocus, syncDialogs as syncModal } from '../../shared/dom';
@@ -8,12 +9,16 @@ import { initDestinationTree } from './destination-tree';
 import { initReminders } from './reminders';
 
 export function initTimer({ showToast, loadGoals, loadDashboard }) {
+const native=isNative();
 const reminders = initReminders({ showToast });
 const formatTime = seconds => `${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
 const TIMER_SETTINGS_KEY = accountKey('flowlist-timer-settings');
 let timerSettings = {...defaults};
-try { const saved = JSON.parse(localStorage.getItem(TIMER_SETTINGS_KEY)); if (validSettings(saved)) timerSettings = saved; } catch {}
-let state = migrateLegacy(timerSettings);
+try { const saved = native ? nativeState()?.settings : JSON.parse(localStorage.getItem(TIMER_SETTINGS_KEY)); if (validSettings(saved)) timerSettings = saved; } catch {}
+let state = native ? nativeState()?.timer || null : migrateLegacy(timerSettings);
+let nativeMinimized=true;
+let nativeDraftWrites=Promise.resolve();
+let nativeCommandBusy=false;
 let pendingSession = state && ['awaiting-attribution','saving'].includes(state.phase) ? payload(state) : null;
 let saving = false;
 let optionsReady = false;
@@ -34,6 +39,7 @@ const timerSettingsError = document.getElementById('timer-settings-error');
 
 async function mutate(change) {
   if (accountLocked()) return;
+  if(native) throw new Error('Native timers must use the Mac timer controls.');
   const work = () => {
     if (accountLocked()) return;
     const latest = readRitual();
@@ -66,48 +72,63 @@ function setTimerSettingsOpen(open) {
 }
 timerSettingsToggle.addEventListener('click', () => setTimerSettingsOpen(true));
 ['timer-settings-close','timer-settings-cancel'].forEach(id => document.getElementById(id).addEventListener('click', () => setTimerSettingsOpen(false)));
-timerSettingsForm.addEventListener('submit', event => {
+timerSettingsForm.addEventListener('submit', async event => {
   event.preventDefault();
   const next = { focus: Number(focusMinutesSetting.value), break: Number(breakMinutesSetting.value), rounds: Number(roundsSetting.value), longBreak: Number(longBreakMinutesSetting.value) };
   if (!validSettings(next)) { timerSettingsError.textContent = 'Use whole minutes within the limits shown, and 2–8 rounds.'; return; }
-  timerSettings = next; localStorage.setItem(TIMER_SETTINGS_KEY, JSON.stringify(next));
+  try {
+    if(native) await nativeCall('timer',{action:'settings',settings:next});
+    else localStorage.setItem(TIMER_SETTINGS_KEY, JSON.stringify(next));
+    timerSettings = next;
+  } catch(error) {timerSettingsError.textContent=error.message;return;}
   renderSettings(); setTimerSettingsOpen(false);
   showToast('Settings saved for your next ritual.');
 });
 function renderTimer() {
   if (accountLocked()) return;
-  const running = state && ['focus','break'].includes(state.phase);
+  const running = state && (['focus','break'].includes(state.phase) || state.nativePhase==='ready');
   const pending = state && ['awaiting-attribution','saving'].includes(state.phase);
   mini.classList.toggle('hidden', !running && !pending);
-  focusOverlay.classList.toggle('hidden', !running || state.minimized);
+  focusOverlay.classList.toggle('hidden', !running || (native ? nativeMinimized : state.minimized));
   document.getElementById('timer-mini-end').classList.toggle('hidden', !running);
   if (running) {
-    const seconds = remaining(state);
-    const label = state.phase === 'focus' ? 'Focus' : state.breakKind === 'long' ? 'Long break' : 'Short break';
+    const seconds = native ? Math.ceil(state.remainingSeconds) : remaining(state);
+    const label = native && state.nativePhase==='ready' ? 'Ready to focus' : native && state.paused ? 'Paused' : state.phase === 'focus' ? 'Focus' : state.breakKind === 'long' ? 'Long break' : 'Short break';
     document.getElementById('focus-phase-label').textContent = label;
     document.getElementById('focus-task-title').textContent = `Round ${state.round} of ${state.settings.rounds}`;
     document.getElementById('focus-cycle-copy').textContent = `${Math.floor(state.elapsedSeconds/60)} minutes accumulated`;
     document.getElementById('focus-time').innerHTML = formatTime(seconds);
     document.getElementById('focus-orbit').style.setProperty('--timer-progress', String(seconds / state.blockSeconds));
     document.getElementById('focus-skip-label').textContent = state.phase === 'focus' ? 'Skip to break' : 'Skip to focus';
+    if(native) {
+      document.getElementById('focus-native-primary').textContent=state.nativePhase==='ready'?'Start focus':state.paused?'Resume':'Pause';
+      document.getElementById('focus-skip').disabled=state.nativePhase==='ready' || nativeCommandBusy;
+      document.getElementById('focus-native-primary').disabled=nativeCommandBusy;
+    }
     document.getElementById('timer-mini-copy').textContent = `${label} · ${formatTime(seconds)} · Round ${state.round}`;
   } else if (pending) document.getElementById('timer-mini-copy').textContent = 'Unsaved ritual · Review and save';
   syncModal();
 }
 async function openTimer() {
   reminders.prepareAudio();
-  state = readRitual();
+  state = native ? nativeState()?.timer ?? null : readRitual();
   if (state && ['awaiting-attribution','saving'].includes(state.phase)) { pendingSession = payload(state); await openAttributionModal(); return; }
   lastFocus = document.activeElement;
-  await mutate(latest => latest && latest.phase !== 'saved' ? {...latest, minimized: false} : freshRitual(timerSettings));
+  if(native) {
+    nativeMinimized=false;
+    if(!state || state.phase==='saved'){if(!await nativeCommand('start'))return;}
+    else renderTimer();
+  } else await mutate(latest => latest && latest.phase !== 'saved' ? {...latest, minimized: false} : freshRitual(timerSettings));
   reminders.offerNotifications();
   focusModal.focus();
 }
 async function minimizeTimer() {
-  await mutate(latest => latest ? {...latest, minimized: true} : undefined);
+  if(native){nativeMinimized=true;renderTimer();}
+  else await mutate(latest => latest ? {...latest, minimized: true} : undefined);
   (lastFocus?.isConnected ? lastFocus : document.getElementById('start-pomodoro')).focus();
 }
 async function transition(end = false, expectedDeadline = null) {
+  if(native) { await nativeCommand(end?'finish':'skip');return; }
   let completedInterval = null;
   await mutate(latest => {
     if (!latest || !['focus','break'].includes(latest.phase) || (expectedDeadline !== null && latest.deadline !== expectedDeadline)) return undefined;
@@ -124,8 +145,13 @@ document.getElementById('focus-minimize').addEventListener('click', minimizeTime
 document.getElementById('focus-exit').addEventListener('click', () => transition(true));
 document.getElementById('timer-mini-end').addEventListener('click', () => transition(true));
 document.getElementById('focus-skip').addEventListener('click', () => transition());
+if(native) {
+  const control=document.createElement('button');control.id='focus-native-primary';control.type='button';control.className='primary-btn native-focus-control';control.textContent='Pause';
+  control.onclick=()=>nativeCommand(state?.nativePhase==='ready'?'start':state?.paused?'resume':'pause');
+  document.getElementById('focus-skip').parentElement.before(control);
+}
 let ticking = false;
-setInterval(async () => {
+if(!native) setInterval(async () => {
   if (accountLocked()) return;
   renderTimer();
   if (ticking || !state || !['focus','break'].includes(state.phase) || remaining(state) > 0) return;
@@ -133,7 +159,7 @@ setInterval(async () => {
   try { await transition(false, state.deadline); } finally { ticking = false; }
 }, 1000);
 window.addEventListener('storage', event => {
-  if (accountLocked() || event.key !== ritualKey()) return;
+  if (native || accountLocked() || event.key !== ritualKey()) return;
   state = readRitual();
   if (!state || state.phase === 'saved') {
     pendingSession = null; attributionOverlay.classList.add('hidden');
@@ -394,12 +420,20 @@ attributionOptions.addEventListener("change", (event) => {
 });
 
 
-async function persistDraft() {
-  if (!pendingSession || saving) return;
+async function persistDraft(force=false) {
+  if (!pendingSession || (saving && !force)) return;
   const id = pendingSession.client_id;
   const tasks = !optionsReady ? (state?.selections || []) : [...currentAttributionSelections()].filter(([,value]) => value.worked).map(([task_id,value]) => ({task_id, completed:value.finished}));
   const draft = {summary: sessionSummary.value, selections:tasks, draftTask:'', draftDestination:'__tasks__', draftGroup:'', draftGroupType:'project'};
   if (accountLocked()) return;
+  if(native) {
+    // Serialize snapshots so an older keystroke cannot overwrite a later draft.
+    const write=nativeDraftWrites.catch(()=>{}).then(()=>nativeCall('timer',{action:'draft',id,summary:draft.summary,selections:draft.selections}));
+    nativeDraftWrites=write;
+    const updated=await write;
+    if(state?.id===id && updated?.id===id)state=updated;
+    return;
+  }
   localStorage.setItem(ritualDraftKey(), JSON.stringify({ritualId:id, ...draft}));
   await mutate(latest => latest?.id === id && latest.phase !== 'saved' ? {...latest, ...draft} : undefined);
 }
@@ -413,20 +447,21 @@ function lockForm(locked) { attributionForm.querySelectorAll('input, textarea, s
 attributionForm.addEventListener('submit', async event => {
   event.preventDefault();
   if (!pendingSession || saving) return;
-  await persistDraft();
   const id = pendingSession.client_id;
   saving = true; lockForm(true); saveSessionButton.textContent = 'Saving…'; attributionError.textContent = '';
   try {
-    await mutate(latest => latest?.id === id ? {...latest, phase:'saving'} : undefined);
+    await persistDraft(true);
+    if(!native) await mutate(latest => latest?.id === id ? {...latest, phase:'saving'} : undefined);
     if (!state || state.id !== id || state.phase === 'saved') throw new Error('This ritual changed in another window. Reopen it to continue.');
     await api('/sessions', {method:'POST', body:JSON.stringify(payload(state))});
-    await mutate(latest => latest?.id === id ? {...latest, phase:'saved', summary:'', selections:[], draftTask:'', draftGroup:''} : undefined);
+    if(native) {state=null;renderTimer();}
+    else await mutate(latest => latest?.id === id ? {...latest, phase:'saved', summary:'', selections:[], draftTask:'', draftGroup:''} : undefined);
     pendingSession = null; attributionOverlay.classList.add('hidden'); syncModal();
     showToast('Session saved.');
     document.getElementById('start-pomodoro').focus();
     loadDashboard();
   } catch(error) {
-    await mutate(latest => latest?.id === id && latest.phase !== 'saved' ? {...latest, phase:'awaiting-attribution'} : undefined);
+    if(!native) await mutate(latest => latest?.id === id && latest.phase !== 'saved' ? {...latest, phase:'awaiting-attribution'} : undefined);
     attributionError.textContent = `${error.message} Your ritual is saved on this device; retry when ready.`;
   } finally { saving = false; lockForm(false); saveSessionButton.textContent = 'Save session'; }
 });
@@ -439,9 +474,38 @@ document.getElementById('attribution-later').addEventListener('click', closeAttr
 document.getElementById('discard-session').addEventListener('click', async () => {
   if (saving || !window.confirm('Discard this unsaved ritual and its reflection?')) return;
   const id = pendingSession?.client_id;
-  await mutate(latest => latest?.id === id ? null : undefined);
+  if(native) {if(!await nativeCommand('discard'))return;}
+  else await mutate(latest => latest?.id === id ? null : undefined);
   pendingSession = null; attributionOverlay.classList.add('hidden'); syncModal();
   document.getElementById('start-pomodoro').focus();
+});
+async function nativeCommand(action) {
+  if(nativeCommandBusy) return false;
+  nativeCommandBusy=true;
+  try { applyNativeTimer(await nativeCall('timer',{action,id:state?.id}));return true; }
+  catch(error) {showToast(error.message,true);return false;}
+  finally {nativeCommandBusy=false;renderTimer();}
+}
+function applyNativeTimer(next) {
+  const before=state;
+  state=next;
+  const reviewing=state && ['awaiting-attribution','saving'].includes(state.phase);
+  if(reviewing) {
+    pendingSession=payload(state);
+    if(!saving && (!before || before.id!==state.id || !['awaiting-attribution','saving'].includes(before.phase))) openAttributionModal();
+  } else if(!state) {
+    pendingSession=null;attributionOverlay.classList.add('hidden');
+  }
+  renderTimer();
+}
+if(native)window.addEventListener('flowlist:native-open-timer',openTimer);
+if(native) onNativeState(snapshot=>{
+  if(validSettings(snapshot.settings) && JSON.stringify(snapshot.settings)!==JSON.stringify(timerSettings)) {
+    timerSettings=snapshot.settings;
+    // A menu-bar settings change updates the card, without overwriting an open settings draft.
+    if(timerSettingsOverlay.classList.contains('hidden'))renderSettings();
+  }
+  applyNativeTimer(snapshot.timer);
 });
 renderSettings(); renderTimer();
 if (pendingSession) openAttributionModal();

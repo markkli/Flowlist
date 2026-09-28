@@ -1,0 +1,5 @@
+// Copy this file to Signing.local.xcconfig, then replace YOUR_TEAM_ID.
+// Use the same team for the main app and its widget extension.
+DEVELOPMENT_TEAM = YOUR_TEAM_ID
+CODE_SIGN_STYLE = Automatic
+CODE_SIGN_IDENTITY = Apple Development
