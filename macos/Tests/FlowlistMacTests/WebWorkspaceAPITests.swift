@@ -137,7 +137,7 @@ private final class APITransport: URLProtocol {
         #expect(restored.plan.projects[0].tasks[0].id < task.id)
     }
 
-    @Test func cloudAllowlistPreservesJSONAndOnlyFallsBackForTransportFailure() async throws {
+    @Test func cloudAllowlistAndCacheAreAccountScoped() async throws {
         let identity = CloudIdentity(id: "ac232c37-873e-4827-b6de-cd9424e6511f", email: "test@example.invalid")
         let configuration = URLSessionConfiguration.ephemeral; configuration.protocolClasses = [APITransport.self]
         let client = CloudClient(transport: URLSession(configuration: configuration), vault: APIAuthVault())
@@ -156,9 +156,125 @@ private final class APITransport: URLProtocol {
         let cached = try #require(try await api.request(path: "/stats") as? [String: Any])
         #expect(cached["total_minutes"] as? Int == 60)
         APITransport.respond = { _ in (403, #"{"detail":"Account access revoked"}"#) }
-        await #expect(throws: (any Error).self) { _ = try await api.request(path: "/stats") }
+        // Authenticated local reads remain available while revalidation runs.
+        #expect((try await api.request(path: "/stats") as? [String: Any])?["total_minutes"] as? Int == 60)
         store.account = CloudIdentity(id: UUID().uuidString, email: "other@example.invalid")
         APITransport.respond = { _ in throw URLError(.notConnectedToInternet) }
         await #expect(throws: (any Error).self) { _ = try await api.request(path: "/stats") }
     }
+
+    private func signedStore() throws -> TimerStore {
+        let identity = CloudIdentity(id: "ac232c37-873e-4827-b6de-cd9424e6511f", email: "test@example.invalid")
+        let configuration = URLSessionConfiguration.ephemeral; configuration.protocolClasses = [APITransport.self]
+        let client = CloudClient(transport: URLSession(configuration: configuration), vault: APIAuthVault())
+        try client.install(CloudCredentials(accessToken: "test-token", refreshToken: "test-refresh", expiresAt: Date().addingTimeInterval(3600), user: identity, configuration: PublicConfiguration(authMode: "supabase", supabaseUrl: "https://example.supabase.co", supabaseKey: "sb_publishable_test")))
+        var workspace = LocalWorkspace();var plan = PlanCache();plan.refreshedAt = Date();workspace.plan = plan
+        let store = TimerStore(preview: workspace, client: client);store.account = identity
+        store.busy = true // Tests explicitly control the worker, not the UI save.
+        return store
+    }
+
+    @Test func localPlanEditsAreAtomicOfflineAndResolveDependentIDsInOrder() async throws {
+        let store = try signedStore(), api = WebWorkspaceAPI(store: try signedStore())
+        let local = WebWorkspaceAPI(store: store)
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        store.file = WorkspaceFile(url: folder.appendingPathComponent("workspace.json"))
+        APITransport.respond = { _ in Issue.record("A local edit must not wait on HTTP");throw URLError(.notConnectedToInternet) }
+        let goal = try #require(try await local.request(path: "/goals/with-task", method: "POST", body: ["title": "Research", "task": ["title": "Read"]]) as? [String: Any])
+        let goalID = goal["id"] as! Int, taskID = (goal["tasks"] as! [[String:Any]])[0]["id"] as! Int
+        let child = try #require(try await local.request(path: "/tasks/\(taskID)/subtasks", method: "POST", body: ["title": "Abstract"]) as? [String:Any])
+        let childID = child["id"] as! Int
+        _ = try await local.request(path: "/queue/\(childID)", method: "POST")
+        #expect(store.workspace.planOutbox?.count == 4)
+        let restored = try store.file!.load()
+        #expect(restored == store.workspace)
+        #expect((try await local.request(path: "/goals?include_tasks=true") as? [[String:Any]])?.count == 1)
+        #expect((try await api.request(path: "/goals") as? [[String:Any]])?.isEmpty == true)
+        store.change { state in
+            let project = state.plan!.projects[0], task = project.tasks[1]
+            state.timer.start(configuration: state.configuration, at: Date().addingTimeInterval(-60))
+            state.timer.finish(at: Date());state.selections = [WorkSelection(task: task, project: project)]
+            state.saveSession(upload: true)
+            state.selections = [WorkSelection(task: task, project: project)]
+        }
+        var paths: [String] = []
+        APITransport.respond = { request in
+            let path = request.url!.path;paths.append(path)
+            switch path {
+            case "/api/goals": return (200, #"{"id":101}"#)
+            case "/api/goals/101/tasks": return (200, #"{"id":201,"goal_id":101}"#)
+            case "/api/tasks/201/subtasks": return (200, #"{"id":202,"goal_id":101}"#)
+            case "/api/queue/202": return (200, "[]")
+            default: Issue.record("Unexpected request \(path)");return (400,"{}")
+            }
+        }
+        try await store.drainPlanOutbox(owner: store.account!.id)
+        #expect(paths == ["/api/goals","/api/goals/101/tasks","/api/tasks/201/subtasks","/api/queue/202"])
+        #expect(store.plan.projects[0].id == 101 && store.plan.projects[0].tasks[1].parentId == 201)
+        #expect(store.plan.priorityIds == [202] && store.workspace.planOutbox?.isEmpty == true)
+        #expect(store.workspace.sessions[0].selections?[0].taskId == 202)
+        #expect(store.workspace.selections?[0].taskId == 202)
+        _ = try await local.request(path: "/tasks/\(childID)", method: "PATCH", body: ["completed": true])
+        #expect(store.plan.projects[0].tasks[1].completed)
+        #expect(store.workspace.planIDAliases?[String(goalID)] == 101)
+    }
+
+    @Test func uncertainCreationIsNotAutomaticallyRetriedAfterAnInterruptedUpload() async throws {
+        let store = try signedStore()
+        let local = WebWorkspaceAPI(store: store)
+        _ = try await local.request(path: "/standalone-tasks", method: "POST", body: ["title": "Keep me"])
+        var calls = 0
+        APITransport.respond = { _ in calls += 1;throw URLError(.networkConnectionLost) }
+        await #expect(throws: (any Error).self) { try await store.drainPlanOutbox(owner: store.account!.id) }
+        #expect(store.workspace.planOutbox?.first?.uncertain == true)
+        let restored = try JSONDecoder().decode(LocalWorkspace.self, from: JSONEncoder().encode(store.workspace))
+        store.workspace = restored
+        await #expect(throws: (any Error).self) { try await store.drainPlanOutbox(owner: store.account!.id) }
+        #expect(calls == 1 && store.plan.projects[0].tasks[0].title == "Keep me")
+    }
+
+    @Test func definitelyOfflineCreationCanRetryAndDiskFailureDoesNotAcknowledgeSave() async throws {
+        let store = try signedStore()
+        let api = WebWorkspaceAPI(store: store)
+        _ = try await api.request(path: "/standalone-tasks", method: "POST", body: ["title": "Offline"])
+        APITransport.respond = { _ in throw URLError(.notConnectedToInternet) }
+        await #expect(throws: (any Error).self) { try await store.drainPlanOutbox(owner: store.account!.id) }
+        #expect(store.workspace.planOutbox?.first?.uncertain == false)
+        APITransport.respond = { _ in (200, #"{"id":9,"goal_id":8}"#) }
+        try await store.drainPlanOutbox(owner: store.account!.id)
+        #expect(store.plan.projects[0].id == 8 && store.plan.projects[0].tasks[0].id == 9)
+        let before = store.workspace
+        store.file = WorkspaceFile(url: URL(fileURLWithPath: "/dev/null/cannot-save.json"))
+        await #expect(throws: (any Error).self) { _ = try await api.request(path: "/goals", method: "POST", body: ["title":"Must not appear"]) }
+        #expect(store.workspace == before)
+    }
+
+    @Test func deletingAnOfflineTaskUploadsItsFocusRecordBeforeDeletingTheCloudTask() async throws {
+        let store = try signedStore()
+        let local = WebWorkspaceAPI(store: store)
+        _ = try await local.request(path: "/goals/with-task", method: "POST", body: ["title":"Learn", "task":["title":"Read"]])
+        let taskID = store.plan.projects[0].tasks[0].id
+        store.change { state in
+            state.timer.start(configuration: state.configuration, at: Date().addingTimeInterval(-60))
+            state.timer.finish(at: Date())
+            state.selections = [WorkSelection(task: state.plan!.projects[0].tasks[0], project: state.plan!.projects[0])]
+            state.saveSession(upload: true)
+        }
+        _ = try await local.request(path: "/tasks/\(taskID)", method:"DELETE")
+        var order: [String] = []
+        APITransport.respond = { request in
+            let path = request.url!.path;order.append(path)
+            if path == "/api/goals" {return (200,#"{"id":10}"#)}
+            if path == "/api/goals/10/tasks" {return (200,#"{"id":20}"#)}
+            if path == "/api/sessions" {return (200,#"{"id":30,"task_title":"Read","actual_minutes":1,"created_at":"2026-09-28T12:00:00Z","revision":0,"blocks":[],"attributions":[]}"#)}
+            if path == "/api/tasks/20" {return (200,"{}")}
+            Issue.record("Unexpected path \(path)");return (400,"{}")
+        }
+        try await store.drainPlanOutbox(owner: store.account!.id)
+        #expect(order == ["/api/goals", "/api/goals/10/tasks", "/api/sessions", "/api/tasks/20"])
+        #expect(store.workspace.sessions[0].needsUpload == false)
+        #expect(store.plan.projects[0].tasks.isEmpty)
+    }
+
 }

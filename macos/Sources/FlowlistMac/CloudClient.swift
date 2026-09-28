@@ -10,6 +10,7 @@ struct CloudFailure: LocalizedError {
     let message: String
     var status = 0
     var isTransport = false
+    var definitelyUnsent = false
     var errorDescription: String? { message }
 }
 struct PublicConfiguration: Codable {
@@ -219,7 +220,10 @@ private final class NoRedirects: NSObject, URLSessionTaskDelegate {
         if let key { request.setValue(key, forHTTPHeaderField: "apikey") }
         let data: Data, response: URLResponse
         do { (data, response) = try await transport.data(for: request) }
-        catch { throw CloudFailure(message: "Couldn’t connect. Your local work is safe; check your connection and retry.", isTransport: true) }
+        catch {
+            let unsent: Set<URLError.Code> = [.notConnectedToInternet, .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed]
+            throw CloudFailure(message: "Couldn’t connect. Your local work is safe; check your connection and retry.", isTransport: true, definitelyUnsent: (error as? URLError).map { unsent.contains($0.code) } ?? false)
+        }
         guard let http = response as? HTTPURLResponse else { throw CloudFailure(message: "The server returned an invalid response.") }
         guard (200...299).contains(http.statusCode) else {
             let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]

@@ -173,3 +173,6 @@
 @media(max-width:520px) { .task-priority { width:36px; min-height:44px; } }
 
 .example-badge { color:var(--forest); padding:2px 7px; border:1px solid var(--border-strong); border-radius:5px; font-size:10px; }
+
+.plan-create-options { display:flex; flex-wrap:wrap; gap:6px; border-radius:8px; }
+@media(max-width:520px) { .plan-create-options { flex:1; } }

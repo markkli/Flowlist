@@ -11,10 +11,14 @@ public struct LocalWorkspace: Codable, Equatable, Sendable {
     public var soundEnabled = true
     public var showMenuTime = true
     public var reminderPromptSeen = false
+    public var planOutbox: [PlanChange]?
+    public var planIDAliases: [String: Int]?
+    public var planRevision: Int?
     public var plan: PlanCache?
     public var selections: [WorkSelection]?
     public var cloudHistory: [RemoteSession]?
     public var webOnboardingVersion: Int?
+    public var webCacheOwner: String?
     public var webResponseCache: [String: Data]?
     public var webHistoryMetadata: [String: WebHistoryMetadata]?
     public init() {}

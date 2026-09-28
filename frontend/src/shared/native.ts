@@ -2,6 +2,10 @@ import type { Ritual, TimerSettings } from '../features/timer/state';
 export interface NativeTimer extends Ritual { nativePhase: string; paused: boolean; remainingSeconds: number }
 export interface NativeState {
   account: {id:string; email:string} | null;
+  needsSignIn?:boolean;
+  planPendingCount?:number;
+  planSyncIssue?:string|null;
+  planSyncUncertain?:boolean;
   onboarding?: {version:number | null};
   timer: NativeTimer | null;
   settings: TimerSettings;

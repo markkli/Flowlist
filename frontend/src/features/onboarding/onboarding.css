@@ -51,4 +51,4 @@
 .guide-priority-demo .task-priority { position:static; flex-shrink:0; opacity:1; }
 
 #guide-backdrop { position:fixed; inset:0; z-index:0; pointer-events:none; }
-#guide-backdrop i { position:fixed; background:#0009; }
+#guide-backdrop i { position:fixed; background:transparent; box-shadow:0 0 0 9999px #0009; }

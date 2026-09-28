@@ -8,24 +8,56 @@ import FlowlistCore
 /// user-supplied URL. Credentials remain in CloudClient and Keychain.
 @MainActor final class WebWorkspaceAPI {
     let store: TimerStore
+    private var cacheGeneration = 0
+    private var refreshedPaths: [String: Date] = [:]
+    private var recording: (String, String, [String: Any])?
     init(store: TimerStore) { self.store = store }
 
     func request(path: String, method: String = "GET", body: [String: Any]? = nil) async throws -> Any {
         let method = method.uppercased()
+        let translated = store.translatePlanRequest(path: path, body: body ?? [:])
+        let path = translated.0, body = translated.1
         let route = try Route(path: path, method: method)
         if route.parts == ["account", "onboarding"] {
-            guard let version = body?["version"] as? Int, version >= 1, version <= 10000 else { throw failure("Choose a valid Guide version.", 422) }
+            guard let version = body["version"] as? Int, version >= 1, version <= 10000 else { throw failure("Choose a valid Guide version.", 422) }
             guard store.change({ $0.webOnboardingVersion = version }) else { throw storageFailure() }
             return ["version": version]
         }
-        guard let owner = store.account?.id else { return try local(route, body ?? [:]) }
+        guard let owner = store.account?.id else { return try local(route, body) }
+        let planRoute = ["goals", "tasks", "standalone-tasks", "queue", "focus-options", "next-focus"].contains(route.parts.first ?? "") || route.parts == ["history", "task-options"]
+        if route.parts.first == "guide" {
+            // Practice mode never creates surprise cloud projects on old servers.
+            throw failure("Guide practice mode", 404)
+        }
+        if planRoute {
+            if store.workspace.plan?.refreshedAt == nil && (store.workspace.planOutbox ?? []).isEmpty {
+                try await store.fetchPlan(owner: owner)
+            }
+            guard store.account?.id == owner else { throw failure("The account changed. Refresh the workspace.", 409) }
+            if method != "GET" { recording = (path, method, body) }
+            defer { recording = nil }
+            let value = try local(route, body)
+            if method != "GET" { Task { await store.sync() } }
+            return value
+        }
+        // Previously visited views render immediately; the periodic sync refreshes
+        // their cloud data. Plan and priorities always use the local authority.
+        if method == "GET", route.parts != ["account"], store.workspace.webCacheOwner == owner, let data = store.workspace.webResponseCache?[path],
+           let value = try? JSONSerialization.jsonObject(with: data) {
+            refreshCachedRead(path: path, owner: owner, route: route)
+            return localPlanOverlay(value, route: route)
+        }
+        if method != "GET" { cacheGeneration += 1 }
+        let generation = cacheGeneration
         do {
-            let payload = try body.map { try JSONSerialization.data(withJSONObject: $0) }
+            let payload = method == "GET" ? nil : try JSONSerialization.data(withJSONObject: body)
             let response = try await store.cloud.requestJSON(path, method: method, body: payload, owner: owner)
             guard store.account?.id == owner else { throw failure("The account changed. Refresh the workspace.", 409) }
             if method == "GET" {
-                cache(response, path: path)
-                updateNativeCache(response, route: route)
+                if generation == cacheGeneration {
+                    cache(response, path: path)
+                    if route.parts.first != "dashboard" { updateNativeCache(response, route: route) }
+                }
             } else {
                 store.change { $0.webResponseCache = nil }
                 if ["goals", "tasks", "standalone-tasks", "queue", "guide"].contains(route.parts.first ?? "") {
@@ -34,11 +66,11 @@ import FlowlistCore
                     updateHistoryCache(response, route: route)
                 }
             }
-            return response
+            return localPlanOverlay(response, route: route)
         } catch let error as CloudFailure where error.isTransport && method == "GET" && store.account?.id == owner {
             // A 401/403/404, validation failure, malformed response, or account
             // switch must never be disguised as a successful offline read.
-            if let data = store.workspace.webResponseCache?[path] {
+            if store.workspace.webCacheOwner == owner, let data = store.workspace.webResponseCache?[path] {
                 store.syncError = "Offline — showing the last synced workspace."
                 return try JSONSerialization.jsonObject(with: data)
             }
@@ -99,6 +131,20 @@ import FlowlistCore
             if entries.count >= 96 && entries[path] == nil { entries = [:] }
             entries[path] = data
             state.webResponseCache = entries
+            state.webCacheOwner = store.account?.id
+        }
+    }
+    private func refreshCachedRead(path: String, owner: String, route: Route) {
+        guard Date().timeIntervalSince(refreshedPaths[path] ?? .distantPast) > 60 else { return }
+        refreshedPaths[path] = Date()
+        let generation = cacheGeneration
+        Task {
+            do {
+                let response = try await store.cloud.requestJSON(path, owner: owner)
+                guard store.account?.id == owner, cacheGeneration == generation else { return }
+                cache(response, path: path)
+                if route.parts.first != "dashboard" { updateNativeCache(response, route: route) }
+            } catch { if store.account?.id == owner { store.syncError = error.localizedDescription } }
         }
     }
     private func updateNativeCache(_ value: Any, route: Route) {
@@ -349,7 +395,38 @@ import FlowlistCore
             return row
         }
     }
-    private func commit(_ workspace: LocalWorkspace) throws { guard store.change({ $0 = workspace }) else { throw storageFailure() } }
+    private func commit(_ workspace: LocalWorkspace) throws {
+        var next = workspace
+        if let (path, method, body) = recording {
+            next.planOutbox = (next.planOutbox ?? []) + (try planChanges(path: path, method: method, body: body, before: store.plan, after: next.planForEditing))
+            next.planRevision = (next.planRevision ?? 0) + 1
+        }
+        guard store.change({ $0 = next }) else { throw storageFailure() }
+    }
+    private func localPlanOverlay(_ response: Any, route: Route) -> Any {
+        guard route.parts == ["dashboard"], var value = response as? [String: Any] else { return response }
+        value["queue"] = queueJSON(store.plan)
+        value["goals"] = sortedProjects(store.plan).filter { !$0.completed }.map { ["goal": goalJSON($0), "tasks": $0.tasks.sorted(by: taskOrder).map(taskJSON)] }
+        return value
+    }
+    private func planChanges(path: String, method: String, body: [String: Any], before: PlanCache, after: PlanCache) throws -> [PlanChange] {
+        let oldGoals = Set(before.projects.map(\.id)), oldTasks = Set(before.projects.flatMap { $0.tasks.map(\.id) })
+        let goal = after.projects.first { !oldGoals.contains($0.id) }
+        let task = after.projects.flatMap(\.tasks).first { !oldTasks.contains($0.id) }
+        func change(_ path: String, _ body: [String: Any], _ bindings: [String: Int]) throws -> PlanChange {
+            var item = PlanChange(path: path, method: method, body: try JSONSerialization.data(withJSONObject: body), bindings: bindings)
+            if method == "DELETE" { item.deletedTaskIDs = Array(oldTasks.subtracting(Set(after.projects.flatMap { $0.tasks.map(\.id) }))) }
+            return item
+        }
+        if path == "/goals/with-task", let goal, let task {
+            return [try change("/goals", ["title": goal.title, "goal_type": "project"], ["id": goal.id]),
+                    try change("/goals/\(goal.id)/tasks", ["title": task.title], ["id": task.id])]
+        }
+        var bindings: [String: Int] = [:]
+        if let task { bindings["id"] = task.id; if let goal { bindings["goal_id"] = goal.id } }
+        else if let goal { bindings["id"] = goal.id }
+        return [try change(path, body, bindings)]
+    }
     private func failure(_ message: String, _ status: Int = 400) -> CloudFailure { CloudFailure(message: message, status: status) }
     private func storageFailure() -> CloudFailure { failure(store.error ?? "Couldn’t save on this Mac. Try again.", 507) }
     private func title(_ body: [String: Any]) throws -> String {

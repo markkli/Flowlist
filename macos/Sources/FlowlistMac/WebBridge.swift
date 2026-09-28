@@ -47,6 +47,10 @@ import FlowlistCore
     }
     func bootstrap() -> [String: Any] {
         ["account": store.account.map { ["id": $0.id, "email": $0.email] } as Any? ?? NSNull(),
+         "needsSignIn": store.account == nil && !UserDefaults.standard.bool(forKey: "flowlist.welcome.seen") && store.workspace.sessions.isEmpty && store.plan.projects.isEmpty && store.workspace.webOnboardingVersion == nil,
+         "planPendingCount": store.workspace.planOutbox?.count ?? 0,
+         "planSyncIssue": store.workspace.planOutbox?.first?.error as Any? ?? NSNull(),
+         "planSyncUncertain": store.workspace.planOutbox?.first?.uncertain == true,
          "onboarding": ["version": store.workspace.webOnboardingVersion as Any? ?? NSNull()],
          "timer": timerSnapshot(), "settings": settings(store.workspace.configuration), "preferences": preferences,
          "notifications": store.permission == .notDetermined ? "default" : store.permission == .denied ? "denied" : "granted",
@@ -99,6 +103,8 @@ import FlowlistCore
             case "disconnect":
                 guard store.canSwitchAccount else { throw CloudFailure(message: "Save or discard your current session before signing out.") }
                 store.disconnect()
+            case "continueLocal": UserDefaults.standard.set(true, forKey: "flowlist.welcome.seen")
+            case "retryPlan": try await store.retryPlanChanges(confirmUncertain: message["confirmUncertain"] as? Bool == true)
             case "sync": await store.sync()
             case "settings": openSettings?()
             default: throw invalid()
@@ -163,7 +169,8 @@ import FlowlistCore
                   let summary = message["summary"] as? String, summary.count <= 2000,
                   let selections = message["selections"] as? [[String: Any]], selections.count <= 300 else { throw invalid() }
             var work: [WorkSelection] = []
-            for value in selections {
+            for rawValue in selections {
+                let value = store.translatePlanRequest(path: "", body: rawValue).1
                 guard let id = value["task_id"] as? Int, let completed = value["completed"] as? Bool,
                       !work.contains(where: { $0.taskId == id }),
                       let project = store.plan.projects.first(where: { $0.tasks.contains { $0.id == id } }),

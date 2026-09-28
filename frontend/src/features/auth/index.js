@@ -1,4 +1,4 @@
-import { isNative, bootstrapNative, nativeCall } from '../../shared/native';
+import { isNative, bootstrapNative, nativeCall, onNativeState } from '../../shared/native';
 import { createClient } from '@supabase/supabase-js';
 import { configureAccount, lockAccount, accountLocked, clearAccountDrafts, accountKey } from '../../shared/account';
 import './auth.css';
@@ -200,6 +200,23 @@ export async function initAuth() {
 
 async function initNativeAuth() {
   const state=await bootstrapNative();
+  if(state.needsSignIn && !state.account) {
+    el('auth-loading').hidden=true;el('auth-google-option').hidden=false;
+    el('auth-beta-note').textContent='Sign in to sync your work. Changes are saved on this Mac first.';
+    document.querySelector('.auth-privacy').innerHTML='<summary>About your data</summary><p>Your tasks and focus sessions are saved on this Mac. With an account, they sync to your private cloud workspace. Work created without an account stays separate.</p>';
+    const local=document.createElement('button');local.className='text-btn';local.type='button';local.textContent='Continue without an account';
+    el('auth-google-option').after(local);
+    await new Promise(resolve=>{
+      local.onclick=async()=>{await nativeCall('account',{action:'continueLocal'});resolve();};
+      el('auth-google').onclick=async()=>{
+        el('auth-google').disabled=true;local.disabled=true;el('auth-error').textContent='';
+        el('auth-google-label').textContent='Connecting…';
+        try {await nativeCall('account',{action:'connect'});location.reload();}
+        catch(error){el('auth-error').textContent=error.message;el('auth-google').disabled=false;local.disabled=false;el('auth-google-label').textContent='Continue with Google';}
+      };
+    });
+    local.remove();
+  }
   configureAccount(state.account?.id || 'local-mac', null);
   document.documentElement.classList.add('native-app');
   document.body.classList.add('app-ready');
@@ -223,6 +240,23 @@ async function initNativeAuth() {
   if(state.account) {
     const sync=document.createElement('button');sync.type='button';sync.className='text-btn';sync.textContent='Sync now';
     sync.onclick=()=>action(sync,'sync');signout.after(sync);
+    const issue=document.createElement('p');issue.className='field-error';sync.after(issue);
+    const retry=document.createElement('button');retry.type='button';retry.className='text-btn';retry.textContent='Retry pending changes';issue.after(retry);
+    let current=state;
+    const renderSync=value=>{
+      current=value;
+      const pending=(value.planPendingCount||0)+(value.pendingCount||0);
+      el('connection-label').textContent=value.planSyncIssue?'Sync needs attention':value.syncing?'Syncing…':pending?'Saved on Mac · sync pending':'Synced';
+      issue.textContent=value.planSyncIssue||(pending?value.error:'')||'';retry.hidden=!issue.textContent;
+      sync.disabled=Boolean(value.syncing);retry.disabled=Boolean(value.syncing);
+    };
+    retry.onclick=async()=>{
+      if(current.planSyncUncertain&&!window.confirm('The last upload may already exist on the website. Check it before retrying. Retry anyway? This could create a duplicate.'))return;
+      retry.disabled=true;
+      try{await nativeCall('account',{action:'retryPlan',confirmUncertain:current.planSyncUncertain===true});}
+      catch(failure){error.textContent=failure.message;}finally{retry.disabled=false;}
+    };
+    onNativeState(renderSync);renderSync(state);
   }
   const settings=document.createElement('button');settings.type='button';settings.className='text-btn';settings.textContent='Mac settings';
   settings.onclick=()=>action(settings,'settings');deleteSection.before(settings);

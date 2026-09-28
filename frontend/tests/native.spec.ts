@@ -205,3 +205,17 @@ test('signed-in Mac Guide works when the deployed beta lacks the example endpoin
  await expect(page.locator('#onboarding-overlay')).toBeHidden();
  await page.locator('#nav-dashboard').click();await expect(page.locator('#timer-settings-toggle')).toBeVisible();
 });
+
+test('a fresh Mac prompts for sign-in before Guide and offers an explicit local choice',async({page},testInfo)=>{
+ await installBridge(page);
+ await page.addInitScript(()=>{(window as any).__nativeHost.needsSignIn=true;});
+ await page.goto('/');
+ await expect(page.getByRole('button',{name:'Continue with Google',exact:true}).first()).toBeVisible();
+ await expect(page.locator('#auth-beta-note')).toContainText('saved on this Mac first');
+ await page.screenshot({animations:'disabled',path:testInfo.outputPath('first-launch.png')});
+ await expect(page.locator('#onboarding-overlay')).toBeHidden();
+ await page.getByRole('button',{name:'Continue without an account',exact:true}).click();
+ await expect(page.locator('#auth-screen')).toBeHidden();
+ await expect(page.locator('#start-pomodoro')).toBeVisible();
+ expect(await page.evaluate(()=>(window as any).__nativeCalls.some((call:any)=>call.op==='account'&&call.action==='continueLocal'))).toBe(true);
+});

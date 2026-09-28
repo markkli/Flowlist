@@ -29,6 +29,7 @@ struct IgnoredResponse: Decodable {}
             let loaded = try target.load()
             try cloud.install(credentials)
             file = target; workspace = loaded; account = credentials.user
+            UserDefaults.standard.set(true, forKey: "flowlist.welcome.seen")
             error = nil; syncError = nil; lastSynced = nil; historyHasMore = true
             tick(); refreshReminders(); publishWidget()
             await sync()
@@ -48,33 +49,13 @@ struct IgnoredResponse: Decodable {}
     func sync() async {
         guard let owner = account?.id, !busy, !storageUnavailable else { return }
         busy = true; lastSyncAttempt = Date(); syncError = nil
-        defer { busy = false }
+        defer {
+            busy = false
+            if syncError == nil && !(workspace.planOutbox ?? []).isEmpty { Task { await self.sync() } }
+        }
         do {
-            // Always upload the persisted snapshot. Its UUID makes transport retries safe.
-            let pending = workspace.sessions.filter { $0.needsUpload == true }
-            for session in pending {
-                do {
-                    let saved: RemoteSession = try await cloud.request("/sessions", method: "POST", body: CloudJSON.encoder().encode(SessionUpload(session: session)), owner: owner)
-                    guard account?.id == owner else { return }
-                    guard change({ state in
-                        if let i = state.sessions.firstIndex(where: { $0.id == session.id }) {
-                            state.sessions[i].needsUpload = false; state.sessions[i].remoteId = saved.id
-                            state.sessions[i].uploadError = nil; state.sessions[i].uploadErrorCode = nil
-                        }
-                        state.cloudHistory = [saved] + (state.cloudHistory ?? []).filter { $0.id != saved.id }
-                    }) else { return }
-                } catch {
-                    guard account?.id == owner else { return }
-                    let status = (error as? CloudFailure)?.status ?? 0
-                    change { state in
-                        if let i = state.sessions.firstIndex(where: { $0.id == session.id }) {
-                            state.sessions[i].uploadError = error.localizedDescription
-                            state.sessions[i].uploadErrorCode = status
-                        }
-                    }
-                    if status != 404 && status != 422 { throw error }
-                }
-            }
+            try await drainPlanOutbox(owner: owner)
+            try await uploadPendingSessions(owner: owner)
             try await fetchPlan(owner: owner)
             let sessions: [RemoteSession] = try await cloud.request("/sessions?limit=100", owner: owner)
             guard account?.id == owner else { return }
@@ -93,15 +74,47 @@ struct IgnoredResponse: Decodable {}
             Task { await self.sync() }
         }
     }
-    private func fetchPlan(owner: String) async throws {
+    private func uploadPendingSessions(owner: String, taskIDs: Set<Int>? = nil) async throws {
+        let pending = workspace.sessions.filter { $0.needsUpload == true && (taskIDs == nil || ($0.selections ?? []).contains { taskIDs!.contains($0.taskId) }) }
+        for session in pending {
+            // A focus session can refer to a task created offline. Upload it
+            // only after Plan has assigned the server identity.
+            if (session.selections ?? []).contains(where: { $0.taskId < 0 }) { continue }
+            do {
+                let saved: RemoteSession = try await cloud.request("/sessions", method: "POST", body: CloudJSON.encoder().encode(SessionUpload(session: session)), owner: owner)
+                guard account?.id == owner else { return }
+                guard change({ state in
+                    if let i = state.sessions.firstIndex(where: { $0.id == session.id }) {
+                        state.sessions[i].needsUpload = false; state.sessions[i].remoteId = saved.id
+                        state.sessions[i].uploadError = nil; state.sessions[i].uploadErrorCode = nil
+                    }
+                    state.cloudHistory = [saved] + (state.cloudHistory ?? []).filter { $0.id != saved.id }
+                }) else { return }
+            } catch {
+                guard account?.id == owner else { return }
+                let status = (error as? CloudFailure)?.status ?? 0
+                change { state in
+                    if let i = state.sessions.firstIndex(where: { $0.id == session.id }) {
+                        state.sessions[i].uploadError = error.localizedDescription
+                        state.sessions[i].uploadErrorCode = status
+                    }
+                }
+                if status != 404 && status != 422 { throw error }
+            }
+        }
+    }
+    func fetchPlan(owner: String) async throws {
+        guard (workspace.planOutbox ?? []).isEmpty else { return }
+        let revision = workspace.planRevision ?? 0
         let projects: [PlanProject] = try await cloud.request("/goals?include_tasks=true", owner: owner)
         let queue: [QueueItem] = try await cloud.request("/queue", owner: owner)
-        guard account?.id == owner else { return }
+        guard account?.id == owner, (workspace.planOutbox ?? []).isEmpty, (workspace.planRevision ?? 0) == revision else { return }
         var cache = PlanCache(); cache.projects = projects; cache.priorityIds = queue.map { $0.task.id }; cache.refreshedAt = Date()
         // Keep local completion visible while its session is waiting to upload.
         for session in workspace.sessions where session.needsUpload == true {
             for selection in session.selections ?? [] where selection.completed { cache.setCompleted(selection.taskId, completed: true) }
         }
+        cache.lowestAllocatedId = plan.lowestLocalId
         change { $0.plan = cache }
     }
     func loadOlderHistory() async {
@@ -118,21 +131,15 @@ struct IgnoredResponse: Decodable {}
         } catch { self.error = error.localizedDescription }
     }
     @discardableResult func mutate(_ path: String, method: String, body: [String: Any] = [:], local: (inout PlanCache) -> Void) async -> Bool {
-        guard !busy, !connecting, !storageUnavailable else { return false }
-        guard let owner = account?.id else {
+        guard !connecting, !storageUnavailable else { return false }
+        guard account != nil else {
             var cache = plan; local(&cache)
             return change { $0.plan = cache }
         }
-        busy = true; defer { busy = false }
         do {
-            let _: IgnoredResponse = try await cloud.request(path, method: method, body: JSONSerialization.data(withJSONObject: body), owner: owner)
-            try await fetchPlan(owner: owner)
-            syncError = nil
+            _ = try await WebWorkspaceAPI(store: self).request(path: path, method: method, body: body)
             return true
-        } catch {
-            self.error = error.localizedDescription + " Refresh to check the result before repeating this change."
-            return false
-        }
+        } catch { self.error = error.localizedDescription; return false }
     }
     func setCompleted(_ task: PlanTask, value: Bool) async {
         await mutate("/tasks/\(task.id)", method: "PATCH", body: ["completed": value]) { $0.setCompleted(task.id, completed: value) }
@@ -240,5 +247,79 @@ struct IgnoredResponse: Decodable {}
             let _: IgnoredResponse = try await cloud.request("/sessions/\(session.id)", method: "DELETE", owner: owner)
             change { $0.cloudHistory?.removeAll { $0.id == session.id } }
         } catch { self.error = error.localizedDescription }
+    }
+}
+
+
+@MainActor extension TimerStore {
+    /// Temporary IDs remain accepted by an already-rendered web form after sync.
+    func translatePlanRequest(path: String, body: [String: Any]) -> (String, [String: Any]) {
+        let aliases = workspace.planIDAliases ?? [:]
+        func resolved(_ id: Int) -> Int { aliases[String(id)] ?? id }
+        let parts = path.split(separator: "/", omittingEmptySubsequences: false).map { part -> String in
+            guard let id = Int(part), id < 0 else { return String(part) };return String(resolved(id))
+        }
+        var values = body
+        if let ids = values["ordered_ids"] as? [Int] { values["ordered_ids"] = ids.map(resolved) }
+        for key in ["task_id", "goal_id", "parent_id"] { if let id = values[key] as? Int { values[key] = resolved(id) } }
+        return (parts.joined(separator: "/"), values)
+    }
+    func drainPlanOutbox(owner: String) async throws {
+        while let first = workspace.planOutbox?.first {
+            guard account?.id == owner else { return }
+            if first.uncertain || (first.sending && first.createsRecord) {
+                change { $0.planOutbox?[0].uncertain = true; $0.planOutbox?[0].error = "The last upload was interrupted. Check the web workspace before retrying to avoid a duplicate." }
+                throw CloudFailure(message: "Plan sync needs attention. Your changes are saved on this Mac.")
+            }
+            let body = try JSONSerialization.jsonObject(with: first.body) as? [String: Any] ?? [:]
+            let (path, translated) = translatePlanRequest(path: first.path, body: body)
+            // An earlier create must resolve all dependent IDs before transmission.
+            guard !path.split(separator: "/").contains(where: { (Int($0) ?? 0) < 0 }),
+                  !((translated["ordered_ids"] as? [Int]) ?? []).contains(where: { $0 < 0 }) else {
+                throw CloudFailure(message: "A local task is waiting for its project to sync.")
+            }
+            if first.method == "DELETE", let deleted = first.deletedTaskIDs, !deleted.isEmpty {
+                let ids = Set(deleted.map { workspace.planIDAliases?[String($0)] ?? $0 })
+                // Upload the record before deleting its task, so the backend can
+                // retain the task's historical snapshot instead of rejecting it.
+                try await uploadPendingSessions(owner: owner, taskIDs: ids)
+                if workspace.sessions.contains(where: { $0.needsUpload == true && ($0.selections ?? []).contains { ids.contains($0.taskId) } }) {
+                    throw CloudFailure(message: "A saved focus session must sync before its task can be deleted in the cloud.")
+                }
+            }
+            guard change({ $0.planOutbox?[0].sending = true; $0.planOutbox?[0].error = nil }) else { throw CloudFailure(message: "Couldn’t save the sync checkpoint on this Mac.") }
+            do {
+                let value: Any
+                do { value = try await cloud.requestJSON(path, method: first.method, body: try JSONSerialization.data(withJSONObject: translated), owner: owner) }
+                catch let error as CloudFailure where error.status == 404 && first.method == "DELETE" { value = [:] }
+                guard account?.id == owner, workspace.planOutbox?.first?.id == first.id else { return }
+                var aliases: [String: Int] = [:]
+                for (key, localID) in first.bindings {
+                    guard let id = (value as? [String: Any])?[key] as? Int, id > 0 else { throw CloudFailure(message: "The server did not confirm the new item’s identity.") }
+                    aliases[String(localID)] = id
+                }
+                guard change({ state in state.resolvePlanIDs(aliases); state.planOutbox?.removeFirst() }) else { return }
+            } catch {
+                guard account?.id == owner else { return }
+                let failure = error as? CloudFailure
+                let ambiguous = first.createsRecord && !(failure?.definitelyUnsent ?? false) && ((failure?.status ?? 0) == 0 || (failure?.status ?? 0) >= 500)
+                change { state in
+                    state.planOutbox?[0].sending = false
+                    state.planOutbox?[0].uncertain = ambiguous
+                    state.planOutbox?[0].error = ambiguous ? "The server may have received this item. Check the web workspace before retrying to avoid a duplicate." : error.localizedDescription
+                }
+                throw error
+            }
+        }
+    }
+    func retryPlanChanges(confirmUncertain: Bool) async throws {
+        guard !busy else { return }
+        if workspace.planOutbox?.first?.uncertain == true && !confirmUncertain {
+            throw CloudFailure(message: "Check the web workspace before retrying this interrupted upload.", status: 409)
+        }
+        if !(workspace.planOutbox ?? []).isEmpty {
+            guard change({ $0.planOutbox?[0].uncertain = false; $0.planOutbox?[0].sending = false }) else { return }
+        }
+        await sync()
     }
 }

@@ -165,3 +165,44 @@ public enum AccountFiles {
             .appendingPathComponent(uuid.uuidString.lowercased(), isDirectory: true).appendingPathComponent("workspace.json")
     }
 }
+
+/// Persisted in the same atomic file as its optimistic Plan change.
+public struct PlanChange: Codable, Equatable, Sendable {
+    public var id = UUID()
+    public var path: String
+    public var method: String
+    public var body: Data
+    /// Response fields mapped to temporary IDs allocated on this Mac.
+    public var bindings: [String: Int]
+    public var deletedTaskIDs: [Int]?
+    public var sending = false
+    public var error: String?
+    public var uncertain = false
+    public init(path: String, method: String, body: Data, bindings: [String: Int] = [:]) {
+        self.path = path; self.method = method; self.body = body; self.bindings = bindings
+    }
+    public var createsRecord: Bool { !bindings.isEmpty }
+}
+
+extension LocalWorkspace {
+    public mutating func resolvePlanIDs(_ aliases: [String: Int]) {
+        func resolved(_ id: Int) -> Int { aliases[String(id)] ?? id }
+        for gi in plan?.projects.indices ?? 0..<0 {
+            plan!.projects[gi].id = resolved(plan!.projects[gi].id)
+            for ti in plan!.projects[gi].tasks.indices {
+                plan!.projects[gi].tasks[ti].id = resolved(plan!.projects[gi].tasks[ti].id)
+                plan!.projects[gi].tasks[ti].goalId = resolved(plan!.projects[gi].tasks[ti].goalId)
+                plan!.projects[gi].tasks[ti].parentId = plan!.projects[gi].tasks[ti].parentId.map(resolved)
+            }
+        }
+        let priorities = (plan?.priorityIds ?? []).map(resolved)
+        plan?.priorityIds = priorities
+        for i in selections?.indices ?? 0..<0 { selections![i].taskId = resolved(selections![i].taskId) }
+        for si in sessions.indices {
+            for ti in sessions[si].selections?.indices ?? 0..<0 {
+                sessions[si].selections![ti].taskId = resolved(sessions[si].selections![ti].taskId)
+            }
+        }
+        var all = planIDAliases ?? [:];all.merge(aliases) { _, new in new };planIDAliases = all
+    }
+}

@@ -76,7 +76,7 @@
               <div class="panel-heading"><h2>Activity</h2><span class="panel-meta">16 weeks</span></div>
               <div class="stat-strip"><div class="stat"><b id="stat-streak">0</b><span>day streak</span></div><div class="stat"><b id="stat-sessions">0</b><span>sessions</span></div><div class="stat"><b id="stat-minutes">0</b><span>minutes</span></div></div>
               <div class="heatmap" aria-label="Focus activity for the last sixteen weeks"><div class="heatmap-labels" aria-hidden="true"><span>Mon</span><span>Wed</span><span>Fri</span></div><div class="heatmap-content"><div class="heatmap-months" id="heatmap-months"></div><div class="heatmap-grid" id="activity-heatmap"></div></div></div>
-              <div class="heatmap-footer"><span>Less</span><div class="heatmap-scale" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><span>More</span></div>
+              <div class="heatmap-footer"><span>Less</span><div class="heatmap-scale" aria-hidden="true"><i></i><i></i></div><span>More</span></div>
             </article>
             <article class="panel goals-panel"><div class="panel-heading"><h2>Active goals</h2><button class="quiet-link" id="open-roadmap-2">See all</button></div><div class="roadmap-list" id="dashboard-goals"></div></article>
           </div>
@@ -91,8 +91,8 @@
             </div>
             <div class="plan-create-actions" aria-label="Add to plan">
               <span>Create</span>
-              <button type="button" data-goal-create="project"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 6V5a1 1 0 0 1 1-1h4l2 2h6a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6Z"/></svg>Project</button>
-              <button type="button" data-goal-create="standalone"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3.5" y="3.5" width="13" height="13" rx="3"/><path d="m6.5 10 2.5 2.5 4.5-5"/></svg>Task</button>
+              <div class="plan-create-options"><button type="button" data-goal-create="project"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 6V5a1 1 0 0 1 1-1h4l2 2h6a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6Z"/></svg>Project</button>
+              <button type="button" data-goal-create="standalone"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3.5" y="3.5" width="13" height="13" rx="3"/><path d="m6.5 10 2.5 2.5 4.5-5"/></svg>Task</button></div>
             </div>
           </header>
           <div class="roadmap-layout">
@@ -223,7 +223,7 @@
     </section>
   </div>
   <div id="onboarding-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="onboarding-title" aria-describedby="onboarding-description">
-    <div id="guide-backdrop" aria-hidden="true"><i></i><i></i><i></i><i></i></div><div id="guide-tab-highlight" aria-hidden="true" hidden></div><div id="guide-example" role="group" aria-label="Guide example. Nothing is saved." hidden></div><div id="guide-spotlight" aria-hidden="true"></div>
+    <div id="guide-backdrop" aria-hidden="true"><i></i></div><div id="guide-tab-highlight" aria-hidden="true" hidden></div><div id="guide-example" role="group" aria-label="Guide example. Nothing is saved." hidden></div><div id="guide-spotlight" aria-hidden="true"></div>
     <section class="guide-modal"><header class="guide-top"><span><span id="onboarding-tab"></span> · <span id="onboarding-count" aria-live="polite"></span></span><button class="text-btn" id="onboarding-skip" type="button">Close guide</button></header><h2 id="onboarding-title" tabindex="-1"></h2><p id="onboarding-description"></p><div id="guide-priority-preview" hidden></div><fieldset id="guide-example-choice" hidden><legend>Your example project</legend><label><input type="radio" name="guide-example-choice" value="keep" checked> Keep example</label><label><input type="radio" name="guide-example-choice" value="remove"> Remove example</label></fieldset><p id="guide-error" role="alert" hidden></p><footer class="guide-footer"><button class="text-btn" id="onboarding-back" type="button">Back</button><button class="primary-btn" id="onboarding-next" type="button">Next</button></footer></section>
   </div>
   <script type="module" src="/src/main.js"></script>

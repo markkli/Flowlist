@@ -9,7 +9,7 @@ import './onboarding.css';
 
 const VERSION=3;
 const steps=[
-  {view:'goals',target:'.plan-create-actions',title:'Make a plan',description:'Create a Project for related tasks, or a Task for a quick to-do. Each project task can have one level of subtasks.'},
+  {view:'goals',target:'.plan-create-options',title:'Make a plan',description:'Create a Project for related tasks, or a Task for a quick to-do. Each project task can have one level of subtasks.'},
   {view:'goals',priority:true,title:'Star your priorities',description:'Try the star on your example task. It adds the task to Priority tasks on Home, where you can choose and reorder your shortlist.'},
   {view:'dashboard',target:'#start-pomodoro',title:'Start focusing',description:'Press Start focus whenever you’re ready. You do not need to choose a task first; record what you worked on afterward.'},
   {view:'dashboard',target:'#timer-settings-toggle',title:'Set your rhythm',description:'Adjust focus time, breaks, and rounds here. Chimes mark each transition. Enable desktop notifications for reminders while you’re elsewhere.'},
@@ -32,13 +32,11 @@ export function initOnboarding({preferences={},showToast,prepareExample=()=>{},n
   const clamp=(n,min,max)=>Math.max(min,Math.min(n,Math.max(min,max)));
   const active=()=>!overlay.classList.contains('hidden');
   function rememberProgress(){if(required)try{localStorage.setItem(progressKey,String(index));}catch{}}
-  // Keep dimming mounted independently of the moving highlight, including while
-  // the next view loads. Four bands leave the actual page target unobscured.
-  function shade(rect=null) {
-    const left=rect?clamp(rect.left-3,0,innerWidth):0,top=rect?clamp(rect.top-3,0,innerHeight):0;
-    const right=rect?clamp(rect.right+3,0,innerWidth):0,bottom=rect?clamp(rect.bottom+3,0,innerHeight):0;
-    const bands=[[0,0,innerWidth,top],[0,top,left,bottom-top],[right,top,innerWidth-right,bottom-top],[0,bottom,innerWidth,innerHeight-bottom]];
-    shades.forEach((node,i)=>{const [x,y,w,h]=bands[i];node.style.cssText=`left:${x}px;top:${y}px;width:${w}px;height:${h}px`;});
+  // A separate rounded shadow remains mounted even between asynchronous steps.
+  function shade(rect=null,radius='0px') {
+    shades[0].style.cssText=rect
+      ? `left:${rect.left-3}px;top:${rect.top-3}px;width:${rect.width+6}px;height:${rect.height+6}px;border-radius:${radius}`
+      : 'left:-10px;top:-10px;width:0;height:0;border-radius:0';
   }
   function fitExample() {
     if(stage.hidden)return;
@@ -67,9 +65,10 @@ export function initOnboarding({preferences={},showToast,prepareExample=()=>{},n
     const r=target.getBoundingClientRect(),w=card.offsetWidth,h=card.offsetHeight;
     if(!r.width || !r.height){spotlight.hidden=true;return;}
     spotlight.hidden=false;
-    shade(stage.hidden?r:null);
-    const radius=getComputedStyle(target).borderRadius;
-    spotlight.style.cssText=`left:${r.left-3}px;top:${r.top-3}px;width:${r.width+6}px;height:${r.height+6}px;border-radius:${radius==='0px'?'7px':radius}`;
+    const style=getComputedStyle(target);
+    const radius=['borderTopLeftRadius','borderTopRightRadius','borderBottomRightRadius','borderBottomLeftRadius'].map(key=>`${Math.min(parseFloat(style[key])||0,r.width/2,r.height/2)+3}px`).join(' ');
+    shade(stage.hidden?r:null,radius);
+    spotlight.style.cssText=`left:${r.left-3}px;top:${r.top-3}px;width:${r.width+6}px;height:${r.height+6}px;border-radius:${radius}`;
     if(!stage.hidden){
       // On compact windows the example may share the navigation's screen area.
       // Never draw a navigation ring through foreground content.
@@ -126,7 +125,7 @@ export function initOnboarding({preferences={},showToast,prepareExample=()=>{},n
       const button=sample&&document.querySelector(`#goal-${sample.id} .task-priority`);
       if(!sample){target=stage.querySelector('#guide-demo-priority');preview.hidden=false;el('onboarding-description').textContent='Try this example star. In Plan, starring a task adds it to Priority tasks on Home.';}
       else if(button){live=liftPriority(button,overlay,preview);target=live.anchor;}
-      else {target=document.querySelector('.plan-create-actions');el('onboarding-description').textContent='Your example is already complete. Open tasks have a star that adds them to Priority tasks on Home.';}
+      else {target=document.querySelector('.plan-create-options');el('onboarding-description').textContent='Your example is already complete. Open tasks have a star that adds them to Priority tasks on Home.';}
     }else target=document.querySelector(step.target);
     next.disabled=false;back.disabled=index===0;
     centerTarget();title.focus({preventScroll:true});

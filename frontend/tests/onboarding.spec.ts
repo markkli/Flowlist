@@ -40,7 +40,7 @@ async function setup(page: any, { version = 0, failSave = false, id = owner, aut
 
 const guide = (page: any) => page.locator('#onboarding-overlay');
 
-const targets=['.plan-create-actions','.guide-priority-anchor','#start-pomodoro','#timer-settings-toggle','#guide-demo-session-summary','#guide-example-progress','.history-week-navigation'];
+const targets=['.plan-create-options','.guide-priority-anchor','#start-pomodoro','#timer-settings-toggle','#guide-demo-session-summary','#guide-example-progress','.history-week-navigation'];
 async function nextStep(page:any){await page.getByRole('button',{name:'Next',exact:true}).click();await expect(page.getByRole('button',{name:/^(Next|Finish guide)$/})).toBeEnabled();}
 async function finishGuide(page:any){while(await page.getByRole('button',{name:'Next',exact:true}).count())await nextStep(page);await page.getByRole('button',{name:'Finish guide',exact:true}).click();}
 
@@ -136,10 +136,10 @@ for(const [width,height] of [[375,812],[812,375],[1440,900]])test(`guide fits ${
 
 test('highlight follows movement without a resize and adapts after viewport resizing',async({page})=>{
  await setup(page);await page.goto('/');await expect(page.getByRole('button',{name:'Next',exact:true})).toBeEnabled();
- await page.locator('.plan-create-actions').evaluate(node=>(node as HTMLElement).style.transform='translate(9px, 13px)');
- await expect.poll(async()=>{const a=(await page.locator('.plan-create-actions').boundingBox())!,b=(await page.locator('#guide-spotlight').boundingBox())!;return Math.abs(b.x-(a.x-3))+Math.abs(b.y-(a.y-3));}).toBeLessThan(1);
+ await page.locator('.plan-create-options').evaluate(node=>(node as HTMLElement).style.transform='translate(9px, 13px)');
+ await expect.poll(async()=>{const a=(await page.locator('.plan-create-options').boundingBox())!,b=(await page.locator('#guide-spotlight').boundingBox())!;return Math.abs(b.x-(a.x-3))+Math.abs(b.y-(a.y-3));}).toBeLessThan(1);
  await page.setViewportSize({width:375,height:812});
- await expect.poll(async()=>{const a=(await page.locator('.plan-create-actions').boundingBox())!,b=(await page.locator('#guide-spotlight').boundingBox())!;return Math.abs(b.x-(a.x-3))+Math.abs(b.y-(a.y-3));}).toBeLessThan(1);
+ await expect.poll(async()=>{const a=(await page.locator('.plan-create-options').boundingBox())!,b=(await page.locator('#guide-spotlight').boundingBox())!;return Math.abs(b.x-(a.x-3))+Math.abs(b.y-(a.y-3));}).toBeLessThan(1);
 });
 
 
@@ -221,7 +221,7 @@ test('Plan to Home keeps the scrim and does not wait for a slow dashboard respon
  await page.route('**/api/dashboard?**',async route=>{await held;await route.fulfill({json:emptyDashboard});});
  await page.evaluate(()=>{
   (window as any).__shadeAreas=[];
-  function sample(){const bands=[...document.querySelectorAll('#guide-backdrop i')];(window as any).__shadeAreas.push(bands.reduce((sum,node)=>{const r=node.getBoundingClientRect();return sum+r.width*r.height;},0)/(innerWidth*innerHeight));if((window as any).__shadeAreas.length<60)requestAnimationFrame(sample);}
+  function sample(){const node=document.querySelector('#guide-backdrop i')!,r=node.getBoundingClientRect(),style=getComputedStyle(node);(window as any).__shadeAreas.push(style.boxShadow==='none'?0:1-r.width*r.height/(innerWidth*innerHeight));if((window as any).__shadeAreas.length<60)requestAnimationFrame(sample);}
   requestAnimationFrame(sample);
  });
  try {
@@ -232,4 +232,18 @@ test('Plan to Home keeps the scrim and does not wait for a slow dashboard respon
   await expect.poll(()=>page.evaluate(()=>(window as any).__shadeAreas.length)).toBeGreaterThan(5);
   expect(await page.evaluate(()=>Math.min(...(window as any).__shadeAreas))).toBeGreaterThan(.8);
  } finally {release();}
+});
+
+
+test('rounded targets use matching rounded cutouts without rectangular corners',async({page},testInfo)=>{
+ await setup(page);await page.goto('/');
+ for(let step=0;step<7;step++) {
+  if(step)await nextStep(page);
+  if(![0,2,3,6].includes(step))continue;
+  const cutout=page.locator('#guide-backdrop i'),ring=page.locator('#guide-spotlight');
+  expect(await cutout.evaluate(node=>getComputedStyle(node).borderRadius)).toBe(await ring.evaluate(node=>getComputedStyle(node).borderRadius));
+  expect(await cutout.evaluate(node=>getComputedStyle(node).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+  if(step===2 || step===3)expect(await cutout.evaluate(node=>parseFloat(getComputedStyle(node).borderTopLeftRadius))).toBeGreaterThan(20);
+  await page.screenshot({animations:'disabled',path:testInfo.outputPath(`rounded-${step}.png`)});
+ }
 });

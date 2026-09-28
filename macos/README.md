@@ -75,15 +75,31 @@ they do not claim to verify Google's production redirect or macOS Keychain promp
 - Signing in/out switches files; it does **not** upload or import a guest's work.
   Finish/save the active session before switching accounts. Pending account
   uploads stay in that account's file when signed out.
-- Timer/session saving works offline. Signed-in Plan changes require a connection;
-  uncertain mutations are not automatically repeated. Refresh before retrying.
+- Timer/session saving and signed-in Plan edits work offline after the first Plan
+  download. Every Plan edit and its upload command are saved in one atomic file
+  before the UI reports success. Projects, tasks, nested tasks, completion, deletion,
+  order, and priorities sync in the background. Temporary IDs are mapped to server
+  IDs, including references in pending focus sessions and open review drafts.
+- New users see Google sign-in first, with an explicit local-only option. Returning
+  local users and restored accounts are not repeatedly prompted.
+- Sync resolves new Plan items before uploading sessions. Before deleting a task,
+  it uploads pending sessions that reference it to preserve their history. A concurrent local edit prevents
+  an older cloud snapshot from overwriting the local Plan. Field changes are applied
+  in order; this is not collaborative, field-level conflict merging.
+- The existing server has no idempotency keys for task/project creation. Definite
+  offline failures can retry; an interrupted/ambiguous creation is paused rather
+  than automatically duplicated. Account shows the issue and an explicit retry
+  after checking the website. Validation/deletion conflicts remain visible, keep
+  the local data, and require resolution rather than silently discarding the edit.
 - Sync runs at sign-in, save, refresh, app activation, and connectivity recovery.
   Session uploads use the existing server's idempotency key, and history edits use
   revision checks. Missing tasks keep the session pending for explicit resolution.
-- Pending uploads cannot be edited/deleted while their server result is uncertain.
+- Pending session uploads cannot be edited/deleted while their server result is uncertain.
   After acknowledgement, edit the corresponding cloud history record normally.
 - History initially caches 100 records, supports older-page loading, and fetches
-  the displayed calendar window separately. Cached data remains available offline.
+  the displayed calendar window separately. Visited pages read cached data immediately
+  and revalidate in the background. Uncached history and historical-record edits
+  still use the server; the Mac is not yet a complete offline replica of all history.
 
 The **Mac menu, app, and desktop widget share one timer**. The existing web timer
 is still independent: saved work syncs, but an active countdown does not transfer
