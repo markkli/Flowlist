@@ -1,0 +1,89 @@
+import SwiftUI
+
+enum Landscape: String, CaseIterable, Identifiable {
+    case coast, grove, hills
+    var id: String { rawValue }
+    var title: String { switch self { case .coast: "Coast"; case .grove: "Grove"; case .hills: "Hills" } }
+    var accent: Color {
+        switch self {
+        case .coast: Color(red: 0.67, green: 0.82, blue: 0.87)
+        case .grove: Color(red: 0.78, green: 0.83, blue: 0.65)
+        case .hills: Color(red: 0.92, green: 0.78, blue: 0.62)
+        }
+    }
+    var ink: Color {
+        switch self {
+        case .coast: Color(red: 0.07, green: 0.13, blue: 0.16)
+        case .grove: Color(red: 0.12, green: 0.16, blue: 0.10)
+        case .hills: Color(red: 0.20, green: 0.14, blue: 0.10)
+        }
+    }
+}
+
+enum Artwork {
+    static var bundle: Bundle {
+        if Bundle.main.url(forResource: "coast", withExtension: "jpg") != nil { return .main }
+        #if SWIFT_PACKAGE
+        return Bundle.module
+        #else
+        return Bundle.main
+        #endif
+    }
+    private static let images: [String: NSImage] = {
+        var result: [String: NSImage] = [:]
+        for theme in Landscape.allCases {
+            let url = bundle.url(forResource: theme.rawValue, withExtension: "jpg", subdirectory: "Resources")
+                ?? bundle.url(forResource: theme.rawValue, withExtension: "jpg")
+            if let url, let image = NSImage(contentsOf: url) { result[theme.rawValue] = image }
+        }
+        return result
+    }()
+    static func image(_ theme: Landscape) -> NSImage? {
+        images[theme.rawValue]
+    }
+}
+
+struct LandscapeBackground: View {
+    let theme: Landscape
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                theme.ink
+                if let image = Artwork.image(theme) {
+                    Image(nsImage: image).resizable().scaledToFill()
+                        .frame(width: geometry.size.width, height: geometry.size.height).clipped()
+                }
+                LinearGradient(colors: [theme.ink.opacity(0.84), theme.ink.opacity(0.48), .black.opacity(0.5)], startPoint: .leading, endPoint: .bottomTrailing)
+            }
+        }.accessibilityHidden(true)
+    }
+}
+
+struct PrimaryButtonStyle: ButtonStyle {
+    var theme: Landscape
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.font(.system(size: 15, weight: .semibold))
+            .padding(.horizontal, 24).frame(minHeight: 44)
+            .foregroundStyle(theme.ink)
+            .background(theme.accent.opacity(configuration.isPressed ? 0.75 : 1), in: Capsule())
+            .contentShape(Capsule())
+    }
+}
+
+struct FlowlistMark: View {
+    var body: some View {
+        Text("F").font(.system(size: 29, weight: .semibold, design: .serif))
+            .foregroundStyle(Color(red: 0.95, green: 0.92, blue: 0.85))
+            .frame(width: 42, height: 42)
+            .background(Color(red: 0.14, green: 0.15, blue: 0.13), in: RoundedRectangle(cornerRadius: 11))
+            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.white.opacity(0.25)).padding(4))
+            .accessibilityHidden(true)
+    }
+}
+
+func focusDuration(_ seconds: TimeInterval) -> String {
+    let count = Int(seconds)
+    if count < 60 { return "\(count) \(count == 1 ? "second" : "seconds")" }
+    let minutes = count / 60
+    return "\(minutes) \(minutes == 1 ? "minute" : "minutes")"
+}

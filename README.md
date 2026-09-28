@@ -65,6 +65,7 @@ upgrades. `.env` files, database files, logs, builds, and caches are ignored.
 ## Repository structure
 
 ```text
+macos/                  # native local menu bar app, Today window, WidgetKit target
 backend/
   app/
     main.py             # app assembly, CORS, health
@@ -96,6 +97,10 @@ The frontend uses Vite and TypeScript for shared services and timer state.
 Existing view adapters remain ES modules in JavaScript, allowing gradual typing
 without rewriting the interface. FastAPI, SQLAlchemy, Alembic, SQLite for local
 development, and PostgreSQL for the container stack remain in place.
+
+The [Mac companion](macos/README.md) is a native SwiftUI app in this repository.
+Build a local `.app` with `bash macos/scripts/build-local.sh`. Its first prototype
+stores sessions on the Mac; account/cloud synchronization is a separate milestone.
 
 ## Product behavior
 

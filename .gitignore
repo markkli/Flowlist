@@ -34,3 +34,10 @@ frontend/playwright-report/
 
 # Private pre-release database backups
 .local-backups/
+
+# Native Mac build products
+macos/.build/
+macos/build/
+macos/.swiftpm/
+*.xcuserstate
+xcuserdata/
