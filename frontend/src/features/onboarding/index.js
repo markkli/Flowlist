@@ -4,7 +4,7 @@ import { liftPriority } from './live-priority';
 import { accountKey, accountLocked } from '../../shared/account';
 import { syncDialogs, trapFocus } from '../../shared/dom';
 import { readRitual } from '../timer/state';
-import { createReviewExample } from './examples';
+import { createPriorityExample, createReviewExample } from './examples';
 import './onboarding.css';
 
 const VERSION=3;
@@ -22,7 +22,7 @@ export function initOnboarding({preferences={},showToast,prepareExample=()=>{},n
   const el=id=>document.getElementById(id), overlay=el('onboarding-overlay'),trigger=el('help-toggle');
   const card=overlay.querySelector('.guide-modal'),spotlight=el('guide-spotlight'),stage=el('guide-example');
   const preview=el('guide-priority-preview'),choice=el('guide-example-choice'),error=el('guide-error'),tabRing=el('guide-tab-highlight');
-  let sample=null,live=null,preparing=false,finishing=false,prepareId=0;
+  let sample=null,live=null,preparing=false,finishing=false,prepareId=0,preparationFailed=false,deferred=false;
   const title=el('onboarding-title'),next=el('onboarding-next'),back=el('onboarding-back'),closeButton=el('onboarding-skip');
   const storageKey=accountKey('flowlist-onboarding-v2'),progressKey=accountKey('flowlist-guide-progress-v3');
   let acknowledged=Number(preferences.version)>0, index=0, required=false, target=null, example='',loadedView='',returnFocus=trigger,frame,renderId=0;
@@ -86,21 +86,25 @@ export function initOnboarding({preferences={},showToast,prepareExample=()=>{},n
     next.disabled=true;back.disabled=true;
     el('onboarding-count').textContent=`${index+1} / ${steps.length}`;
     el('onboarding-tab').textContent={goals:'Plan',dashboard:'Today',history:'History'}[step.view];
-    choice.hidden=index!==steps.length-1;
+    choice.hidden=index!==steps.length-1||!sample;
+    back.textContent='Back';
     title.textContent=step.title;el('onboarding-description').textContent=step.description;
     next.textContent=index===steps.length-1?'Finish guide':'Next';
     rememberProgress();
     if(loadedView!==step.view)await navigate(step.view);
     if(ticket!==renderId || !active() || accountLocked())return;
     loadedView=step.view;
-    if(example!==step.example) {
-      stage.replaceChildren();example=step.example || '';stage.scrollTop=0;
+    const requestedExample=step.priority&&!sample?'priority':step.example || '';
+    if(example!==requestedExample) {
+      stage.replaceChildren();example=requestedExample;stage.scrollTop=0;
       if(example==='review')createReviewExample(stage,()=>{if(index===5)advance();else {index=5;render();}});
+      if(example==='priority')createPriorityExample(stage,preview);
     }
     stage.hidden=!example;stage.classList.toggle('session-review',example==='review');overlay.classList.toggle('has-example',Boolean(example));
     if(step.priority){
-      const button=document.querySelector(`#goal-${sample.id} .task-priority`);
-      if(button){live=liftPriority(button,overlay,preview);target=live.anchor;}
+      const button=sample&&document.querySelector(`#goal-${sample.id} .task-priority`);
+      if(!sample){target=stage.querySelector('#guide-demo-priority');preview.hidden=false;el('onboarding-description').textContent='Try this example star. In Plan, starring a task adds it to Priority tasks on Today.';}
+      else if(button){live=liftPriority(button,overlay,preview);target=live.anchor;}
       else {target=document.querySelector('.plan-create-actions');el('onboarding-description').textContent='Your example is already complete. Open tasks have a star that adds them to Priority tasks on Today.';}
     }else target=document.querySelector(step.target);
     next.disabled=false;back.disabled=index===0;
@@ -111,26 +115,32 @@ export function initOnboarding({preferences={},showToast,prepareExample=()=>{},n
     if(accountLocked() || !document.body.classList.contains('app-ready') || active())return;
     if([...document.querySelectorAll('.overlay')].some(node=>node!==overlay&&!node.classList.contains('hidden')))return;
     returnFocus=document.activeElement instanceof HTMLElement && document.activeElement!==document.body?document.activeElement:trigger;
-    required=mandatory;index=0;loadedView='';sample=null;choice.querySelector('input[value=keep]').checked=true;choice.hidden=true;error.hidden=true;
+    required=mandatory;index=0;loadedView='';sample=null;preparationFailed=false;choice.querySelector('input[value=keep]').checked=true;choice.hidden=true;error.hidden=true;
     if(required)try{index=clamp(Number(localStorage.getItem(progressKey))||0,0,steps.length-1);}catch{}
     closeButton.hidden=required;closeButton.textContent='Close guide';
     overlay.classList.remove('hidden');document.body.classList.add('guide-open');syncDialogs();
     prepare();cancelAnimationFrame(frame);track();
   }
   async function prepare() {
-    const ticket=++prepareId;preparing=true;next.disabled=true;back.disabled=true;error.hidden=true;
+    const ticket=++prepareId;preparing=true;preparationFailed=false;next.disabled=true;back.disabled=true;back.textContent='Back';error.hidden=true;
+    el('onboarding-tab').textContent='Guide';el('onboarding-count').textContent='';
     title.textContent='Preparing your example';el('onboarding-description').textContent='One small project to explore in Plan.';
     try {
       const result=await api('/guide/example',{method:'POST'});
       if(ticket!==prepareId||!active()||accountLocked())return;sample=result;
       prepareExample(sample);await render();
-    }catch(failure){if(ticket===prepareId&&active()){error.hidden=false;error.textContent='The example could not load. Retry to continue.';next.textContent='Retry';next.disabled=false;}}
+    }catch(failure){if(ticket===prepareId&&active()&&!accountLocked()){
+      // Older beta servers lack this optional endpoint. Teach the same features
+      // with isolated practice controls instead of blocking the entire app.
+      if([404,405].includes(failure.status)) { sample=null;await render(); }
+      else {preparationFailed=true;title.textContent='The example couldn’t load';error.hidden=false;error.textContent='Retry, or use Flowlist and open Guide later.';next.textContent='Retry';next.disabled=false;back.textContent='Use Flowlist';back.disabled=false;title.focus();}
+    }}
     finally{if(ticket===prepareId)preparing=false;}
   }
   async function finish() {
     if(finishing)return;finishing=true;next.disabled=true;back.disabled=true;closeButton.disabled=true;error.hidden=true;
     try {
-      if(choice.querySelector('input:checked').value==='remove'){
+      if(sample&&choice.querySelector('input:checked').value==='remove'){
         try{await api(`/guide/example/${sample.id}`,{method:'DELETE'});}catch(failure){if(failure.status!==404)throw failure;}
       }
       close(true);
@@ -138,7 +148,8 @@ export function initOnboarding({preferences={},showToast,prepareExample=()=>{},n
     finally{finishing=false;next.disabled=false;back.disabled=false;closeButton.disabled=false;}
   }
   function close(completed=false) {
-    if(accountLocked() || (required&&!completed))return;
+    if(accountLocked() || (required&&!completed&&!preparationFailed))return;
+    if(preparationFailed&&!completed)deferred=true;
     live?.restore();live=null;tabRing.hidden=true;
     prepareId++;renderId++;overlay.classList.add('hidden');document.body.classList.remove('guide-open');syncDialogs();
     cancelAnimationFrame(frame);target=null;stage.hidden=true;stage.replaceChildren();example='';
@@ -152,10 +163,10 @@ export function initOnboarding({preferences={},showToast,prepareExample=()=>{},n
     (returnFocus?.isConnected&&returnFocus.getClientRects().length?returnFocus:trigger).focus();
   }
   function advance(){if(next.disabled||preparing)return;if(!error.hidden&&!sample){prepare();return;}if(index<steps.length-1){index++;render();}else finish();}
-  function startIfNew(){const ritual=isNative()?nativeState()?.timer:readRitual();if(preferences.automatic&&!acknowledged&&(!ritual||ritual.phase==='saved'))open(true);}
+  function startIfNew(){const ritual=isNative()?nativeState()?.timer:readRitual();if(preferences.automatic&&!acknowledged&&!deferred&&(!ritual||ritual.phase==='saved'))open(true);}
   trigger.addEventListener('click',()=>open(Boolean(preferences.automatic&&!acknowledged)));
   closeButton.addEventListener('click',()=>close());
-  back.addEventListener('click',()=>{if(index>0){index--;render();}});next.addEventListener('click',advance);
+  back.addEventListener('click',()=>{if(preparationFailed)close();else if(index>0){index--;render();}});next.addEventListener('click',advance);
   window.addEventListener('resize',()=>{if(active())centerTarget();});
   window.visualViewport?.addEventListener('resize',()=>{if(active())centerTarget();});
   // A restored session takes precedence; its eventual dismissal can start the guide.
@@ -166,7 +177,7 @@ export function initOnboarding({preferences={},showToast,prepareExample=()=>{},n
   document.querySelectorAll('.overlay').forEach(node=>observer.observe(node,{attributes:true,attributeFilter:['class']}));
   return {startIfNew,handleKey(event){
     if(!active())return false;
-    if(event.key==='Escape'){event.preventDefault();if(!required&&!finishing)close();}else trapFocus(event,overlay);
+    if(event.key==='Escape'){event.preventDefault();if((!required||preparationFailed)&&!finishing)close();}else trapFocus(event,overlay);
     return true;
   }};
 }

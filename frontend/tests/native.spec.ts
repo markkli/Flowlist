@@ -182,3 +182,26 @@ test('offline session remains visible in History and explicit recovery preserves
   await expect(pending).toBeHidden();
   expect(await page.evaluate(()=>(window as any).__generalRecord)).toMatchObject({seconds:1500,note:'The first draft is ready.'});
 });
+
+test('signed-in Mac Guide works when the deployed beta lacks the example endpoint',async({page},testInfo)=>{
+ await installBridge(page);
+ await page.addInitScript(()=>{
+  const host=(window as any).__nativeHost;
+  host.account={id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',email:'tester@example.invalid'};
+  host.onboarding.version=0;
+  const handler=(window as any).webkit.messageHandlers.flowlist,original=handler.postMessage;
+  handler.postMessage=async(message:any)=>message.op==='api'&&message.path==='/guide/example'
+    ? {ok:false,error:'Not Found',status:404}:original(message);
+ });
+ await page.goto('/');await expect(page.locator('#onboarding-title')).toHaveText('Make a plan');
+ await page.getByRole('button',{name:'Next',exact:true}).click();
+ await page.getByRole('button',{name:'Prioritize example task',exact:true}).click();
+ await expect(page.locator('#guide-priority-preview')).toContainText('Understand Pomodoro');
+ const star=await page.locator('#guide-demo-priority svg').boundingBox();
+ expect(star?.width).toBeGreaterThanOrEqual(18);expect(star?.height).toBeGreaterThanOrEqual(18);
+ await page.screenshot({animations:'disabled',path:testInfo.outputPath('guide-practice.png')});
+ for(let i=0;i<5;i++)await page.getByRole('button',{name:'Next',exact:true}).click();
+ await page.getByRole('button',{name:'Finish guide',exact:true}).click();
+ await expect(page.locator('#onboarding-overlay')).toBeHidden();
+ await page.locator('#nav-dashboard').click();await expect(page.locator('#timer-settings-toggle')).toBeVisible();
+});

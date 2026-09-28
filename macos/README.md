@@ -167,3 +167,6 @@ recovery, notifications, and the signed widget. Then add Developer ID signing,
 notarization, a versioned installer, and an update mechanism. This is a development
 build, not yet a distributable Mac beta. No web deployment or live database migration
 is required for these native changes; the pending web Guide migration stays separate.
+Until the deployed API supports Guide examples, the walkthrough uses practice
+controls without adding an example project to the account. A failed Guide request
+always offers a way back to the workspace.

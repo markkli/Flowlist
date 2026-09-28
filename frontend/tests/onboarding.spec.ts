@@ -161,3 +161,36 @@ test('sample creation and removal failures remain recoverable',async({page})=>{
  await expect(page.locator('#guide-error')).toContainText('Could not remove');
  await page.getByRole('radio',{name:'Keep example',exact:true}).check();await page.getByRole('button',{name:'Finish guide',exact:true}).click();await expect(guide(page)).toBeHidden();
 });
+
+test('an older server without Guide routes still provides the full walkthrough',async({page})=>{
+ const writes=await setup(page);
+ await page.route('**/api/guide/example',route=>route.fulfill({status:404,json:{detail:'Not Found'}}));
+ await page.goto('/');await expect(page.locator('#onboarding-title')).toHaveText('Make a plan');
+ await nextStep(page);
+ await expect(page.locator('#guide-example')).toContainText('no changes to your Plan');
+ await page.getByRole('button',{name:'Prioritize example task',exact:true}).click();
+ await expect(page.locator('#guide-priority-preview')).toContainText('Understand Pomodoro');
+ expect(writes.filter(path=>path.startsWith('/api/queue'))).toEqual([]);
+ await nextStep(page);await page.getByRole('button',{name:'Back',exact:true}).click();
+ await expect(page.locator('#guide-demo-priority')).toBeVisible();
+ for(let i=0;i<5;i++)await nextStep(page);
+ await expect(page.locator('#guide-example-choice')).toBeHidden();
+ await page.getByRole('button',{name:'Finish guide',exact:true}).click();
+ await expect(guide(page)).toBeHidden();await expect.poll(()=>writes.includes('preference')).toBe(true);
+ await page.reload();await expect(guide(page)).toBeHidden();
+});
+
+test('failed required Guide has an exit without marking it complete or immediately reopening',async({page})=>{
+ const writes=await setup(page);
+ await page.route('**/api/guide/example',route=>route.fulfill({status:503,json:{detail:'Offline'}}));
+ await page.goto('/');await expect(page.getByRole('button',{name:'Use Flowlist',exact:true})).toBeEnabled();
+ await page.getByRole('button',{name:'Use Flowlist',exact:true}).click();await expect(guide(page)).toBeHidden();
+ await page.locator('#nav-dashboard').click();await page.locator('#timer-settings-toggle').click();
+ await page.getByRole('button',{name:'Save cycle',exact:true}).click();await expect(guide(page)).toBeHidden();
+ expect(writes.includes('preference')).toBe(false);
+ await page.locator('#help-toggle').click();await expect(guide(page)).toBeVisible();
+ await expect(page.getByRole('button',{name:'Use Flowlist',exact:true})).toBeEnabled();
+ await page.keyboard.press('Escape');await expect(guide(page)).toBeHidden();
+ await page.unroute('**/api/guide/example');await page.locator('#help-toggle').click();
+ await expect(page.locator('#onboarding-title')).toHaveText('Make a plan');
+});

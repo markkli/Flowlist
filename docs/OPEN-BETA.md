@@ -65,6 +65,12 @@ The final step offers Keep example or Remove example. Removal is restricted to
 the marked project, removes its queue entries, and preserves saved history. Active or unsaved rituals take
 precedence over automatically showing the guide.
 
+Older beta APIs without the Guide example endpoint use an isolated practice star
+and the same seven-step walkthrough, without creating projects or modifying Plan.
+Other example-loading failures offer Retry and Use Flowlist. Leaving a failed
+guide defers automatic prompting for that page session without marking it complete;
+Guide in the toolbar can retry it at any time.
+
 For new users, finishing stores version 3 in the authenticated user's Supabase
 `user_metadata.flowlist_onboarding_version`. That is a display preference only,
 never an authorization field. Migration 20260927_15 adds a unique example key

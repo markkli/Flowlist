@@ -47,3 +47,5 @@
 #guide-example-choice label { display:flex; align-items:center; gap:8px; font-size:12px; min-height:36px; color:var(--ink); }
 #guide-example-choice input { accent-color:var(--forest); }
 #guide-error { color:var(--danger); font-size:12px; }
+.guide-priority-demo { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px; border:1px solid var(--border); border-radius:var(--radius-sm); }
+.guide-priority-demo .task-priority { position:static; flex-shrink:0; opacity:1; }
