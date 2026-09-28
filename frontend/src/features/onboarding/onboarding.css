@@ -36,3 +36,14 @@
 .guide-review-example .session-note { min-height:80px; }
 .guide-review-example .attribution-actions { margin-top:20px; }
 @media(max-width:719px) { #guide-example { padding:16px; } .guide-review-example .session-review-heading h2 { font-size:22px; } .guide-review-example .session-duration { display:none; } }
+.guide-live-priority { z-index:4; opacity:1 !important; background:var(--surface-strong); }
+#guide-priority-preview { margin-top:12px; padding:12px; border:1px solid var(--border-strong); border-radius:10px; background:var(--surface); }
+#guide-priority-preview small { color:var(--forest); font-size:11px; }
+#guide-priority-preview p { font-size:12px; margin:8px 0 0; color:var(--ink); }
+#guide-tab-highlight { position:fixed; z-index:3; border:2px solid var(--forest); border-radius:8px; box-shadow:0 0 0 3px color-mix(in srgb,var(--forest) 25%,transparent); pointer-events:none; }
+#onboarding-tab { color:var(--forest); font-size:12px; font-weight:600; }
+#guide-example-choice { border:0; border-top:1px solid var(--border); margin:14px 0 0; padding:10px 0 0; }
+#guide-example-choice legend { font-size:12px; color:var(--muted); }
+#guide-example-choice label { display:flex; align-items:center; gap:8px; font-size:12px; min-height:36px; color:var(--ink); }
+#guide-example-choice input { accent-color:var(--forest); }
+#guide-error { color:var(--danger); font-size:12px; }

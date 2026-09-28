@@ -306,6 +306,7 @@ async function loadGoals() {
     section.dataset.goalId = goal.id;
     section.dataset.goalType = goal.goal_type || "project";
     section.id = `goal-${goal.id}`;
+    if(goal.is_example){section.dataset.example='true';const badge=document.createElement('span');badge.className='example-badge';badge.textContent='Example';node.querySelector('.direction-meta').append(badge);}
     const goalType = node.querySelector(".goal-type-label");
     goalType.textContent = goalTypeLabel(goal.goal_type);
     goalType.classList.toggle("hidden", goal.goal_type === "standalone");
@@ -807,5 +808,5 @@ document.getElementById("goal-form").addEventListener("submit", async (event) =>
 });
 
 
-  return { loadGoals, handleKey() { return false; }};
+  return { loadGoals, prepareExample(example){collapsedGoalIds.delete(example.id);for(const task of example.tasks||[])collapsedTaskIds.delete(task.id);saveCollapsedGoalIds();saveCollapsedTaskIds();}, handleKey() { return false; }};
 }

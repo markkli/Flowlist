@@ -48,6 +48,10 @@ class GoalCreate(TitledPayload):
     goal_type: GoalType = "project"
 
 
+class ProjectWithTask(GoalCreate):
+    task: "TaskCreate"
+
+
 class GoalUpdate(OptionalTitleUpdate):
     description: str | None = None
     goal_type: GoalType | None = None
@@ -60,6 +64,7 @@ class Goal(GoalCreate):
     id: int
     completed: bool
     position: int
+    is_example: bool = False
 
 
 class TaskCreate(TitledPayload):

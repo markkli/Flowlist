@@ -53,18 +53,22 @@ intentional mode change.
 
 ## Guide behavior
 
-The first authenticated visit opens an eight-step guide covering Plan,
+The first authenticated visit opens an seven-step guide covering Plan,
 priorities, the timer, settings, session notes, completion, and History. New
 users finish it once; closing or reloading the page resumes their current step.
 It can be replayed from Guide in the toolbar and closed during replay. Existing
 users who acknowledged the previous guide are not forced through it again.
-Interactive examples use isolated copies of the app controls and never create
-tasks, start the timer, or save sessions. Active or unsaved rituals take
+A marked Learn Flowlist example project is created once per account and reused
+on replay. Its real Plan star updates Priority tasks; notes and finish controls
+remain isolated practice examples and never start a timer or save sessions.
+The final step offers Keep example or Remove example. Removal is restricted to
+the marked project, removes its queue entries, and preserves saved history. Active or unsaved rituals take
 precedence over automatically showing the guide.
 
-For new users, finishing stores version 2 in the authenticated user's Supabase
+For new users, finishing stores version 3 in the authenticated user's Supabase
 `user_metadata.flowlist_onboarding_version`. That is a display preference only,
-never an authorization field. No database migration is needed. A per-account
+never an authorization field. Migration 20260927_15 adds a unique example key
+to goals; run migrations before starting the updated API. A per-account
 local hint also prevents repeated prompts if preference syncing is unavailable;
 a visible message explains a failed sync. Local development offers the guide
 from Guide without showing it automatically on every fresh browser. Partial

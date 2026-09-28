@@ -208,7 +208,7 @@ test('record tasks preserve parent context when filtered and Finished also recor
  const parent=page.locator('#history-edit-attributions [data-task-id="5"]');
  const child=page.locator('#history-edit-attributions [data-task-id="6"]');
  await expect(child).toContainText('Subtask of Already completed task');
- expect((await child.boundingBox())!.x-(await parent.boundingBox())!.x).toBe(20);
+ expect((await child.boundingBox())!.x-(await parent.boundingBox())!.x).toBeGreaterThan(30);
  expect((await child.boundingBox())!.y).toBeGreaterThan((await parent.boundingBox())!.y);
  await page.locator('#history-detail-overlay').getByLabel('Find a task',{exact:true}).fill('Nested');
  await expect(parent).toHaveCount(0);await expect(child).toContainText('Subtask of Already completed task');

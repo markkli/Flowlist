@@ -81,3 +81,12 @@
 /* Indent the whole row so the outcome columns stay aligned at the right. */
 .session-review .attribution-task-row.is-subtask { margin-inline-start:20px; }
 @media(max-width:520px) { .session-review .attribution-task-row.is-subtask { margin-inline-start:12px; } }
+
+/* Parent and children form one branch, rather than separate indented cards. */
+.work-branch { border:1px solid var(--border-strong); border-radius:10px; overflow:hidden; background:var(--surface); }
+.session-review .work-branch > .attribution-task-row { border:0; border-radius:0; background:var(--surface-muted); }
+.work-branch-children { margin:0 0 8px 22px; padding-left:14px; border-left:1px solid var(--border-strong); }
+.session-review .work-branch-children > .attribution-task-row { position:relative; margin:0; border:0; border-top:1px solid var(--border); border-radius:0; background:transparent; }
+.work-branch-children > .attribution-task-row::before { content:''; position:absolute; width:14px; left:-14px; top:28px; border-top:1px solid var(--border-strong); }
+.work-branch-children .attribution-task-copy small:not(.branch-status) { display:none; }
+@media(max-width:520px) { .work-branch-children { margin-left:12px; padding-left:12px; margin-right:0; } .work-branch-children > .attribution-task-row::before { width:12px; left:-12px; } }

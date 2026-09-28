@@ -1,14 +1,15 @@
+import { api } from '../../shared/api';
+import { liftPriority } from './live-priority';
 import { accountKey, accountLocked } from '../../shared/account';
 import { syncDialogs, trapFocus } from '../../shared/dom';
 import { readRitual } from '../timer/state';
-import { createPriorityExample, createReviewExample } from './examples';
+import { createReviewExample } from './examples';
 import './onboarding.css';
 
-const VERSION=2;
+const VERSION=3;
 const steps=[
   {view:'goals',target:'.plan-create-actions',title:'Make a plan',description:'Create a Project for related tasks, or a Task for a quick to-do. Each project task can have one level of subtasks.'},
-  {view:'goals',example:'priority',target:'#guide-example-star',title:'Star your priorities',description:'The star puts a task in Priority tasks on Today. Try it here; this example does not change your Plan.'},
-  {view:'dashboard',target:'#edit-queue',title:'Choose what comes next',description:'Your starred tasks appear here. Choose priorities to add tasks, change their order, or remove them from this shortlist.'},
+  {view:'goals',priority:true,title:'Star your priorities',description:'Try the star on your example task. It adds the task to Priority tasks on Today, where you can choose and reorder your shortlist.'},
   {view:'dashboard',target:'#start-pomodoro',title:'Start focusing',description:'Press Start focus whenever you’re ready. You do not need to choose a task first; record what you worked on afterward.'},
   {view:'dashboard',target:'#timer-settings-toggle',title:'Set your rhythm',description:'Adjust focus time, breaks, and rounds here. Chimes mark each transition. Enable desktop notifications for reminders while you’re elsewhere.'},
   {view:'dashboard',example:'review',target:'#guide-demo-session-summary',title:'Leave a note',description:'When you end a session, this review appears. Add an optional note about what you did. You can try the example text box.'},
@@ -16,11 +17,13 @@ const steps=[
   {view:'history',target:'.history-week-navigation',title:'See your progress',description:'Review seven days at a time with the arrows. Today returns to the latest seven. Select a focus block to revisit its notes and tasks.'},
 ];
 
-export function initOnboarding({preferences={},showToast,navigate}) {
+export function initOnboarding({preferences={},showToast,prepareExample=()=>{},navigate}) {
   const el=id=>document.getElementById(id), overlay=el('onboarding-overlay'),trigger=el('help-toggle');
   const card=overlay.querySelector('.guide-modal'),spotlight=el('guide-spotlight'),stage=el('guide-example');
+  const preview=el('guide-priority-preview'),choice=el('guide-example-choice'),error=el('guide-error'),tabRing=el('guide-tab-highlight');
+  let sample=null,live=null,preparing=false,finishing=false,prepareId=0;
   const title=el('onboarding-title'),next=el('onboarding-next'),back=el('onboarding-back'),closeButton=el('onboarding-skip');
-  const storageKey=accountKey('flowlist-onboarding-v2'),progressKey=accountKey('flowlist-guide-progress-v2');
+  const storageKey=accountKey('flowlist-onboarding-v2'),progressKey=accountKey('flowlist-guide-progress-v3');
   let acknowledged=Number(preferences.version)>0, index=0, required=false, target=null, example='',loadedView='',returnFocus=trigger,frame,renderId=0;
   // People who already saw the previous guide can replay the expanded version.
   try { acknowledged ||= localStorage.getItem(storageKey)==='complete'||localStorage.getItem(accountKey('flowlist-onboarding-v1'))==='seen'; } catch {}
@@ -43,6 +46,10 @@ export function initOnboarding({preferences={},showToast,navigate}) {
     if(!active() || !target?.isConnected)return;
     const margin=12,gap=14;
     fitExample();
+    live?.position();
+    const nav=el(`nav-${steps[index].view}`),nr=nav.getBoundingClientRect();
+    tabRing.hidden=nr.bottom<0||nr.top>innerHeight;
+    tabRing.style.cssText=`left:${nr.left}px;top:${nr.top}px;width:${nr.width}px;height:${nr.height}px`;
     const r=target.getBoundingClientRect(),w=card.offsetWidth,h=card.offsetHeight;
     if(!r.width || !r.height){spotlight.hidden=true;return;}
     spotlight.hidden=false;
@@ -73,9 +80,12 @@ export function initOnboarding({preferences={},showToast,navigate}) {
     position();
   }
   async function render() {
+    live?.restore();live=null;preview.hidden=true;
     const ticket=++renderId, step=steps[index];target=null;spotlight.hidden=true;
     next.disabled=true;back.disabled=true;
     el('onboarding-count').textContent=`${index+1} / ${steps.length}`;
+    el('onboarding-tab').textContent={goals:'Plan',dashboard:'Today',history:'History'}[step.view];
+    choice.hidden=index!==steps.length-1;
     title.textContent=step.title;el('onboarding-description').textContent=step.description;
     next.textContent=index===steps.length-1?'Finish guide':'Next';
     rememberProgress();
@@ -84,11 +94,14 @@ export function initOnboarding({preferences={},showToast,navigate}) {
     loadedView=step.view;
     if(example!==step.example) {
       stage.replaceChildren();example=step.example || '';stage.scrollTop=0;
-      if(example==='priority')createPriorityExample(stage);
-      if(example==='review')createReviewExample(stage,()=>{if(index===6)advance();else {index=6;render();}});
+      if(example==='review')createReviewExample(stage,()=>{if(index===5)advance();else {index=5;render();}});
     }
     stage.hidden=!example;stage.classList.toggle('session-review',example==='review');overlay.classList.toggle('has-example',Boolean(example));
-    target=document.querySelector(step.target);
+    if(step.priority){
+      const button=document.querySelector(`#goal-${sample.id} .task-priority`);
+      if(button){live=liftPriority(button,overlay,preview);target=live.anchor;}
+      else {target=document.querySelector('.plan-create-actions');el('onboarding-description').textContent='Your example is already complete. Open tasks have a star that adds them to Priority tasks on Today.';}
+    }else target=document.querySelector(step.target);
     next.disabled=false;back.disabled=index===0;
     centerTarget();title.focus({preventScroll:true});
     requestAnimationFrame(()=>{if(ticket===renderId && active())centerTarget();});
@@ -97,15 +110,36 @@ export function initOnboarding({preferences={},showToast,navigate}) {
     if(accountLocked() || !document.body.classList.contains('app-ready') || active())return;
     if([...document.querySelectorAll('.overlay')].some(node=>node!==overlay&&!node.classList.contains('hidden')))return;
     returnFocus=document.activeElement instanceof HTMLElement && document.activeElement!==document.body?document.activeElement:trigger;
-    required=mandatory;index=0;loadedView='';
+    required=mandatory;index=0;loadedView='';sample=null;choice.querySelector('input[value=keep]').checked=true;choice.hidden=true;error.hidden=true;
     if(required)try{index=clamp(Number(localStorage.getItem(progressKey))||0,0,steps.length-1);}catch{}
     closeButton.hidden=required;closeButton.textContent='Close guide';
     overlay.classList.remove('hidden');document.body.classList.add('guide-open');syncDialogs();
-    render();cancelAnimationFrame(frame);track();
+    prepare();cancelAnimationFrame(frame);track();
+  }
+  async function prepare() {
+    const ticket=++prepareId;preparing=true;next.disabled=true;back.disabled=true;error.hidden=true;
+    title.textContent='Preparing your example';el('onboarding-description').textContent='One small project to explore in Plan.';
+    try {
+      const result=await api('/guide/example',{method:'POST'});
+      if(ticket!==prepareId||!active()||accountLocked())return;sample=result;
+      prepareExample(sample);await render();
+    }catch(failure){if(ticket===prepareId&&active()){error.hidden=false;error.textContent='The example could not load. Retry to continue.';next.textContent='Retry';next.disabled=false;}}
+    finally{if(ticket===prepareId)preparing=false;}
+  }
+  async function finish() {
+    if(finishing)return;finishing=true;next.disabled=true;back.disabled=true;closeButton.disabled=true;error.hidden=true;
+    try {
+      if(choice.querySelector('input:checked').value==='remove'){
+        try{await api(`/guide/example/${sample.id}`,{method:'DELETE'});}catch(failure){if(failure.status!==404)throw failure;}
+      }
+      close(true);
+    }catch(failure){error.hidden=false;error.textContent='Could not remove the example. Retry, or choose Keep example.';}
+    finally{finishing=false;next.disabled=false;back.disabled=false;closeButton.disabled=false;}
   }
   function close(completed=false) {
     if(accountLocked() || (required&&!completed))return;
-    renderId++;overlay.classList.add('hidden');document.body.classList.remove('guide-open');syncDialogs();
+    live?.restore();live=null;tabRing.hidden=true;
+    prepareId++;renderId++;overlay.classList.add('hidden');document.body.classList.remove('guide-open');syncDialogs();
     cancelAnimationFrame(frame);target=null;stage.hidden=true;stage.replaceChildren();example='';
     if(completed && !acknowledged) {
       acknowledged=true;
@@ -116,7 +150,7 @@ export function initOnboarding({preferences={},showToast,navigate}) {
     }
     (returnFocus?.isConnected&&returnFocus.getClientRects().length?returnFocus:trigger).focus();
   }
-  function advance(){if(next.disabled)return;if(index<steps.length-1){index++;render();}else close(true);}
+  function advance(){if(next.disabled||preparing)return;if(!error.hidden&&!sample){prepare();return;}if(index<steps.length-1){index++;render();}else finish();}
   function startIfNew(){const ritual=readRitual();if(preferences.automatic&&!acknowledged&&(!ritual||ritual.phase==='saved'))open(true);}
   trigger.addEventListener('click',()=>open(Boolean(preferences.automatic&&!acknowledged)));
   closeButton.addEventListener('click',()=>close());
@@ -125,13 +159,13 @@ export function initOnboarding({preferences={},showToast,navigate}) {
   window.visualViewport?.addEventListener('resize',()=>{if(active())centerTarget();});
   // A restored session takes precedence; its eventual dismissal can start the guide.
   const observer=new MutationObserver(()=>{
-    if(!active()){document.body.classList.remove('guide-open');cancelAnimationFrame(frame);}
+    if(!active()){live?.restore();live=null;tabRing.hidden=true;document.body.classList.remove('guide-open');cancelAnimationFrame(frame);}
     if(!accountLocked())startIfNew();
   });
   document.querySelectorAll('.overlay').forEach(node=>observer.observe(node,{attributes:true,attributeFilter:['class']}));
   return {startIfNew,handleKey(event){
     if(!active())return false;
-    if(event.key==='Escape'){event.preventDefault();if(!required)close();}else trapFocus(event,overlay);
+    if(event.key==='Escape'){event.preventDefault();if(!required&&!finishing)close();}else trapFocus(event,overlay);
     return true;
   }};
 }

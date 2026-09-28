@@ -1,0 +1,17 @@
+.destination-label { display:block; color:var(--ink); font-size:12px; font-weight:600; margin:4px 0 10px; }
+.destination-tree { max-height:260px; overflow:auto; padding:4px; border:1px solid var(--border); border-radius:10px; background:var(--surface); }
+.destination-choice { display:flex; align-items:center; gap:10px; padding:10px; min-height:44px; border-radius:7px; cursor:pointer; }
+.destination-choice:has(input:checked) { background:var(--surface-muted); box-shadow:inset 3px 0 var(--forest); }
+.destination-choice input { width:17px; height:17px; flex-shrink:0; accent-color:var(--forest); }
+.destination-choice span { margin:0; color:var(--ink); letter-spacing:0; min-width:0; }
+.destination-choice strong { display:block; font-size:12px; font-weight:550; overflow-wrap:anywhere; }
+.destination-choice small { display:block; font-size:11px; color:var(--muted); }
+.destination-project > summary { padding:12px 10px; font-size:13px; color:var(--ink); cursor:pointer; overflow-wrap:anywhere; }
+.destination-children { border-left:1px solid var(--border-strong); margin-left:18px; padding-left:8px; }
+.destination-leaves { list-style:none; padding:0 0 6px 34px; margin:0; color:var(--muted); font-size:11px; }
+.destination-leaves li { padding:5px 0 5px 12px; border-left:1px solid var(--border); overflow-wrap:anywhere; }
+.destination-leaves li::before { content:'—'; margin-left:-12px; margin-right:4px; color:var(--faint); }
+.destination-new { margin-top:12px; }
+.destination-new label { display:block; margin-bottom:7px; font-size:12px; }
+.destination-path,.destination-status { margin:10px 0 0; color:var(--muted); font-size:11px; overflow-wrap:anywhere; }
+.destination-status:empty { display:none; }

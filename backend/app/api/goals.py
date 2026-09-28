@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.orm import Session, selectinload
 from app import schemas
 from app.database import get_db
@@ -37,6 +37,61 @@ def reorder_goals(order: schemas.ReorderPayload, db: Session = Depends(get_db)):
         goals_by_id[goal_id].position = position
     db.commit()
     return [goals_by_id[goal_id] for goal_id in order.ordered_ids]
+
+
+@router.post("/goals/with-task", response_model=schemas.GoalWithTasks)
+def create_project_with_task(payload: schemas.ProjectWithTask, db: Session = Depends(get_db)):
+    if payload.goal_type != "project":
+        raise HTTPException(422, "Choose a project for this action")
+    goal = GoalModel(title=payload.title, description=payload.description, goal_type="project", position=next_goal_position(db))
+    db.add(goal)
+    db.flush()
+    db.add(TaskModel(goal_id=goal.id, title=payload.task.title, position=1))
+    db.commit()
+    db.refresh(goal)
+    return goal
+
+
+@router.post("/guide/example", response_model=schemas.GoalWithTasks)
+def guide_example(db: Session = Depends(get_db)):
+    # A unique account-specific key makes retries and concurrent tabs idempotent.
+    key = f"guide:{db.info.get('owner_id') or 'local'}"
+    goal = db.scalar(select(GoalModel).where(GoalModel.example_key == key))
+    if goal is not None:
+        return goal
+    from sqlalchemy.exc import IntegrityError
+    goal = GoalModel(title="Learn Flowlist", goal_type="project", example_key=key, position=next_goal_position(db))
+    db.add(goal)
+    try:
+        db.flush()
+        for position, (title, child) in enumerate([
+            ("Understand Pomodoro", "Customize the timer"),
+            ("Organize your work", "Star a priority"),
+            ("Review a focus session", None),
+        ]):
+            task = TaskModel(goal_id=goal.id, title=title, position=position)
+            db.add(task)
+            db.flush()
+            if child:
+                db.add(TaskModel(goal_id=goal.id, parent_id=task.id, depth=2, title=child, position=0))
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        goal = db.scalar(select(GoalModel).where(GoalModel.example_key == key))
+        if goal is None:
+            raise
+    db.refresh(goal)
+    return goal
+
+
+@router.delete("/guide/example/{goal_id}")
+def remove_guide_example(goal_id: int, db: Session = Depends(get_db)):
+    goal = find_goal(db, goal_id)
+    if not goal.is_example:
+        raise HTTPException(409, "This is not a guide example")
+    db.execute(delete(GoalModel).where(GoalModel.id == goal.id))
+    db.commit()
+    return {"deleted": True}
 
 
 @router.get("/goals/{goal_id}", response_model=schemas.Goal)

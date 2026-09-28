@@ -171,3 +171,5 @@
 .task-priority[aria-pressed="true"] svg { fill:currentColor; }
 .task-priority:disabled { opacity:.55; cursor:wait; }
 @media(max-width:520px) { .task-priority { width:36px; min-height:44px; } }
+
+.example-badge { color:var(--forest); padding:2px 7px; border:1px solid var(--border-strong); border-radius:5px; font-size:10px; }

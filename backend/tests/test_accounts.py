@@ -218,3 +218,16 @@ def test_plan_snapshot_includes_private_tasks_without_changing_legacy_shape(clie
     assert response.json()[0]['tasks'][0]['id']==ta['id']
     assert 'Bob snapshot' not in response.text
     assert 'tasks' not in a.get('/goals').json()[0]
+
+
+def test_guide_examples_are_independent_and_cannot_be_deleted_across_accounts(clients):
+    a,b=clients
+    ga=a.post('/guide/example').json()
+    gb=b.post('/guide/example').json()
+    assert ga['id']!=gb['id']
+    assert a.post('/guide/example').json()['id']==ga['id']
+    assert b.delete(f"/guide/example/{ga['id']}").status_code==404
+    assert len(a.get('/goals').json())==1
+    assert len(b.get('/goals').json())==1
+    assert a.delete(f"/guide/example/{ga['id']}").status_code==200
+    assert b.get(f"/goals/{gb['id']}").status_code==200

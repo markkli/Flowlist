@@ -3,7 +3,7 @@ import { escapeHtml, trapFocus, syncDialogs } from '../../shared/dom';
 import { asDate, dayKey, nextDay, rangeLabel, duration } from './timeline';
 import './history.css';
 import '../timer/attribution.css';
-import { workRowContent } from '../../shared/work-row';
+import { workRowContent, groupWorkRows } from '../../shared/work-row';
 import { createCalendar } from './calendar';
 
 export function initHistory({ showToast, refresh }) {
@@ -58,6 +58,7 @@ export function initHistory({ showToast, refresh }) {
         const context=[parent?`Subtask of ${parent.task_title}`:row.parent_id!=null?'Subtask':'',row.task_id==null?'Removed from Plan':row.plan_completed?'Completed in Plan':''].filter(Boolean).join(' · ');
         const item=document.createElement('div');item.className=`attribution-task-row${row.parent_id!=null?' is-subtask':''}`;
         if(row.task_id!=null)item.dataset.taskId=row.task_id;
+        if(row.parent_id!=null)item.dataset.parentId=row.parent_id;
         const contextId=`history-work-context-${groupIndex}-${visited.size}`;
         item.innerHTML=workRowContent({title:row.task_title,context,contextId,describedBy:`history-choice-help ${headingId}${context?' '+contextId:''}`});
         const include=item.querySelector('.attribution-worked-input'),finished=item.querySelector('.attribution-finished-input');
@@ -68,7 +69,7 @@ export function initHistory({ showToast, refresh }) {
         if(row.task_id!=null)group.filter(child=>child.parent_id===row.task_id).forEach(append);
       };
       group.filter(row=>!group.some(parent=>parent.task_id!=null&&parent.task_id===row.parent_id)).forEach(append);
-      group.forEach(append);target.appendChild(section);
+      group.forEach(append);groupWorkRows(list);target.appendChild(section);
     }
   }
   async function loadTaskOptions() {

@@ -3,7 +3,8 @@ import { api } from '../../shared/api';
 import { escapeHtml, trapFocus, syncDialogs as syncModal } from '../../shared/dom';
 import { ritualKey, ritualDraftKey, defaults, validSettings, freshRitual, readRitual, migrateLegacy, advance, remaining, payload } from './state';
 import './attribution.css';
-import { workRowContent } from '../../shared/work-row';
+import { workRowContent, groupWorkRows } from '../../shared/work-row';
+import { initDestinationTree } from './destination-tree';
 import { initReminders } from './reminders';
 
 export function initTimer({ showToast, loadGoals, loadDashboard }) {
@@ -143,74 +144,26 @@ const planCaptureOverlay = document.getElementById("plan-capture-overlay");
 const planCaptureModal = planCaptureOverlay.querySelector(".quick-plan-modal");
 const planCaptureForm = document.getElementById("plan-capture-form");
 const planCaptureName = document.getElementById("plan-capture-name");
-const planCaptureDestination = document.getElementById("plan-capture-destination");
-const planCaptureError = document.getElementById("plan-capture-error");
-const planCaptureParent = document.getElementById('plan-capture-parent');
-const planCaptureParentField = document.getElementById('plan-capture-parent-field');
-const planCaptureSubmit = planCaptureForm.querySelector('button[type="submit"]');
-const planCaptureRetry=document.getElementById('plan-capture-retry');
+const planCaptureError = document.getElementById('plan-capture-error');
+const planCaptureSubmit=planCaptureForm.querySelector('button[type="submit"]');
+const destinationTree=initDestinationTree(document.getElementById('plan-capture-tree'));
 let captureGeneration=0,captureSaving=false;
-async function loadCaptureParents() {
-  if(captureSaving)return;
-  planCaptureRetry.classList.add('hidden');
-  const request=++captureGeneration,destination=planCaptureDestination.value;
-  planCaptureParent.innerHTML='<option value="">Directly in project</option>';
-  planCaptureParentField.hidden=destination==='__tasks__';
-  planCaptureError.textContent='';
-  if(destination==='__tasks__'){planCaptureSubmit.disabled=false;return;}
-  planCaptureParent.disabled=true;planCaptureSubmit.disabled=true;
-  try {
-    const tasks=await api(`/goals/${Number(destination)}/tasks`);
-    if(request!==captureGeneration)return;
-    for(const task of tasks.filter(task=>task.parent_id==null && task.depth<2)) {
-      const option=document.createElement('option');option.value=String(task.id);option.textContent=`Under: ${task.title}${task.completed?' (completed)':''}`;planCaptureParent.appendChild(option);
-    }
-  } catch(error) {
-    if(request!==captureGeneration)return;
-    planCaptureError.textContent='Tasks could not be loaded. Retry, or add directly to the project.';planCaptureRetry.classList.remove('hidden');
-  } finally {if(request===captureGeneration){planCaptureParent.disabled=false;planCaptureSubmit.disabled=false;}}
-}
-planCaptureDestination.addEventListener('change',loadCaptureParents);
-planCaptureRetry.addEventListener('click',loadCaptureParents);
-
-
-function renderPlanCaptureDestinations(goals) {
-  const activeDirections = goals.filter(
-    (goal) => goal.goal_type !== "standalone" && !goal.completed,
-  );
-  planCaptureDestination.innerHTML = [
-    '<option value="__tasks__">Tasks · shared list</option>',
-    ...activeDirections.map(
-      (goal) => `<option value="${goal.id}">${escapeHtml(goal.title)} · Project</option>`,
-    ),
-  ].join("");
-}
 
 async function setPlanCaptureOpen(open) {
   if(captureSaving)return;
-  planCaptureRetry.classList.add('hidden');
   planCaptureOverlay.classList.toggle("hidden", !open);
   focusOverlay.setAttribute("aria-hidden", String(open));
   planCaptureError.textContent = "";
   if (open) {
     document.body.classList.add("modal-open");
     focusOverlay.inert = true;
-    const request=++captureGeneration;
-    planCaptureParentField.hidden=true;planCaptureParent.value='';
-    planCaptureDestination.disabled=true;planCaptureSubmit.disabled=true;
-    try {
-      const goals=await api('/goals');if(request!==captureGeneration)return;
-      renderPlanCaptureDestinations(goals);
-    } catch (error) {
-      if(request!==captureGeneration)return;
-      renderPlanCaptureDestinations([]);
-      planCaptureError.textContent = "Existing projects could not be loaded. You can still add to Tasks.";
-    }
+    const request=++captureGeneration;planCaptureSubmit.disabled=true;
+    await destinationTree.load();
     if(request!==captureGeneration)return;
-    planCaptureDestination.disabled=false;planCaptureSubmit.disabled=false;
+    planCaptureSubmit.disabled=false;
     requestAnimationFrame(() => planCaptureName.focus());
   } else {
-    captureGeneration++;
+    captureGeneration++;destinationTree.cancel();
     planCaptureForm.reset();
     if (focusOverlay.classList.contains("hidden")) document.body.classList.remove("modal-open");
     focusOverlay.inert = false;
@@ -231,23 +184,23 @@ planCaptureForm.addEventListener("submit", async (event) => {
     planCaptureName.focus();
     return;
   }
-  const destination = planCaptureDestination.value;
+  const destination=destinationTree.getSelection();
+  if(destination.kind==='new'&&!destination.projectTitle){planCaptureError.textContent='Give the new project a name.';return;}
   const submit = planCaptureSubmit;
-  captureSaving=true;
+  captureSaving=true;destinationTree.setDisabled(true);
   planCaptureForm.querySelectorAll("input,select,button").forEach(control=>control.disabled=true);
   submit.textContent = "Adding…";
   try {
-    if (destination === "__tasks__") {
+    if (destination.kind === "standalone") {
       await api("/standalone-tasks", {
         method: "POST",
         body: JSON.stringify({ title }),
       });
+    } else if(destination.kind==='new') {
+      await api('/goals/with-task',{method:'POST',body:JSON.stringify({title:destination.projectTitle,task:{title}})});
     } else {
-      const endpoint=planCaptureParent.value?`/tasks/${Number(planCaptureParent.value)}/subtasks`:`/goals/${Number(destination)}/tasks`;
-      await api(endpoint, {
-        method: "POST",
-        body: JSON.stringify({ title }),
-      });
+      const endpoint=destination.kind==='subtask'?`/tasks/${destination.parentId}/subtasks`:`/goals/${destination.goalId}/tasks`;
+      await api(endpoint,{method:'POST',body:JSON.stringify({title})});
     }
     captureSaving=false;
     setPlanCaptureOpen(false);
@@ -256,7 +209,7 @@ planCaptureForm.addEventListener("submit", async (event) => {
   } catch (error) {
     planCaptureError.textContent = "Flowlist could not add this item. Try again.";
   } finally {
-    captureSaving=false;
+    captureSaving=false;destinationTree.setDisabled(false);
     planCaptureForm.querySelectorAll("input,select,button").forEach(control=>control.disabled=false);
     submit.textContent = "Add task";
   }
@@ -375,6 +328,7 @@ function renderAttributionOptions(options, selections = new Map()) {
     group.filter(option => !attributionTasks.has(option.parent_id)).forEach(appendTask);
     // Retain every option even if an old draft refers to a missing parent.
     group.forEach(appendTask);
+    groupWorkRows(list);
     attributionOptions.appendChild(section);
   }
   hierarchyNote.classList.toggle('hidden', attributionChildren.size === 0);

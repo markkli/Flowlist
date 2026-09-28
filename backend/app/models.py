@@ -24,6 +24,12 @@ class GoalModel(Base):
     completed: Mapped[bool] = mapped_column(default=False)
     position: Mapped[int] = mapped_column(default=0)
 
+    example_key: Mapped[str | None] = mapped_column(nullable=True, unique=True, index=True)
+
+    @property
+    def is_example(self) -> bool:
+        return self.example_key is not None
+
     tasks: Mapped[list["TaskModel"]] = relationship(
         back_populates="goal", cascade="all, delete-orphan"
     )

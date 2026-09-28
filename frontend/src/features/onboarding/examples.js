@@ -1,19 +1,3 @@
-// Detached copies of app markup: these examples never use Plan or timer handlers.
-export function createPriorityExample(stage) {
-  stage.innerHTML='<p class="guide-example-label">Example · nothing is saved</p><h2 class="guide-example-title">Learn something new</h2>';
-  const row=document.getElementById('task-template').content.querySelector('.task-row').cloneNode(true);
-  row.querySelectorAll('.task-chevron,.task-reorder-handle,.task-more,.task-menu,.task-progress').forEach(node=>node.remove());
-  const title=row.querySelector('.task-title');
-  const text=document.createElement('span');text.className=title.className;text.textContent='Read the first chapter';title.replaceWith(text);
-  row.querySelector('.task-completed').disabled=true;
-  const star=row.querySelector('.task-priority');star.id='guide-example-star';star.setAttribute('aria-label','Prioritize example task');
-  const feedback=document.createElement('p');feedback.className='guide-example-feedback';feedback.setAttribute('role','status');feedback.textContent='Try the star.';
-  star.addEventListener('click',()=>{
-    const selected=star.getAttribute('aria-pressed')!=='true';star.setAttribute('aria-pressed',String(selected));
-    feedback.textContent=selected?'This task would appear in Priority tasks on Today.':'Priority removed. The task stays in Plan.';
-  });stage.append(row,feedback);
-}
-
 export function createReviewExample(stage,onSave) {
   stage.innerHTML='<p class="guide-example-label">Example · nothing is saved</p>';
   const modal=document.querySelector('#session-attribution-overlay .attribution-modal').cloneNode(true);

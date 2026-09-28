@@ -147,7 +147,7 @@ for(const width of [375,1440])test(`subtask rows are indented without a stray co
  await page.setViewportSize({width,height:900});await page.emulateMedia({reducedMotion:'reduce'});await openCheckout(page);
  const parent=page.locator('.attribution-task-row[data-task-id="10"]'),child=page.locator('.attribution-task-row[data-task-id="11"]');
  const p=(await parent.boundingBox())!,c=(await child.boundingBox())!;
- expect(c.x-p.x).toBe(width===375?12:20);expect(Math.abs(c.x+c.width-p.x-p.width)).toBeLessThan(1);
+ expect(c.x-p.x).toBeGreaterThan(width===375?20:30);await expect(parent.locator('..')).toHaveClass('work-branch');await expect(child.locator('..')).toHaveClass('work-branch-children');
  expect(await child.locator('.attribution-task-copy').evaluate(node=>getComputedStyle(node,'::before').content)).toBe('none');
- for(const theme of ['light','dark']){await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);await page.screenshot({path:testInfo.outputPath(`hierarchy-${theme}.png`)});}
+ for(const theme of ['light','dark']){await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);await page.screenshot({animations:'disabled',path:testInfo.outputPath(`hierarchy-${theme}.png`)});}
 });
