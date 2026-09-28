@@ -29,7 +29,7 @@
         <span><strong>Flowlist</strong><small>Focus &amp; progress</small></span>
       </a>
       <nav class="nav" aria-label="Main navigation">
-        <button class="nav-item active" id="nav-dashboard"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg><span>Today</span></button>
+        <button class="nav-item active" id="nav-dashboard"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/></svg><span>Home</span></button>
         <button class="nav-item" id="nav-goals"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 7 2 2 3-4m3 2h8M4 16l2 2 3-4m3 2h8"/></svg><span>Plan</span></button>
         <button class="nav-item" id="nav-history"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4m8-4v4M7 11h10"/></svg><span>History</span></button>
       </nav>
@@ -57,7 +57,7 @@
 
       <main id="main-content" tabindex="-1"><div id="connection-error" class="connection-error hidden" role="alert"><span id="connection-error-copy"></span><button id="retry-view" class="secondary-btn" type="button">Retry</button></div>
         <section id="view-dashboard" class="view">
-          <header class="page-heading"><div><h1 id="dashboard-greeting">Today</h1></div></header>
+          <header class="page-heading"><div><h1 id="dashboard-greeting">Home</h1></div></header>
           <div class="today-grid">
             <article class="focus-card">
               <img class="focus-atmosphere" src="/images/focus-grove.webp" width="1600" height="800" alt="" aria-hidden="true">
@@ -223,7 +223,7 @@
     </section>
   </div>
   <div id="onboarding-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="onboarding-title" aria-describedby="onboarding-description">
-    <div id="guide-tab-highlight" aria-hidden="true" hidden></div><div id="guide-example" role="group" aria-label="Guide example. Nothing is saved." hidden></div><div id="guide-spotlight" aria-hidden="true"></div>
+    <div id="guide-backdrop" aria-hidden="true"><i></i><i></i><i></i><i></i></div><div id="guide-tab-highlight" aria-hidden="true" hidden></div><div id="guide-example" role="group" aria-label="Guide example. Nothing is saved." hidden></div><div id="guide-spotlight" aria-hidden="true"></div>
     <section class="guide-modal"><header class="guide-top"><span><span id="onboarding-tab"></span> · <span id="onboarding-count" aria-live="polite"></span></span><button class="text-btn" id="onboarding-skip" type="button">Close guide</button></header><h2 id="onboarding-title" tabindex="-1"></h2><p id="onboarding-description"></p><div id="guide-priority-preview" hidden></div><fieldset id="guide-example-choice" hidden><legend>Your example project</legend><label><input type="radio" name="guide-example-choice" value="keep" checked> Keep example</label><label><input type="radio" name="guide-example-choice" value="remove"> Remove example</label></fieldset><p id="guide-error" role="alert" hidden></p><footer class="guide-footer"><button class="text-btn" id="onboarding-back" type="button">Back</button><button class="primary-btn" id="onboarding-next" type="button">Next</button></footer></section>
   </div>
   <script type="module" src="/src/main.js"></script>

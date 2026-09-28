@@ -65,7 +65,7 @@ struct FocusWidgetView: View {
                     .font(.system(size: family == .systemSmall ? 38 : 46, weight: .light, design: .rounded)).monospacedDigit()
             }
             HStack {
-                Label(timer.phase == .review ? "Review in Today" : "Open timer", systemImage: "arrow.up.right")
+                Label(timer.phase == .review ? "Review in Home" : "Open timer", systemImage: "arrow.up.right")
                     .font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.accent)
                 Spacer(minLength: 0)
                 if timer.isPaused { Text("Paused").font(.caption) }

@@ -2,7 +2,7 @@
 .help-trigger:hover { color:var(--ink); background:var(--row-hover); }
 .help-trigger svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; }
 #onboarding-overlay { z-index:80; padding:0; background:transparent; backdrop-filter:none; }
-#guide-spotlight { position:fixed; border:2px solid var(--forest); border-radius:12px; box-shadow:0 0 0 9999px #0009; pointer-events:none; }
+#guide-spotlight { position:fixed; border:2px solid var(--forest); border-radius:12px;  pointer-events:none; }
 .guide-modal { position:fixed; z-index:1; width:min(340px,calc(100vw - 24px)); max-height:calc(100dvh - 24px); overflow:auto; padding:18px; border:1px solid var(--border-strong); border-radius:16px; background:var(--surface-strong); color:var(--ink); box-shadow:var(--shadow-2); }
 .guide-top { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 #onboarding-count { font-size:12px; color:var(--muted); }
@@ -22,9 +22,9 @@
 /* Leave room to place a short page's target above the card in landscape. */
 .guide-open #main-content::after { content:''; display:block; height:50vh; }
 #onboarding-overlay [hidden] { display:none !important; }
-#guide-spotlight { z-index:2; border-width:2px; }
-.guide-modal { z-index:3; }
-#guide-example { position:fixed; z-index:1; overflow:auto; padding:20px; border:1px solid var(--border-strong); border-radius:16px; background:var(--surface-strong); color:var(--ink); box-shadow:var(--shadow-2); }
+#guide-spotlight { z-index:3; border-width:2px; }
+.guide-modal { z-index:5; }
+#guide-example { position:fixed; z-index:2; overflow:auto; padding:20px; border:1px solid var(--border-strong); border-radius:16px; background:var(--surface-strong); color:var(--ink); box-shadow:var(--shadow-2); }
 .guide-example-label { margin:0 0 14px; color:var(--muted); font-size:11px; line-height:1.5; }
 .guide-example-title { margin:0 0 16px; font-size:20px; font-weight:600; letter-spacing:-.035em; }
 .guide-example-feedback { margin:12px 0 0; min-height:38px; font-size:12px; color:var(--muted); }
@@ -40,7 +40,7 @@
 #guide-priority-preview { margin-top:12px; padding:12px; border:1px solid var(--border-strong); border-radius:10px; background:var(--surface); }
 #guide-priority-preview small { color:var(--forest); font-size:11px; }
 #guide-priority-preview p { font-size:12px; margin:8px 0 0; color:var(--ink); }
-#guide-tab-highlight { position:fixed; z-index:3; border:2px solid var(--forest); border-radius:8px; box-shadow:0 0 0 3px color-mix(in srgb,var(--forest) 25%,transparent); pointer-events:none; }
+#guide-tab-highlight { position:fixed; z-index:1; border:2px solid var(--forest); border-radius:8px; box-shadow:0 0 0 3px color-mix(in srgb,var(--forest) 25%,transparent); pointer-events:none; }
 #onboarding-tab { color:var(--forest); font-size:12px; font-weight:600; }
 #guide-example-choice { border:0; border-top:1px solid var(--border); margin:14px 0 0; padding:10px 0 0; }
 #guide-example-choice legend { font-size:12px; color:var(--muted); }
@@ -49,3 +49,6 @@
 #guide-error { color:var(--danger); font-size:12px; }
 .guide-priority-demo { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px; border:1px solid var(--border); border-radius:var(--radius-sm); }
 .guide-priority-demo .task-priority { position:static; flex-shrink:0; opacity:1; }
+
+#guide-backdrop { position:fixed; inset:0; z-index:0; pointer-events:none; }
+#guide-backdrop i { position:fixed; background:#0009; }

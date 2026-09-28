@@ -1,6 +1,6 @@
 export function createPriorityExample(stage,preview) {
   stage.innerHTML='<p class="guide-example-label">Practice · no changes to your Plan</p><h3 class="guide-example-title">Learn Flowlist</h3><div class="guide-priority-demo"><span>Understand Pomodoro</span><button id="guide-demo-priority" class="task-priority plan-icon" type="button" aria-label="Prioritize example task" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9Z"/></svg></button></div>';
-  preview.innerHTML='<small>Today → Priority tasks</small><p role="status">Star the example task to place it here.</p>';
+  preview.innerHTML='<small>Home → Priority tasks</small><p role="status">Star the example task to place it here.</p>';
   preview.hidden=false;
   const button=stage.querySelector('button');
   button.onclick=()=>{

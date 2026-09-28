@@ -711,7 +711,7 @@ function renderTask(task, allTasks, container, goalType = "project") {
       const selected = queuedTaskIds.has(task.id);
       queueButton.setAttribute('aria-pressed', String(selected));
       queueButton.setAttribute('aria-label', `${selected ? 'Unstar' : 'Prioritize'} ${task.title}`);
-      queueButton.title = selected ? 'Remove from Priority tasks' : 'Show in Priority tasks on Today';
+      queueButton.title = selected ? 'Remove from Priority tasks' : 'Show in Priority tasks on Home';
     };
     updatePriority();
     queueButton.addEventListener('click', async () => {
@@ -726,7 +726,7 @@ function renderTask(task, allTasks, container, goalType = "project") {
         // in-flight star clicks cannot overwrite one another's visual state.
         if (queue.some(({task: entry}) => entry.id === task.id)) queuedTaskIds.add(task.id);
         else queuedTaskIds.delete(task.id);
-        showToast(removing ? 'Priority removed. Task kept in Plan.' : 'Prioritized. Find it on Today.');
+        showToast(removing ? 'Priority removed. Task kept in Plan.' : 'Prioritized. Find it on Home.');
       } catch(error) {
         if (removing) queuedTaskIds.add(task.id); else queuedTaskIds.delete(task.id);
         showToast(error.message,true);

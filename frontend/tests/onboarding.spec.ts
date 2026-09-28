@@ -194,3 +194,42 @@ test('failed required Guide has an exit without marking it complete or immediate
  await page.unroute('**/api/guide/example');await page.locator('#help-toggle').click();
  await expect(page.locator('#onboarding-title')).toHaveText('Make a plan');
 });
+
+for(const width of [375,1024,1440])test(`practice cards clear the navigation and stay readable at ${width}px`,async({page},testInfo)=>{
+ await page.setViewportSize({width,height:812});await setup(page);
+ await page.route('**/api/guide/example',route=>route.fulfill({status:404,json:{detail:'Not Found'}}));
+ await page.goto('/');await nextStep(page);
+ for(const step of [2,5]) {
+  if(step===5)for(let i=0;i<3;i++)await nextStep(page);
+  const stage=page.locator('#guide-example'),ring=page.locator('#guide-tab-highlight');
+  if(await ring.isVisible()) {
+   const a=(await stage.boundingBox())!,b=(await ring.boundingBox())!;
+   expect(Math.max(0,Math.min(a.x+a.width,b.x+b.width)-Math.max(a.x,b.x))*Math.max(0,Math.min(a.y+a.height,b.y+b.height)-Math.max(a.y,b.y))).toBe(0);
+  }
+  for(const theme of ['light','dark']) {
+   await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
+   const visible=await stage.evaluate(node=>{const r=node.getBoundingClientRect();return node.contains(document.elementFromPoint(r.left+20,r.top+20));});
+   expect(visible).toBe(true);
+   await page.screenshot({animations:'disabled',path:testInfo.outputPath(`practice-${step}-${theme}.png`)});
+  }
+ }
+});
+
+test('Plan to Home keeps the scrim and does not wait for a slow dashboard response',async({page})=>{
+ await setup(page);await page.goto('/');await nextStep(page);
+ let release!:()=>void;const held=new Promise<void>(resolve=>release=resolve);
+ await page.route('**/api/dashboard?**',async route=>{await held;await route.fulfill({json:emptyDashboard});});
+ await page.evaluate(()=>{
+  (window as any).__shadeAreas=[];
+  function sample(){const bands=[...document.querySelectorAll('#guide-backdrop i')];(window as any).__shadeAreas.push(bands.reduce((sum,node)=>{const r=node.getBoundingClientRect();return sum+r.width*r.height;},0)/(innerWidth*innerHeight));if((window as any).__shadeAreas.length<60)requestAnimationFrame(sample);}
+  requestAnimationFrame(sample);
+ });
+ try {
+  await nextStep(page);
+  await expect(page.locator('#onboarding-tab')).toHaveText('Home');
+  await expect(page.locator('#nav-dashboard')).toHaveText('Home');
+  await expect(page.locator('#view-dashboard')).toHaveAttribute('aria-busy','true');
+  await expect.poll(()=>page.evaluate(()=>(window as any).__shadeAreas.length)).toBeGreaterThan(5);
+  expect(await page.evaluate(()=>Math.min(...(window as any).__shadeAreas))).toBeGreaterThan(.8);
+ } finally {release();}
+});

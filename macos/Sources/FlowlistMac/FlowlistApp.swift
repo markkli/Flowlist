@@ -14,7 +14,7 @@ import SwiftUI
                 Button("Settings…") { store.selectedTab = .settings; AppRouting.showTab(.settings) }.keyboardShortcut(",")
             }
             CommandMenu("Workspace") {
-                Button("Today") { AppRouting.showTab(.today) }.keyboardShortcut("1")
+                Button("Home") { AppRouting.showTab(.today) }.keyboardShortcut("1")
                 Button("Plan") { AppRouting.showTab(.plan) }.keyboardShortcut("2")
                 Button("History") { AppRouting.showTab(.history) }.keyboardShortcut("3")
                 Divider()

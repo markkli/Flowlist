@@ -262,7 +262,7 @@ final class Reminders: NSObject, UNUserNotificationCenterDelegate {
     }
 }
 enum AppTab: String, CaseIterable, Identifiable {
-    case today = "Today", plan = "Plan", history = "History", settings = "Settings"
+    case today = "Home", plan = "Plan", history = "History", settings = "Settings"
     var id: String { rawValue }
-    var symbol: String { switch self { case .today: "timer"; case .plan: "checklist"; case .history: "calendar"; case .settings: "slider.horizontal.3" } }
+    var symbol: String { switch self { case .today: "house"; case .plan: "checklist"; case .history: "calendar"; case .settings: "slider.horizontal.3" } }
 }

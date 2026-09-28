@@ -27,8 +27,8 @@ Use **… → Quit Flowlist** in the menu panel to quit explicitly.
 ## Implemented
 
 - Compact menu dial with Start, Pause, Resume, round indicators, and Finish.
-  Finish opens Today in the main app; the panel never embeds a record editor.
-- The website's Today, Plan, and History inside the app, plus keyboard navigation (⌘1–3).
+  Finish opens Home in the main app; the panel never embeds a record editor.
+- The website's Home, Plan, and History inside the app, plus keyboard navigation (⌘1–3).
 - Projects, standalone tasks, one subtask level, completion, rename, deletion,
   and priorities. Task creation uses a destination tree. Projects can close when
   all tasks are finished; completed items can be shown and reopened.
@@ -126,17 +126,18 @@ personal workspace files.
 ## Desktop widget
 
 The checked-in Xcode project contains the app and WidgetKit extension. Small and
-medium widgets show the countdown and landscape; clicking opens Today. Start is
+medium widgets show the countdown and landscape; clicking opens Home. Start is
 in the app for this version. The widget never owns a separate timer.
 
 1. Open `Flowlist.xcodeproj`; select your signing team for **both** targets.
 2. Both targets use `$(TeamIdentifierPrefix)dev.flowlist.shared`. Keep the app-group
    values in their Info.plist files and entitlements identical.
 3. Run the Flowlist scheme, launch the app once, then use macOS **Edit Widgets**.
-4. Check focus → rest → ready, pause, and the Today link with the main window closed.
+4. Check focus → rest → ready, pause, and the Home link with the main window closed.
 
-Unsigned compilation has been checked. Signing, registration in the widget gallery,
-and notification delivery still need a manual Mac integration pass. The SwiftPM
+The app and extension have built successfully with a Personal Team, and their
+code signatures have been verified locally. Widget gallery behavior and
+notification delivery still need a manual Mac integration pass. The SwiftPM
 local package intentionally omits the extension/app group. Do not assume an unsigned
 Xcode build is enough to register a working widget.
 

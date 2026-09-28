@@ -110,7 +110,7 @@ window.addEventListener('unhandledrejection', event => {
   event.preventDefault();
   showToast(event.reason?.message || 'Could not finish that action. Please try again.', true);
 });
-const onboarding = initOnboarding({ preferences: auth.onboarding, showToast, prepareExample:plan.prepareExample, navigate: name => { window.history.replaceState(null,'',`#${name}`); return switchView(name); } });
+const onboarding = initOnboarding({ preferences: auth.onboarding, showToast, prepareExample:plan.prepareExample, navigate: name => { window.history.replaceState(null,'',`#${name}`); const loading=switchView(name); return name==='goals'?loading:Promise.resolve(); } });
 document.addEventListener('keydown', event => { if (!onboarding.handleKey(event) && !appearance.handleKey(event) && !historyView.handleKey(event) && !timer.handleKey(event)) plan.handleKey(event); });
 setDateCopy();
 switchView(location.hash.slice(1));
