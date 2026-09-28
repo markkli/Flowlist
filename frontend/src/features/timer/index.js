@@ -3,6 +3,7 @@ import { api } from '../../shared/api';
 import { escapeHtml, trapFocus, syncDialogs as syncModal } from '../../shared/dom';
 import { ritualKey, ritualDraftKey, defaults, validSettings, freshRitual, readRitual, migrateLegacy, advance, remaining, payload } from './state';
 import './attribution.css';
+import { workRowContent } from '../../shared/work-row';
 import { initReminders } from './reminders';
 
 export function initTimer({ showToast, loadGoals, loadDashboard }) {
@@ -144,6 +145,34 @@ const planCaptureForm = document.getElementById("plan-capture-form");
 const planCaptureName = document.getElementById("plan-capture-name");
 const planCaptureDestination = document.getElementById("plan-capture-destination");
 const planCaptureError = document.getElementById("plan-capture-error");
+const planCaptureParent = document.getElementById('plan-capture-parent');
+const planCaptureParentField = document.getElementById('plan-capture-parent-field');
+const planCaptureSubmit = planCaptureForm.querySelector('button[type="submit"]');
+const planCaptureRetry=document.getElementById('plan-capture-retry');
+let captureGeneration=0,captureSaving=false;
+async function loadCaptureParents() {
+  if(captureSaving)return;
+  planCaptureRetry.classList.add('hidden');
+  const request=++captureGeneration,destination=planCaptureDestination.value;
+  planCaptureParent.innerHTML='<option value="">Directly in project</option>';
+  planCaptureParentField.hidden=destination==='__tasks__';
+  planCaptureError.textContent='';
+  if(destination==='__tasks__'){planCaptureSubmit.disabled=false;return;}
+  planCaptureParent.disabled=true;planCaptureSubmit.disabled=true;
+  try {
+    const tasks=await api(`/goals/${Number(destination)}/tasks`);
+    if(request!==captureGeneration)return;
+    for(const task of tasks.filter(task=>task.parent_id==null && task.depth<2)) {
+      const option=document.createElement('option');option.value=String(task.id);option.textContent=`Under: ${task.title}${task.completed?' (completed)':''}`;planCaptureParent.appendChild(option);
+    }
+  } catch(error) {
+    if(request!==captureGeneration)return;
+    planCaptureError.textContent='Tasks could not be loaded. Retry, or add directly to the project.';planCaptureRetry.classList.remove('hidden');
+  } finally {if(request===captureGeneration){planCaptureParent.disabled=false;planCaptureSubmit.disabled=false;}}
+}
+planCaptureDestination.addEventListener('change',loadCaptureParents);
+planCaptureRetry.addEventListener('click',loadCaptureParents);
+
 
 function renderPlanCaptureDestinations(goals) {
   const activeDirections = goals.filter(
@@ -158,20 +187,30 @@ function renderPlanCaptureDestinations(goals) {
 }
 
 async function setPlanCaptureOpen(open) {
+  if(captureSaving)return;
+  planCaptureRetry.classList.add('hidden');
   planCaptureOverlay.classList.toggle("hidden", !open);
   focusOverlay.setAttribute("aria-hidden", String(open));
   planCaptureError.textContent = "";
   if (open) {
     document.body.classList.add("modal-open");
     focusOverlay.inert = true;
+    const request=++captureGeneration;
+    planCaptureParentField.hidden=true;planCaptureParent.value='';
+    planCaptureDestination.disabled=true;planCaptureSubmit.disabled=true;
     try {
-      renderPlanCaptureDestinations(await api("/goals"));
+      const goals=await api('/goals');if(request!==captureGeneration)return;
+      renderPlanCaptureDestinations(goals);
     } catch (error) {
+      if(request!==captureGeneration)return;
       renderPlanCaptureDestinations([]);
       planCaptureError.textContent = "Existing projects could not be loaded. You can still add to Tasks.";
     }
+    if(request!==captureGeneration)return;
+    planCaptureDestination.disabled=false;planCaptureSubmit.disabled=false;
     requestAnimationFrame(() => planCaptureName.focus());
   } else {
+    captureGeneration++;
     planCaptureForm.reset();
     if (focusOverlay.classList.contains("hidden")) document.body.classList.remove("modal-open");
     focusOverlay.inert = false;
@@ -185,6 +224,7 @@ document.getElementById("plan-capture-close").addEventListener("click", () => se
 document.getElementById("plan-capture-cancel").addEventListener("click", () => setPlanCaptureOpen(false));
 planCaptureForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if(planCaptureSubmit.disabled||captureSaving)return;
   const title = planCaptureName.value.trim();
   if (!title) {
     planCaptureError.textContent = "Give this item a name.";
@@ -192,8 +232,9 @@ planCaptureForm.addEventListener("submit", async (event) => {
     return;
   }
   const destination = planCaptureDestination.value;
-  const submit = event.submitter;
-  submit.disabled = true;
+  const submit = planCaptureSubmit;
+  captureSaving=true;
+  planCaptureForm.querySelectorAll("input,select,button").forEach(control=>control.disabled=true);
   submit.textContent = "Adding…";
   try {
     if (destination === "__tasks__") {
@@ -202,18 +243,21 @@ planCaptureForm.addEventListener("submit", async (event) => {
         body: JSON.stringify({ title }),
       });
     } else {
-      await api(`/goals/${Number(destination)}/tasks`, {
+      const endpoint=planCaptureParent.value?`/tasks/${Number(planCaptureParent.value)}/subtasks`:`/goals/${Number(destination)}/tasks`;
+      await api(endpoint, {
         method: "POST",
         body: JSON.stringify({ title }),
       });
     }
+    captureSaving=false;
     setPlanCaptureOpen(false);
     await loadGoals();
     showToast("Task added to your plan.");
   } catch (error) {
     planCaptureError.textContent = "Flowlist could not add this item. Try again.";
   } finally {
-    submit.disabled = false;
+    captureSaving=false;
+    planCaptureForm.querySelectorAll("input,select,button").forEach(control=>control.disabled=false);
     submit.textContent = "Add task";
   }
 });
@@ -324,7 +368,7 @@ function renderAttributionOptions(options, selections = new Map()) {
       row.dataset.taskId = option.id;
       if (option.parent_id != null) row.dataset.parentId = option.parent_id;
       const description = ['attribution-choice-help', headingId, context ? contextId : '', children.length ? hierarchyNote.id : ''].filter(Boolean).join(' ');
-      row.innerHTML = `<div class="attribution-task-copy"><strong>${escapeHtml(option.title)}</strong>${context ? `<small id="${contextId}">${escapeHtml(context)}</small>` : ''}</div><label class="attribution-toggle attribution-worked"><input class="attribution-worked-input" type="checkbox" aria-label="Worked on ${escapeHtml(option.title)}" aria-describedby="${description}"><span class="toggle-box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8.5 2.5 2.5L12 5.5"/></svg></span><span aria-hidden="true">Worked on</span><span class="sr-only">Worked on ${escapeHtml(option.title)}</span></label><label class="attribution-toggle attribution-finished"><input class="attribution-finished-input" type="checkbox" aria-label="Finished ${escapeHtml(option.title)}" aria-describedby="${description}"><span class="toggle-box"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 8.5 2.5 2.5L12 5.5"/></svg></span><span aria-hidden="true">Finished</span><span class="sr-only">Finished ${escapeHtml(option.title)}</span></label>`;
+      row.innerHTML = workRowContent({title:option.title,context,contextId,describedBy:description});
       list.appendChild(row);
       children.forEach(appendTask);
     };
@@ -335,8 +379,8 @@ function renderAttributionOptions(options, selections = new Map()) {
   }
   hierarchyNote.classList.toggle('hidden', attributionChildren.size === 0);
   applyAttributionSelections(restoredSelections);
-  document.querySelector(".attribution-general-note").hidden = !options.length;
-  document.querySelector(".attribution-summary").hidden = !options.length;
+  attributionOverlay.querySelector(".attribution-general-note").hidden = !options.length;
+  attributionOverlay.querySelector(".attribution-summary").hidden = !options.length;
   if (!options.length) {
     attributionOptions.innerHTML = '<p class="attribution-empty"><strong>No tasks to update.</strong> Your time and note will be saved as General focus.</p>';
   }

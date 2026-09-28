@@ -2,6 +2,8 @@ import { api, timezoneQuery } from '../../shared/api';
 import { escapeHtml, trapFocus, syncDialogs } from '../../shared/dom';
 import { asDate, dayKey, nextDay, rangeLabel, duration } from './timeline';
 import './history.css';
+import '../timer/attribution.css';
+import { workRowContent } from '../../shared/work-row';
 import { createCalendar } from './calendar';
 
 export function initHistory({ showToast, refresh }) {
@@ -37,43 +39,66 @@ export function initHistory({ showToast, refresh }) {
   }
   function renderRows() {
     const target=el('history-edit-attributions');target.replaceChildren();
-    if(!rows.length) { const empty=document.createElement('p');empty.textContent='General focus · no tasks attached.';target.appendChild(empty); }
-    rows.forEach(row=>{
-      const item=document.createElement('div');item.className='history-edit-row';
-      item.innerHTML=`<label class="history-work-choice"><input type="checkbox" class="history-include" ${row.included?'checked':''}><span><strong>${escapeHtml(row.task_title)}</strong><small>${escapeHtml(row.goal_title || 'Tasks')}${row.task_id == null ? ' · removed from Plan' : ''}</small></span></label><label class="history-finish-choice"><input type="checkbox" class="history-finished" ${row.completed?'checked':''} ${row.included?'':'disabled'}><span>Finished</span></label>`;
-      const include=item.querySelector('.history-include'), finished=item.querySelector('.history-finished');
-      include.setAttribute('aria-label',`Worked on ${row.task_title}`);finished.setAttribute('aria-label',`Finished ${row.task_title}`);
-      include.addEventListener('change',()=>{row.included=include.checked;finished.disabled=!include.checked;});
-      finished.addEventListener('change',()=>{row.completed=finished.checked;});target.appendChild(item);
-    });
-  }
-  function renderTaskResults() {
     const search=el('history-task-search').value.trim().toLocaleLowerCase();
-    const available=(taskOptions || []).filter(task=>!rows.some(row=>row.task_id===task.id) && `${task.title} ${task.goal_title}`.toLocaleLowerCase().includes(search));
-    const target=el('history-task-results');target.replaceChildren();
-    el('history-task-status').textContent=available.length>40 ? `${available.length} matches. Showing 40; type to narrow the list.` : `${available.length} ${available.length===1?'task':'tasks'} available`;
-    available.slice(0,40).forEach(task=>{
-      const button=document.createElement('button');button.type='button';button.className='history-task-option';
-      button.innerHTML=`<span><strong>${escapeHtml(task.title)}</strong><small>${escapeHtml(task.goal_title)}${task.completed ? ' · completed in Plan' : ''}</small></span><span aria-hidden="true">+</span>`;
-      button.setAttribute('aria-label',`Add ${task.title} to record`);
-      button.addEventListener('click',()=>{ rows.push({task_id:task.id,task_title:task.title,goal_title:task.goal_title,included:true,completed:false});renderRows();renderTaskResults();el('history-edit-attributions').querySelectorAll('input.history-include').item(rows.length-1)?.focus(); });
-      target.appendChild(button);
-    });
+    const byId=new Map(rows.filter(row=>row.task_id!=null).map(row=>[row.task_id,row]));
+    const parentOf=row=>byId.get(row.parent_id);
+    const visible=rows.filter(row=>`${row.task_title} ${row.goal_title} ${parentOf(row)?.task_title||''}`.toLocaleLowerCase().includes(search));
+    if(!visible.length) { const empty=document.createElement('p');empty.className='attribution-empty';empty.textContent=search?'No matching tasks.':taskOptions?'No tasks to attach. Your time and note are still saved.':'General focus · no tasks attached.';target.appendChild(empty); }
+    const groups=new Map();
+    visible.forEach(row=>{const key=row.goal_title||'Tasks';if(!groups.has(key))groups.set(key,[]);groups.get(key).push(row);});
+    let groupIndex=0;
+    for(const [name,group] of groups) {
+      const section=document.createElement('section');section.className='attribution-group';
+      const headingId=`history-work-group-${groupIndex++}`;section.setAttribute('aria-labelledby',headingId);
+      section.innerHTML=`<header class="attribution-group-heading"><h3 id="${headingId}">${escapeHtml(name)}</h3></header><div class="attribution-group-tasks"></div>`;
+      const list=section.lastElementChild,visited=new Set();
+      const append=row=>{
+        if(visited.has(row))return;visited.add(row);
+        const parent=parentOf(row);
+        const context=[parent?`Subtask of ${parent.task_title}`:row.parent_id!=null?'Subtask':'',row.task_id==null?'Removed from Plan':row.plan_completed?'Completed in Plan':''].filter(Boolean).join(' · ');
+        const item=document.createElement('div');item.className=`attribution-task-row${row.parent_id!=null?' is-subtask':''}`;
+        if(row.task_id!=null)item.dataset.taskId=row.task_id;
+        const contextId=`history-work-context-${groupIndex}-${visited.size}`;
+        item.innerHTML=workRowContent({title:row.task_title,context,contextId,describedBy:`history-choice-help ${headingId}${context?' '+contextId:''}`});
+        const include=item.querySelector('.attribution-worked-input'),finished=item.querySelector('.attribution-finished-input');
+        const sync=()=>{include.checked=row.included;finished.checked=row.included&&row.completed;item.classList.toggle('selected',row.included);item.classList.toggle('finished',row.included&&row.completed);};
+        include.addEventListener('change',()=>{row.included=include.checked;if(!row.included)row.completed=false;sync();});
+        finished.addEventListener('change',()=>{row.completed=finished.checked;if(row.completed)row.included=true;sync();});
+        sync();list.appendChild(item);
+        if(row.task_id!=null)group.filter(child=>child.parent_id===row.task_id).forEach(append);
+      };
+      group.filter(row=>!group.some(parent=>parent.task_id!=null&&parent.task_id===row.parent_id)).forEach(append);
+      group.forEach(append);target.appendChild(section);
+    }
+  }
+  async function loadTaskOptions() {
+    const version=detailGeneration;el('history-task-status').textContent='Loading tasks…';el('history-tasks-retry').classList.add('hidden');
+    try {
+      const tasks=await api('/history/task-options');if(version!==detailGeneration)return;taskOptions=tasks;
+      for(const task of tasks) {
+        let row=rows.find(row=>row.task_id===task.id);
+        if(!row){row={task_id:task.id,task_title:task.title,goal_title:task.goal_title,included:false,completed:false};rows.push(row);}
+        row.parent_id=task.parent_id;row.plan_completed=task.completed;
+      }
+      el('history-task-status').textContent='';if(!saving)renderRows();
+    } catch(error) {if(version===detailGeneration){el('history-task-status').textContent='Could not load Plan tasks. Your recorded tasks are still available.';el('history-tasks-retry').classList.remove('hidden');}}
   }
   function openRecord(session, source) {
     record=session;opener=source;taskOptions=null;detailGeneration++;
     rows=session.attributions.map(row=>({...row,attribution_id:row.id,included:true}));
     el('history-detail-title').textContent=session.task_title;
-    el('history-detail-meta').textContent=`${session.actual_minutes} minutes focused · ${session.started_at ? asDate(session.started_at).toLocaleString() : `Saved ${asDate(session.created_at).toLocaleString()}`}`;
+    const seconds=session.blocks?.reduce((sum,block)=>sum+Math.max(0,(asDate(block.ended_at)-asDate(block.started_at))/1000),0);
+    el('history-detail-meta').textContent=`${duration(Math.round(seconds || session.actual_minutes*60))} focused · ${asDate(session.started_at || session.created_at).toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'})}`;
     const blocks=el('history-detail-blocks');blocks.replaceChildren();
     if(session.started_at && session.blocks?.length) {
       const list=document.createElement('ul');list.className='history-block-list';
-      session.blocks.forEach(block=>{const item=document.createElement('li');const start=asDate(block.started_at),end=asDate(block.ended_at);item.textContent=`${start.toLocaleDateString([], {month:'short',day:'numeric'})} · ${rangeLabel(start,end)} · ${duration(Math.round((end-start)/1000))}`;list.appendChild(item);});blocks.appendChild(list);
-      const note=document.createElement('p');note.textContent='Notes and tasks apply to the whole session.';blocks.appendChild(note);
+      session.blocks.forEach(block=>{const item=document.createElement('li');const start=asDate(block.started_at),end=asDate(block.ended_at);item.textContent=`${start.toLocaleDateString([], {month:'short',day:'numeric'})} · ${rangeLabel(start,end)} · ${duration(Math.round((end-start)/1000))}`;list.appendChild(item);});
+      if(session.blocks.length>1){const details=document.createElement('details');const summary=document.createElement('summary');summary.textContent=`${session.blocks.length} focus intervals`;details.append(summary,list);blocks.appendChild(details);}else blocks.appendChild(list);
+      if(session.blocks.length>1){const note=document.createElement('p');note.textContent='Notes and tasks apply to the whole session.';blocks.querySelector('details').appendChild(note);}
     } else blocks.textContent=session.started_at ? 'No focused time was recorded.' : 'Block times were not recorded for this older ritual.';
     el('history-reflection').value=session.summary || '';el('history-edit-error').textContent='';el('history-reload-record').classList.add('hidden');
-    el('history-add-work').open=false;el('history-task-search').value='';el('history-task-results').replaceChildren();
-    renderRows();original=serialize();overlay.classList.remove('hidden');syncDialogs();modal.focus();
+    el('history-task-search').value='';el('history-task-status').textContent='';
+    renderRows();original=serialize();overlay.classList.remove('hidden');syncDialogs();modal.focus();loadTaskOptions();
   }
   function recordCard(session, isDeleted=false) {
     const article=document.createElement('article');article.className='panel session-row history-record';
@@ -135,13 +160,8 @@ export function initHistory({ showToast, refresh }) {
   deletedToggle.addEventListener('click',()=>run(()=>{mode='list';deleted=!deleted;return loadHistory();}));
   [['history-prev',-7],['history-next',7],['history-current',0]].forEach(([id,days])=>el(id).addEventListener('click',()=>run(()=>{return moveWeek(days);})));
   ['history-detail-close','history-edit-cancel'].forEach(id=>el(id).addEventListener('click',()=>closeRecord()));
-  el('history-task-search').addEventListener('input',renderTaskResults);
-  el('history-add-work').addEventListener('toggle',async()=>{
-    if(!el('history-add-work').open || taskOptions)return;
-    const version=detailGeneration;el('history-task-status').textContent='Loading tasks…';
-    try {const tasks=await api('/history/task-options');if(version!==detailGeneration)return;taskOptions=tasks;renderTaskResults();}
-    catch(error){if(version===detailGeneration)el('history-task-status').textContent=`${error.message} Close and reopen this section to retry.`;}
-  });
+  el('history-task-search').addEventListener('input',renderRows);
+  el('history-tasks-retry').addEventListener('click',loadTaskOptions);
   el('history-reload-record').addEventListener('click',async()=>{
     if(original!==serialize()&&!window.confirm('Replace your unsaved edits with the saved record?'))return;
     try{const latest=await api(`/sessions/${record.id}`);openRecord(latest,opener);}catch(error){el('history-edit-error').textContent=error.message;}

@@ -22,15 +22,15 @@ test('refresh restores reflection and task selections; Escape keeps the draft', 
   await page.getByRole('button',{name:/Start a 25-minute/}).click();
   await page.getByRole('button',{name:'End session',exact:true}).first().click();
   await expect(page.getByRole('dialog',{name:'Save your progress'})).toBeVisible();
-  await page.getByLabel('What did you do?').fill('Kept my reflection');
+  await page.locator('#session-attribution-overlay').getByLabel('What did you do?').fill('Kept my reflection');
   await page.getByLabel('Worked on A task', {exact:true}).check();
   await page.reload();
-  await expect(page.getByLabel('What did you do?')).toHaveValue('Kept my reflection');
+  await expect(page.locator('#session-attribution-overlay').getByLabel('What did you do?')).toHaveValue('Kept my reflection');
   await expect(page.getByLabel('Worked on A task',{exact:true})).toBeChecked();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog',{name:'Save your progress'})).toBeHidden();
   await page.getByRole('button',{name:'Unsaved ritual · Review and save Open'}).click();
-  await expect(page.getByLabel('What did you do?')).toHaveValue('Kept my reflection');
+  await expect(page.locator('#session-attribution-overlay').getByLabel('What did you do?')).toHaveValue('Kept my reflection');
 });
 
 test('timer minimizes, retains plan navigation and restores after refresh', async ({page}) => {
@@ -60,7 +60,7 @@ test('a failed save retries with the same ritual ID and keeps the reflection', a
   await page.goto('/');
   await page.getByRole('button',{name:/Start a 25-minute/}).click();
   await page.locator('#focus-exit').click();
-  await page.getByLabel('What did you do?').fill('Retry this safely');
+  await page.locator('#session-attribution-overlay').getByLabel('What did you do?').fill('Retry this safely');
   await page.getByRole('button',{name:'Save session',exact:true}).click();
   await expect(page.locator('#attribution-error')).toContainText('Your ritual is saved on this device');
   await page.getByRole('button',{name:'Save session',exact:true}).click();
@@ -127,7 +127,7 @@ test('attribution remains usable on a narrow screen with enlarged text', async (
   await page.addStyleTag({content:'body { font-size: 20px; }'});
   await page.getByRole('button',{name:/Start a 25-minute/}).click();
   await page.locator('#focus-exit').click();
-  await page.getByLabel('What did you do?').fill('A note kept for later');
+  await page.locator('#session-attribution-overlay').getByLabel('What did you do?').fill('A note kept for later');
   await page.getByRole('button',{name:'Save later',exact:true}).click();
   await expect(page.locator('#timer-mini')).toContainText('Unsaved ritual');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

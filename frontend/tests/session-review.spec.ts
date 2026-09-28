@@ -26,7 +26,7 @@ for (const width of [375,768,1440]) for (const empty of [true,false]) {
   await expect(page.locator('.attribution-column-head')).toBeHidden();
   if(empty) {
    await expect(dialog).toContainText('No tasks to update');
-   await expect(page.locator('.attribution-summary')).toBeHidden();
+   await expect(dialog.locator('.attribution-summary')).toBeHidden();
   } else {
    await expect(dialog).toContainText('logs progress.');
    await page.getByLabel('Finished Read the first chapter',{exact:true}).check();

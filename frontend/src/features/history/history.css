@@ -37,24 +37,6 @@
 .history-edit-work legend { font-size:12px; font-weight:600; }
 .history-edit-work > p, #history-task-status { font-size:11px; color:var(--muted); line-height:1.5; }
 #history-edit-attributions { display:grid; gap:4px; max-height:300px; overflow:auto; }
-.history-edit-row { display:flex; justify-content:space-between; gap:12px; align-items:center; min-height:52px; padding:4px 0; border-bottom:1px solid var(--border); }
-.history-edit-row label { display:flex; align-items:center; gap:10px; cursor:pointer; }
-.history-edit-row input { width:18px; height:18px; flex-shrink:0; accent-color:var(--forest); }
-.history-edit-row label > span { margin:0; font-size:12px; color:var(--ink); font-weight:400; letter-spacing:0; }
-.history-work-choice { flex:1; }
-.history-work-choice strong, .history-work-choice small { display:block; overflow-wrap:anywhere; }
-.history-work-choice strong { font-size:12px; font-weight:550; }
-.history-work-choice small { color:var(--muted); font-size:10px; margin-top:3px; }
-.history-finish-choice { flex-shrink:0; min-height:44px; }
-#history-add-work { border-block:1px solid var(--border); padding:0 0 8px; }
-#history-add-work summary { cursor:pointer; font-size:12px; padding:12px 0; }
-#history-add-work label { display:block; font-size:11px; color:var(--muted); margin:8px 0; }
-#history-task-results { max-height:220px; overflow:auto; }
-.history-task-option { display:flex; width:100%; justify-content:space-between; gap:10px; align-items:center; min-height:48px; border:0; border-bottom:1px solid var(--border); background:transparent; text-align:left; color:var(--ink); cursor:pointer; padding:8px 4px; }
-.history-task-option:hover { background:var(--surface-muted); }
-.history-task-option strong, .history-task-option small { display:block; overflow-wrap:anywhere; }
-.history-task-option strong { font-size:12px; font-weight:550; }
-.history-task-option small { font-size:10px; margin-top:3px; color:var(--muted); }
 #history-edit-form footer { display:flex; justify-content:space-between; gap:12px; margin-top:20px; }
 @media(max-width:520px) {
   .history-heading { align-items:flex-start; gap:16px; }
@@ -67,7 +49,7 @@
   .history-detail-modal h2 { font-size:21px; }
   .history-record { gap:8px; padding:14px; }
   .history-record-actions .session-status { display:none; }
-  .history-finish-choice { gap:5px !important; }
+
 }
 
 /* Seven fixed columns with matching headers and vertical hour scrolling. */
@@ -121,3 +103,15 @@
   .history-day-brief summary { font-size:9px; gap:1px; flex-wrap:wrap; line-height:1.15; text-align:center; padding:2px; }
   .history-block strong { font-size:9px; }
 }
+
+/* Match checkout: notes, one searchable outcome list, then save. */
+#history-detail-overlay .history-detail-modal { width:min(720px,100%); border-radius:20px; }
+#history-detail-overlay .session-note-field { margin:20px 0; }
+#history-detail-overlay .attribution-summary { margin:8px 0 12px; }
+#history-edit-attributions { gap:16px; max-height:330px; padding:3px 5px 3px 1px; }
+#history-task-search { margin-bottom:10px; }
+#history-task-status:empty { display:none; }
+#history-edit-form footer { position:sticky; bottom:-28px; margin:20px -4px -4px; padding:16px 4px 4px; background:var(--surface-strong); z-index:1; }
+#history-detail-blocks { margin:8px 0 18px; }
+.history-block-list { list-style:none; padding:0; margin:0; }
+@media(max-width:520px) { #history-edit-form footer { bottom:-20px; } }

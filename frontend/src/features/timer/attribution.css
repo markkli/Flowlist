@@ -44,33 +44,6 @@
   gap: 4px;
 }
 
-.attribution-task-row.is-subtask .attribution-task-copy {
-  position: relative;
-  padding-inline-start: 18px;
-}
-
-.attribution-task-row.is-subtask .attribution-task-copy::before {
-  position: absolute;
-  inset-inline-start: 2px;
-  top: 14px;
-  width: 7px;
-  height: 10px;
-  border-inline-start: 1px solid var(--border-strong);
-  border-bottom: 1px solid var(--border-strong);
-  border-end-start-radius: 3px;
-  content: '';
-}
-
-@media (max-width: 520px) {
-  .attribution-hierarchy-note {
-    font-size: 11px;
-  }
-
-  .attribution-task-row.is-subtask .attribution-task-copy {
-    padding-inline-start: 13px;
-  }
-}
-
 /* Notes first, followed by two explicitly labelled task outcomes. */
 .session-review .attribution-modal { width:min(720px,100%); padding:28px; border-radius:20px; }
 .session-review-heading { display:flex; align-items:center; justify-content:space-between; gap:20px; }
@@ -104,3 +77,7 @@
   .session-review .attribution-task-copy { grid-column:1 / -1; padding-bottom:2px; }
   .session-review .attribution-actions button { padding:10px; font-size:12px; }
 }
+
+/* Indent the whole row so the outcome columns stay aligned at the right. */
+.session-review .attribution-task-row.is-subtask { margin-inline-start:20px; }
+@media(max-width:520px) { .session-review .attribution-task-row.is-subtask { margin-inline-start:12px; } }

@@ -25,7 +25,7 @@ async function setup(page: Page) {
       json=sessions[0];
     }
     if(path.startsWith('/api/tasks/')&&method==='PATCH')taskWrites++;
-    if(path==='/api/history/task-options')json=[{id:5,title:'Already completed task',goal_id:1,goal_title:'Release',completed:true}];
+    if(path==='/api/history/task-options')json=[{id:6,title:'Nested review',goal_id:1,goal_title:'Release',parent_id:5,depth:2,completed:false},{id:5,title:'Already completed task',goal_id:1,goal_title:'Release',parent_id:null,depth:1,completed:true}];
     if(path==='/api/export')json={format:'flowlist',schema_version:1,goals:[],tasks:[],queue:[],sessions};
     await route.fulfill({json});
   });
@@ -48,16 +48,16 @@ test('weekly view shows real focus intervals and keeps legacy records outside th
 });
 
 test('record editing preserves snapshots, includes completed tasks, and only updates history',async({page})=>{
-  const {updates,getTaskWrites}=await setup(page);
+  await page.emulateMedia({reducedMotion:'reduce'});
+ const {updates,getTaskWrites}=await setup(page);
   await page.locator('#history-timeline .history-block').first().click();
   const dialog=page.getByRole('dialog',{name:'Ship the release',exact:true});
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText('whole session');
-  await page.getByLabel('Reflection',{exact:true}).fill('Corrected reflection');
+  await page.locator('#history-detail-overlay').getByLabel('What did you do?',{exact:false}).fill('Corrected reflection');
   await page.getByLabel('Finished Deleted task snapshot',{exact:true}).uncheck();
-  await page.getByText('Add a task to this record',{exact:true}).click();
   await dialog.getByLabel('Find a task',{exact:true}).fill('completed');
-  await page.getByRole('button',{name:'Add Already completed task to record'}).click();
+  await page.getByLabel('Worked on Already completed task',{exact:true}).check();
   await page.getByRole('button',{name:'Save changes',exact:true}).click();
   await expect(dialog).toBeHidden();
   expect(updates[0]).toEqual({revision:0,summary:'Corrected reflection',attributions:[{attribution_id:42,completed:false},{task_id:5,completed:false}]});
@@ -68,13 +68,13 @@ test('failed and conflicting edits preserve the draft and expose recovery',async
   await setup(page);
   await page.route('**/api/sessions/1',async route=>{await route.fulfill(route.request().method()==='PATCH'?{status:409,json:{detail:'This record changed in another window.'}}:{json:blockSession});});
   await page.locator('#history-timeline .history-block').first().click();
-  await page.getByLabel('Reflection',{exact:true}).fill('Keep this draft');
+  await page.locator('#history-detail-overlay').getByLabel('What did you do?',{exact:false}).fill('Keep this draft');
   await page.getByRole('button',{name:'Save changes',exact:true}).click();
-  await expect(page.getByLabel('Reflection',{exact:true})).toHaveValue('Keep this draft');
+  await expect(page.locator('#history-detail-overlay').getByLabel('What did you do?',{exact:false})).toHaveValue('Keep this draft');
   await expect(page.getByRole('button',{name:'Reload saved version'})).toBeVisible();
   page.once('dialog',dialog=>dialog.accept());
   await page.getByRole('button',{name:'Reload saved version'}).click();
-  await expect(page.getByLabel('Reflection',{exact:true})).toHaveValue(blockSession.summary);
+  await expect(page.locator('#history-detail-overlay').getByLabel('What did you do?',{exact:false})).toHaveValue(blockSession.summary);
   await page.keyboard.press('Escape');
   await expect(page.locator('#history-detail-overlay')).toBeHidden();
   await expect(page.locator('#history-timeline .history-block').first()).toBeFocused();
@@ -99,7 +99,7 @@ for(const width of [375,768,1440]) test(`history and record dialog fit both them
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await page.screenshot({path:testInfo.outputPath(`week-${width}-${theme}.png`),fullPage:true});
     await page.locator('#history-timeline .history-block').first().click();
-    await expect(page.getByLabel('Reflection',{exact:true})).toBeVisible();
+    await expect(page.locator('#history-detail-overlay').getByLabel('What did you do?',{exact:false})).toBeVisible();
     for(let i=0;i<7;i++){await page.keyboard.press('Tab');expect(await page.locator('#history-detail-overlay').evaluate(el=>el.contains(document.activeElement))).toBe(true);}
     await page.getByRole('button',{name:'Save changes',exact:true}).scrollIntoViewIfNeeded();
     const box=await page.getByRole('button',{name:'Save changes',exact:true}).boundingBox();expect(box!.x+box!.width).toBeLessThanOrEqual(width);
@@ -198,4 +198,33 @@ test('brief-session menu fits the seven-column phone view and retains consistent
  await page.screenshot({path:testInfo.outputPath('brief-mobile.png'),fullPage:true});
  await menu.getByRole('button').click();await expect(page.getByRole('dialog',{name:'A brief check',exact:true})).toBeVisible();
  await page.keyboard.press('Escape');await expect(summary).toBeFocused();
+});
+
+
+test('record tasks preserve parent context when filtered and Finished also records Worked on',async({page})=>{
+ await page.emulateMedia({reducedMotion:'reduce'});
+ const {updates,getTaskWrites}=await setup(page);
+ await page.locator('#history-timeline .history-block').first().click();
+ const parent=page.locator('#history-edit-attributions [data-task-id="5"]');
+ const child=page.locator('#history-edit-attributions [data-task-id="6"]');
+ await expect(child).toContainText('Subtask of Already completed task');
+ expect((await child.boundingBox())!.x-(await parent.boundingBox())!.x).toBe(20);
+ expect((await child.boundingBox())!.y).toBeGreaterThan((await parent.boundingBox())!.y);
+ await page.locator('#history-detail-overlay').getByLabel('Find a task',{exact:true}).fill('Nested');
+ await expect(parent).toHaveCount(0);await expect(child).toContainText('Subtask of Already completed task');
+ await page.getByLabel('Finished Nested review',{exact:true}).check();
+ await expect(page.getByLabel('Worked on Nested review',{exact:true})).toBeChecked();
+ await page.getByRole('button',{name:'Save changes',exact:true}).click();
+ expect(updates[0].attributions).toContainEqual({task_id:6,completed:true});expect(getTaskWrites()).toBe(0);
+});
+
+test('task loading failure keeps snapshots editable and supports retry',async({page})=>{
+ await setup(page);
+ await page.route('**/api/history/task-options',route=>route.fulfill({status:503,json:{detail:'Offline'}}));
+ await page.locator('#history-timeline .history-block').first().click();
+ await expect(page.getByRole('button',{name:'Retry loading tasks'})).toBeVisible();
+ await expect(page.getByLabel('Worked on Deleted task snapshot',{exact:true})).toBeChecked();
+ await page.unroute('**/api/history/task-options');
+ await page.getByRole('button',{name:'Retry loading tasks'}).click();
+ await expect(page.getByLabel('Worked on Nested review',{exact:true})).toBeVisible();
 });
