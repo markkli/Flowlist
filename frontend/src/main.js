@@ -97,7 +97,7 @@ window.addEventListener('unhandledrejection', event => {
   event.preventDefault();
   showToast(event.reason?.message || 'Could not finish that action. Please try again.', true);
 });
-const onboarding = initOnboarding({ preferences: auth.onboarding, showToast, navigate: name => { window.history.replaceState(null,'',`#${name}`); switchView(name); } });
+const onboarding = initOnboarding({ preferences: auth.onboarding, showToast, navigate: name => { window.history.replaceState(null,'',`#${name}`); return switchView(name); } });
 document.addEventListener('keydown', event => { if (!onboarding.handleKey(event) && !appearance.handleKey(event) && !historyView.handleKey(event) && !timer.handleKey(event)) plan.handleKey(event); });
 setDateCopy();
 switchView(location.hash.slice(1));

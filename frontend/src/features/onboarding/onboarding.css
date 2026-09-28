@@ -16,3 +16,23 @@
 
 @media(max-width:820px) { body:has(#onboarding-overlay:not(.hidden)) .sidebar { position:static; } }
 @media(max-height:500px) and (min-width:641px) { .guide-modal { width:280px; padding:14px; } .guide-modal > p { font-size:13px; line-height:1.5; } }
+
+/* Do not measure a control mid-way through a view's entrance transform. */
+.guide-open .view { animation:none; }
+/* Leave room to place a short page's target above the card in landscape. */
+.guide-open #main-content::after { content:''; display:block; height:50vh; }
+#onboarding-overlay [hidden] { display:none !important; }
+#guide-spotlight { z-index:2; border-width:2px; }
+.guide-modal { z-index:3; }
+#guide-example { position:fixed; z-index:1; overflow:auto; padding:20px; border:1px solid var(--border-strong); border-radius:16px; background:var(--surface-strong); color:var(--ink); box-shadow:var(--shadow-2); }
+.guide-example-label { margin:0 0 14px; color:var(--muted); font-size:11px; line-height:1.5; }
+.guide-example-title { margin:0 0 16px; font-size:20px; font-weight:600; letter-spacing:-.035em; }
+.guide-example-feedback { margin:12px 0 0; min-height:38px; font-size:12px; color:var(--muted); }
+#guide-example .task-priority { opacity:1; }
+#guide-example .guide-review-example { width:100%; max-height:none; overflow:visible; padding:0; border:0; box-shadow:none; border-radius:0; background:transparent; animation:none; }
+.guide-review-example .session-review-heading { gap:12px; }
+.guide-review-example .session-review-heading h2 { font-size:24px; }
+.guide-review-example .session-duration { font-size:12px; white-space:nowrap; }
+.guide-review-example .session-note { min-height:80px; }
+.guide-review-example .attribution-actions { margin-top:20px; }
+@media(max-width:719px) { #guide-example { padding:16px; } .guide-review-example .session-review-heading h2 { font-size:22px; } .guide-review-example .session-duration { display:none; } }

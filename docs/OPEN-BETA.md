@@ -53,18 +53,22 @@ intentional mode change.
 
 ## Guide behavior
 
-The first authenticated visit opens a three-step guide that highlights the
-actual Plan, Pomodoro, and History controls. It is skippable with a button or
-Escape and can be reopened from Help
-in the toolbar. It never creates tasks or starts the timer. Active or unsaved
-rituals take precedence over automatically showing the guide.
+The first authenticated visit opens an eight-step guide covering Plan,
+priorities, the timer, settings, session notes, completion, and History. New
+users finish it once; closing or reloading the page resumes their current step.
+It can be replayed from Guide in the toolbar and closed during replay. Existing
+users who acknowledged the previous guide are not forced through it again.
+Interactive examples use isolated copies of the app controls and never create
+tasks, start the timer, or save sessions. Active or unsaved rituals take
+precedence over automatically showing the guide.
 
-Finishing or skipping stores version 1 in the authenticated user's Supabase
+For new users, finishing stores version 2 in the authenticated user's Supabase
 `user_metadata.flowlist_onboarding_version`. That is a display preference only,
 never an authorization field. No database migration is needed. A per-account
 local hint also prevents repeated prompts if preference syncing is unavailable;
 a visible message explains a failed sync. Local development offers the guide
-from Help without showing it automatically on every fresh browser.
+from Guide without showing it automatically on every fresh browser. Partial
+progress is stored per account in the current browser, separately from completion.
 
 ## References
 

@@ -568,7 +568,7 @@ label > span { display: block; margin-bottom: 5px; color: var(--muted); font-siz
 .session-note-label > span { margin: 0; color: var(--ink); font-size: 11px; }
 .session-note-label small { color: var(--faint); font-size: 9px; }
 .session-note { height: auto; min-height: 76px; padding: 10px 11px; resize: vertical; line-height: 1.45; }
-#session-attribution-form > fieldset { min-width: 0; margin: 20px 0 0; padding: 0; border: 0; }
+.session-review form > fieldset { min-width: 0; margin: 20px 0 0; padding: 0; border: 0; }
 .attribution-modal legend { margin-bottom: 9px; color: var(--muted); font-size: 10px; font-weight: 650; letter-spacing: .045em; }
 .attribution-column-head {
   display: grid;

@@ -13,9 +13,9 @@ async function setup(page: any, { version = 0, failSave = false, id = owner, aut
   await page.route('https://beta.supabase.co/**', (route: any) => {
     if (route.request().method() === 'PUT') {
       writes.push('preference');
-      expect(route.request().postDataJSON().data).toEqual({ flowlist_onboarding_version: 1 });
+      expect(route.request().postDataJSON().data).toEqual({ flowlist_onboarding_version: 2 });
       if (failSave) return route.fulfill({ status: 500, json: { message: 'Offline' } });
-      savedVersion = 1;
+      savedVersion = 2;
     }
     return route.fulfill({ json: user() });
   });
@@ -32,122 +32,104 @@ async function setup(page: any, { version = 0, failSave = false, id = owner, aut
 
 const guide = (page: any) => page.locator('#onboarding-overlay');
 
-test('first sign-in teaches the workflow, saves the preference, and does not create work or start a timer', async ({page}) => {
-  const writes = await setup(page);
-  await page.goto('/');
-  await expect(guide(page)).toBeVisible();
-  await expect(page.locator('#onboarding-title')).toBeFocused();
-  await expect(page).toHaveURL(/#goals$/);
-  await expect(guide(page)).toContainText('Star tasks');
-  await page.getByRole('button', {name:'Next',exact:true}).click();
-  await expect(page).toHaveURL(/#dashboard$/);
-  await expect(guide(page)).toContainText('Press Start focus');
-  await page.getByRole('button', {name:'Back',exact:true}).click();
-  await expect(page.locator('#onboarding-count')).toHaveText('1 / 3');
-  await page.getByRole('button', {name:'Next',exact:true}).click();
-  await page.getByRole('button', {name:'Next',exact:true}).click();
-  await expect(page).toHaveURL(/#history$/);
-  await expect(guide(page)).toContainText('Use the arrows');
-  await page.getByRole('button', {name:'Done',exact:true}).click();
-  await expect(guide(page)).toBeHidden();
-  await expect.poll(() => writes).toEqual(['preference']);
-  expect(await page.evaluate(() => Object.keys(localStorage).some(key => key.startsWith('flowlist-ritual-v2')))).toBe(false);
-  // Clear the local hint: server preference must still prevent a repeat on another browser.
-  await page.evaluate(() => localStorage.removeItem('flowlist-onboarding-v1:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'));
-  await page.reload();
-  await expect(page.locator('#help-toggle')).toBeVisible();
-  await expect(guide(page)).toBeHidden();
-  await page.getByRole('button', {name:'Help',exact:true}).click();
-  await expect(guide(page)).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('button', {name:'Help',exact:true})).toBeFocused();
-  expect(writes).toEqual(['preference']);
+const targets=['.plan-create-actions','#guide-example-star','#edit-queue','#start-pomodoro','#timer-settings-toggle','#guide-demo-session-summary','#guide-example-progress','.history-week-navigation'];
+async function nextStep(page:any){await page.getByRole('button',{name:'Next',exact:true}).click();await expect(page.getByRole('button',{name:/^(Next|Finish guide)$/})).toBeEnabled();}
+async function finishGuide(page:any){while(await page.getByRole('button',{name:'Next',exact:true}).count())await nextStep(page);await page.getByRole('button',{name:'Finish guide',exact:true}).click();}
+
+test('first sign-in requires the complete guide, uses safe examples, and persists completion',async({page})=>{
+ const writes=await setup(page);await page.goto('/');
+ await expect(guide(page)).toBeVisible();await expect(page.locator('#onboarding-title')).toBeFocused();
+ await expect(page.getByRole('button',{name:'Close guide',exact:true})).toBeHidden();
+ await page.keyboard.press('Escape');await expect(guide(page)).toBeVisible();expect(writes).toEqual([]);
+ await nextStep(page);
+ await page.getByRole('button',{name:'Prioritize example task',exact:true}).click();
+ await expect(page.locator('#guide-example-star')).toHaveAttribute('aria-pressed','true');
+ await expect(page.locator('.guide-example-feedback')).toContainText('Priority tasks');
+ for(let i=0;i<4;i++)await nextStep(page);
+ await expect(page.locator('#onboarding-count')).toHaveText('6 / 8');
+ await page.locator('#guide-demo-session-summary').fill('A practice note');
+ await expect(page.locator('#session-summary')).toHaveValue('');
+ await nextStep(page);
+ await expect(page.locator('#guide-demo-session-summary')).toHaveValue('A practice note');
+ await page.getByRole('checkbox',{name:'Finished example task',exact:true}).check();
+ await expect(page.getByRole('checkbox',{name:'Worked on example task',exact:true})).toBeChecked();
+ await page.getByRole('checkbox',{name:'Worked on example task',exact:true}).uncheck();
+ await expect(page.getByRole('checkbox',{name:'Finished example task',exact:true})).not.toBeChecked();
+ await page.locator('#guide-demo-save-session').click();
+ await expect(page.locator('#onboarding-count')).toHaveText('8 / 8');
+ expect(writes).toEqual([]);
+ await page.getByRole('button',{name:'Finish guide',exact:true}).click();
+ await expect(guide(page)).toBeHidden();await expect.poll(()=>writes).toEqual(['preference']);
+ expect(await page.evaluate(()=>Object.keys(localStorage).some(key=>key.startsWith('flowlist-ritual-v2')))).toBe(false);
+ await page.evaluate(()=>localStorage.removeItem('flowlist-onboarding-v2:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'));
+ await page.reload();await expect(page.locator('#help-toggle')).toBeVisible();await expect(guide(page)).toBeHidden();
+ await page.getByRole('button',{name:'Guide',exact:true}).click();await expect(guide(page)).toBeVisible();
+ await page.keyboard.press('Escape');await expect(page.getByRole('button',{name:'Guide',exact:true})).toBeFocused();expect(writes).toEqual(['preference']);
 });
 
-test('Skip and Escape work, keyboard focus stays inside, and a failed sync does not trap the user', async ({page}) => {
-  await setup(page, {failSave:true});
-  await page.goto('/');
-  await expect(guide(page)).toBeVisible();
-  for (let i = 0; i < 12; i++) {
-    await page.keyboard.press(i % 2 ? 'Shift+Tab' : 'Tab');
-    expect(await guide(page).evaluate((node: HTMLElement) => node.contains(document.activeElement))).toBe(true);
+test('reload resumes a required guide without treating partial progress as completion',async({page})=>{
+ const writes=await setup(page);await page.goto('/');await nextStep(page);await nextStep(page);
+ await expect(page.locator('#onboarding-count')).toHaveText('3 / 8');await page.reload();
+ await expect(page.locator('#onboarding-count')).toHaveText('3 / 8');await expect(page.getByRole('button',{name:'Next',exact:true})).toBeEnabled();
+ await page.keyboard.press('Escape');await expect(guide(page)).toBeVisible();expect(writes).toEqual([]);
+ await finishGuide(page);await expect(guide(page)).toBeHidden();
+});
+
+test('keyboard focus stays inside and a failed completion sync is remembered locally',async({page})=>{
+ await setup(page,{failSave:true});await page.goto('/');await expect(guide(page)).toBeVisible();
+ for(let i=0;i<12;i++){await page.keyboard.press(i%2?'Shift+Tab':'Tab');expect(await guide(page).evaluate((node:HTMLElement)=>node.contains(document.activeElement))).toBe(true);}
+ await finishGuide(page);await expect(guide(page)).toBeHidden();await expect(page.locator('#app-toast')).toContainText('could not sync');
+ await page.reload();await expect(page.locator('#help-toggle')).toBeVisible();await expect(guide(page)).toBeHidden();
+});
+
+test('previous users can replay the expanded guide without being forced through it',async({page})=>{
+ await setup(page,{version:1});await page.goto('/');await expect(page.locator('#help-toggle')).toBeVisible();await expect(guide(page)).toBeHidden();
+ await page.getByRole('button',{name:'Guide',exact:true}).click();await expect(page.locator('#onboarding-count')).toHaveText('1 / 8');
+ await page.getByRole('button',{name:'Close guide',exact:true}).click();await expect(guide(page)).toBeHidden();
+});
+
+test('another account requires its own guide; sign-out closes it and its examples',async({page})=>{
+ await page.addInitScript(()=>localStorage.setItem('flowlist-onboarding-v2:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','complete'));
+ await setup(page,{id:other});await page.goto('/');await nextStep(page);await expect(page.locator('#guide-example')).toBeVisible();
+ await page.evaluate(()=>{localStorage.removeItem('sb-beta-auth-token');const channel=new BroadcastChannel('sb-beta-auth-token');channel.postMessage({event:'SIGNED_OUT',session:null});channel.close();});
+ await expect(guide(page)).toBeHidden();await expect(page.locator('#auth-screen')).toBeVisible();await expect(page.locator('.app-shell')).toBeHidden();
+});
+
+test('guide waits for authentication and a restored timer, then starts when it is saved',async({page})=>{
+ await setup(page,{autoSignIn:false});await page.goto('/');await expect(page.locator('#auth-google')).toBeVisible();await expect(guide(page)).toBeHidden();
+ await setup(page);
+ await page.addInitScript(()=>localStorage.setItem('flowlist-ritual-v2:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',JSON.stringify({id:'restored',phase:'focus',elapsedSeconds:0,round:1,settings:{focus:25,break:5,longBreak:15,rounds:4},deadline:Date.now()+600000,blockSeconds:1500,breakKind:'short',minimized:false,summary:'',selections:[],startedAt:Date.now(),blocks:[]})));
+ await page.reload();await expect(page.locator('#focus-overlay')).toBeVisible();await expect(guide(page)).toBeHidden();
+ await page.evaluate(()=>{localStorage.removeItem('flowlist-ritual-v2:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');document.getElementById('focus-overlay')!.classList.add('hidden');});
+ await expect(guide(page)).toBeVisible();
+});
+
+for(const [width,height] of [[375,812],[812,375],[1440,900]])test(`guide fits ${width}×${height}, tracks each target and exposes all steps`,async({page},testInfo)=>{
+ await page.setViewportSize({width,height});await setup(page);await page.goto('/');await expect(guide(page)).toBeVisible();
+ for(const theme of ['light','dark']) {
+  await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
+  if(theme==='dark')for(let i=0;i<7;i++)await page.getByRole('button',{name:'Back',exact:true}).click();
+  for(const [i,selector] of targets.entries()) {
+   if(i>0)await nextStep(page);
+   await expect(page.locator('#onboarding-count')).toHaveText(`${i+1} / 8`);
+   await expect(page.getByRole('button',{name:/^(Next|Finish guide)$/})).toBeEnabled();
+   const target=page.locator(selector),ring=page.locator('#guide-spotlight');
+   await expect.poll(async()=>{const a=(await target.boundingBox())!,b=(await ring.boundingBox())!;return Math.abs(b.x-(a.x-3))+Math.abs(b.y-(a.y-3))+Math.abs(b.width-(a.width+6))+Math.abs(b.height-(a.height+6));}).toBeLessThan(2);
+   const a=(await target.boundingBox())!,b=(await page.locator('.guide-modal').boundingBox())!;
+   expect(b.x).toBeGreaterThanOrEqual(0);expect(b.x+b.width).toBeLessThanOrEqual(width);
+   expect(b.y).toBeGreaterThanOrEqual(0);expect(b.y+b.height).toBeLessThanOrEqual(height);
+   expect(Math.max(0,Math.min(b.x+b.width,a.x+a.width)-Math.max(b.x,a.x))*Math.max(0,Math.min(b.y+b.height,a.y+a.height)-Math.max(b.y,a.y))).toBe(0);
+   expect(a.y).toBeGreaterThanOrEqual(0);expect(a.y+a.height).toBeLessThanOrEqual(height);
+   await page.screenshot({path:testInfo.outputPath(`guide-${i}-${theme}.png`)});
   }
-  await page.getByRole('button',{name:'Skip guide',exact:true}).click();
-  await expect(guide(page)).toBeHidden();
-  await expect(page.locator('#app-toast')).toContainText('could not sync');
-  await page.reload();
-  await expect(page.locator('#help-toggle')).toBeVisible();
-  await expect(guide(page)).toBeHidden();
-  await page.getByRole('button',{name:'Help',exact:true}).click();
-  await page.keyboard.press('Escape');
-  await expect(guide(page)).toBeHidden();
+ }
+ await page.getByRole('button',{name:'Finish guide',exact:true}).click();await expect(guide(page)).toBeHidden();
 });
 
-test('a different account gets its own guide; sign-out in another tab closes it', async ({page}) => {
-  await page.addInitScript(() => localStorage.setItem('flowlist-onboarding-v1:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','seen'));
-  await setup(page,{id:other});
-  await page.goto('/');
-  await expect(guide(page)).toBeVisible();
-  await page.evaluate(() => {
-    localStorage.removeItem('sb-beta-auth-token');
-    const channel = new BroadcastChannel('sb-beta-auth-token');
-    channel.postMessage({event:'SIGNED_OUT',session:null});
-    channel.close();
-  });
-  await expect(guide(page)).toBeHidden();
-  await expect(page.locator('#auth-screen')).toBeVisible();
-  await expect(page.locator('.app-shell')).toBeHidden();
+test('highlight follows movement without a resize and adapts after viewport resizing',async({page})=>{
+ await setup(page);await page.goto('/');await expect(page.getByRole('button',{name:'Next',exact:true})).toBeEnabled();
+ await page.locator('.plan-create-actions').evaluate(node=>(node as HTMLElement).style.transform='translate(9px, 13px)');
+ await expect.poll(async()=>{const a=(await page.locator('.plan-create-actions').boundingBox())!,b=(await page.locator('#guide-spotlight').boundingBox())!;return Math.abs(b.x-(a.x-3))+Math.abs(b.y-(a.y-3));}).toBeLessThan(1);
+ await page.setViewportSize({width:375,height:812});
+ await expect.poll(async()=>{const a=(await page.locator('.plan-create-actions').boundingBox())!,b=(await page.locator('#guide-spotlight').boundingBox())!;return Math.abs(b.x-(a.x-3))+Math.abs(b.y-(a.y-3));}).toBeLessThan(1);
 });
-
-test('guide never appears before authentication or over a restored timer', async ({page}) => {
-  await setup(page,{autoSignIn:false});
-  await page.goto('/');
-  await expect(page.locator('#auth-google')).toBeVisible();
-  await expect(guide(page)).toBeHidden();
-  await setup(page);
-  await page.addInitScript(() => localStorage.setItem('flowlist-ritual-v2:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', JSON.stringify({id:'restored',phase:'focus',elapsedSeconds:0,round:1,settings:{focus:25,break:5,longBreak:15,rounds:4},deadline:Date.now()+600000,blockSeconds:1500,breakKind:'short',minimized:false,summary:'',selections:[],startedAt:Date.now(),blocks:[]})));
-  await page.reload();
-  await expect(page.locator('#focus-overlay')).toBeVisible();
-  await expect(guide(page)).toBeHidden();
-});
-
-for (const [width,height] of [[375,812],[812,375],[1440,900]]) {
-  test(`guide fits ${width}×${height} in light and dark; all steps remain reachable`, async ({page}, testInfo) => {
-    await page.setViewportSize({width,height});
-    await page.emulateMedia({reducedMotion:'reduce'});
-    await setup(page);
-    await page.goto('/');
-    await expect(guide(page)).toBeVisible();
-    for (const theme of ['light','dark']) {
-      await page.evaluate(theme => document.documentElement.dataset.theme = theme, theme);
-      if(theme==='dark') { await page.getByRole('button',{name:'Back',exact:true}).click(); await page.getByRole('button',{name:'Back',exact:true}).click(); }
-      for (const [i,selector] of ['[data-goal-create=project]','#start-pomodoro','#history-next'].entries()) {
-        if(i>0) await page.getByRole('button',{name:'Next',exact:true}).click();
-        await expect(page.locator('#onboarding-count')).toHaveText(`${i+1} / 3`);
-        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-        const metrics = await page.locator('.guide-modal').evaluate(node => {
-          const box = node.getBoundingClientRect();
-          return {left:box.left,right:box.right,top:box.top,bottom:box.bottom,overflow:node.scrollWidth-node.clientWidth};
-        });
-        expect(metrics.left).toBeGreaterThanOrEqual(0);
-        expect(metrics.right).toBeLessThanOrEqual(width);
-        expect(metrics.top).toBeGreaterThanOrEqual(0);
-        expect(metrics.bottom).toBeLessThanOrEqual(height);
-        expect(metrics.overflow).toBeLessThanOrEqual(1);
-        const target=await page.locator(selector).boundingBox();
-        const ring=await page.locator('#guide-spotlight').boundingBox();
-        expect(Math.abs(ring!.x-target!.x)).toBeLessThanOrEqual(6);
-        expect(Math.abs(ring!.y-target!.y)).toBeLessThanOrEqual(6);
-        const card=await page.locator('.guide-modal').boundingBox();
-        const overlapX=Math.max(0,Math.min(card!.x+card!.width,target!.x+target!.width)-Math.max(card!.x,target!.x));
-        const overlapY=Math.max(0,Math.min(card!.y+card!.height,target!.y+target!.height)-Math.max(card!.y,target!.y));
-        expect(overlapX*overlapY).toBe(0);
-        await page.screenshot({path:testInfo.outputPath(`guide-${i}-${width}-${theme}.png`)});
-      }
-    }
-    await expect(page.getByRole('button',{name:'Done',exact:true})).toBeInViewport();
-    await page.getByRole('button',{name:'Done',exact:true}).click();
-    await expect(page).toHaveURL(/#history$/);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  });
-}
