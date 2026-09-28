@@ -47,7 +47,7 @@ test('first sign-in teaches the workflow, saves the preference, and does not cre
   await page.getByRole('button', {name:'Next',exact:true}).click();
   await page.getByRole('button', {name:'Next',exact:true}).click();
   await expect(page).toHaveURL(/#history$/);
-  await expect(guide(page)).toContainText('Scroll across weeks');
+  await expect(guide(page)).toContainText('Use the arrows');
   await page.getByRole('button', {name:'Done',exact:true}).click();
   await expect(guide(page)).toBeHidden();
   await expect.poll(() => writes).toEqual(['preference']);

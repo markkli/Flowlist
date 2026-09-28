@@ -1,6 +1,6 @@
 import { api, timezoneQuery } from '../../shared/api';
 import { escapeHtml, trapFocus, syncDialogs } from '../../shared/dom';
-import { asDate, dayKey, monday, nextDay, rangeLabel, duration } from './timeline';
+import { asDate, dayKey, nextDay, rangeLabel, duration } from './timeline';
 import './history.css';
 import { createCalendar } from './calendar';
 
@@ -8,7 +8,8 @@ export function initHistory({ showToast, refresh }) {
   const el = id => document.getElementById(id);
   const history=el('history-view'), more=el('history-more'), deletedToggle=el('history-deleted');
   const overlay=el('history-detail-overlay'), modal=overlay.querySelector('section'), form=el('history-edit-form');
-  let mode='week', week=monday(), cursor=null, deleted=false, loading=false, generation=0;
+  const trailingStart=(date=new Date())=>new Date(date.getFullYear(),date.getMonth(),date.getDate()-6,12);
+  let mode='week', week=trailingStart(), cursor=null, deleted=false, loading=false, generation=0;
   let weekCache=new Map(), calendar=null, calendarScrollTop=480;
   function loadWeek(date) {
     const key=dayKey(date), cache=weekCache;
@@ -21,10 +22,9 @@ export function initHistory({ showToast, refresh }) {
   }
   async function moveWeek(days, hour=calendarScrollTop) {
     calendarScrollTop=calendar?.scrollTop ?? hour;
-    if(days && calendar?.goTo(nextDay(week,days)))return;
     const previous=week;
     if(!days) weekCache=new Map();
-    week=days?nextDay(week,days):monday();
+    week=days?nextDay(week,days):trailingStart();
     try { await loadHistory(false,true); } catch(error) { week=previous; await loadHistory(false,true); throw error; }
   }
   let record=null, rows=[], original='', opener=null, saving=false, taskOptions=null, detailGeneration=0;
@@ -107,8 +107,9 @@ export function initHistory({ showToast, refresh }) {
   async function loadHistory(append=false, reuseWeek=false) {
     if(append && loading) return;
     if (!reuseWeek) weekCache=new Map();
-    calendar?.dispose();calendar=null;
-    const request=++generation;loading=true;more.disabled=true;el('history-error').textContent='';
+    calendarScrollTop=calendar?.scrollTop ?? calendarScrollTop;calendar=null;
+    const request=++generation;loading=true;more.disabled=true;
+    ['history-prev','history-next','history-current'].forEach(id=>el(id).disabled=true);el('history-error').textContent='';
     el('history-week').classList.toggle('hidden',mode!=='week');history.classList.toggle('hidden',mode!=='list');
     el('history-week-tab').setAttribute('aria-pressed',String(mode==='week'));el('history-list-tab').setAttribute('aria-pressed',String(mode==='list'));
     deletedToggle.setAttribute('aria-pressed',String(deleted));deletedToggle.textContent=deleted?'Show saved records':'Show deleted records';
@@ -117,7 +118,8 @@ export function initHistory({ showToast, refresh }) {
       if(mode==='week') {
         const data=await loadWeek(week);if(request!==generation)return;
         const hadCalendarFocus=el('history-timeline').contains(document.activeElement);
-        calendar=createCalendar(el('history-timeline'),week,data,{loadWeek,openRecord,scrollTop:calendarScrollTop,onWeekChange:updateWeekSummary});
+        calendar=createCalendar(el('history-timeline'),data,{openRecord,scrollTop:calendarScrollTop});
+        updateWeekSummary(week,data,calendarScrollTop);
         if(hadCalendarFocus) el('history-timeline').querySelector('.history-calendar-scroll').focus({preventScroll:true});
       } else {
         const sessions=await api(`/sessions?limit=30&deleted=${deleted}${append&&cursor?`&before_id=${cursor}`:''}`);if(request!==generation)return;
@@ -125,7 +127,7 @@ export function initHistory({ showToast, refresh }) {
         cursor=sessions.at(-1)?.id ?? null;more.classList.toggle('hidden',sessions.length<30);
         if(!history.children.length){const empty=document.createElement('p');empty.className='page-description';empty.textContent=deleted?'No deleted records.':'No saved sessions.';history.appendChild(empty);}
       }
-    } finally {if(request===generation){loading=false;more.disabled=false;}}
+    } finally {if(request===generation){loading=false;more.disabled=false;['history-prev','history-next','history-current'].forEach(id=>el(id).disabled=false);}}
   }
   more.addEventListener('click',()=>run(()=>loadHistory(true)));
   el('history-week-tab').addEventListener('click',()=>run(()=>{mode='week';deleted=false;return loadHistory();}));
@@ -159,5 +161,5 @@ export function initHistory({ showToast, refresh }) {
     try {const data=await api('/export');const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download=`flowlist-${dayKey(new Date())}.json`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);showToast('Export downloaded: Plan, queue, and saved history, including deleted records.');}
     finally{button.disabled=false;button.textContent='Export data';}
   }));
-  return {loadHistory,setWeek(date){week=monday(new Date(`${date}T12:00:00`));},handleKey(event){if(overlay.classList.contains('hidden'))return false;if(event.key==='Escape'){event.preventDefault();closeRecord();}else trapFocus(event,modal);return true;}};
+  return {loadHistory,setWeek(date){week=trailingStart(new Date(`${date}T12:00:00`));},handleKey(event){if(overlay.classList.contains('hidden'))return false;if(event.key==='Escape'){event.preventDefault();closeRecord();}else trapFocus(event,modal);return true;}};
 }

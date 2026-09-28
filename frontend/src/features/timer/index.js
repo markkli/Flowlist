@@ -50,7 +50,8 @@ function renderSettings() {
   roundsSetting.value = timerSettings.rounds;
   longBreakMinutesSetting.value = timerSettings.longBreak;
   document.getElementById('timer-settings-label').textContent = 'Settings';
-  document.getElementById('hero-time').textContent = `${timerSettings.focus}:00`;
+  document.getElementById('hero-time').innerHTML = `<span>${timerSettings.focus}</span><span class="time-separator">:</span><span class="time-seconds">00</span>`;
+  for(const [id,value] of [['cycle-focus',timerSettings.focus],['cycle-break',timerSettings.break],['cycle-rounds',timerSettings.rounds],['cycle-long-break',timerSettings.longBreak]])document.getElementById(id).textContent=value;
   document.getElementById('start-pomodoro').setAttribute('aria-label', `Start a ${timerSettings.focus}-minute focus ritual`);
 }
 function setTimerSettingsOpen(open) {

@@ -23,9 +23,10 @@ test('heatmap shows details on hover and opens the matching week by click or key
  await expect.poll(()=>day.evaluate(node=>getComputedStyle(node,'::after').opacity)).toBe('1');
  await day.click();
  await expect(page).toHaveURL(/#history$/);
- await expect(page.locator('#history-week-label')).toContainText('Sep 14');
+ await expect(page.locator('#history-week-label')).toContainText('Sep 12');
  await page.getByRole('button',{name:'Today',exact:true}).click();
- await expect(page.locator('#activity-heatmap button[tabindex="0"]')).toHaveCount(1);
+ await expect(page).toHaveURL(/#dashboard$/);
+ await expect(page.locator('#activity-heatmap button[tabindex="0"]')).toHaveAttribute('aria-label',/^Sep 27/);
  await page.locator('#activity-heatmap button[tabindex="0"]').focus();
  await page.keyboard.press('ArrowLeft');
  await page.keyboard.press('Enter');
@@ -55,4 +56,16 @@ for(const width of [375,1440])test(`Today has one clear timer and priority actio
  await page.locator('#start-pomodoro').click();
  await expect(page.locator('#focus-overlay')).toBeVisible();
  await expect(page.locator('#focus-overlay')).not.toContainText('Name it afterward');
+});
+
+test('cycle summary follows saved timer settings and survives reload',async({page})=>{
+ await page.goto('/');await page.locator('#timer-settings-toggle').click();
+ for(const [id,value] of [['focus-minutes-setting','45'],['break-minutes-setting','10'],['rounds-setting','3'],['long-break-minutes-setting','20']])await page.locator(`#${id}`).fill(value);
+ await page.getByRole('button',{name:'Save cycle',exact:true}).click();
+ for(let i=0;i<2;i++) {
+  await expect(page.locator('#hero-time')).toHaveText('45:00');
+  await expect(page.locator('#cycle-focus')).toHaveText('45');await expect(page.locator('#cycle-break')).toHaveText('10');
+  await expect(page.locator('#cycle-rounds')).toHaveText('3');await expect(page.locator('#cycle-long-break')).toHaveText('20');
+  if(!i)await page.reload();
+ }
 });

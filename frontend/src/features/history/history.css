@@ -70,10 +70,10 @@
   .history-finish-choice { gap:5px !important; }
 }
 
-/* Continuous dates, one fixed time axis, and identical headers in every week. */
-.history-calendar-scroll { height:640px; max-height:72vh; min-height:300px; overflow:auto; overscroll-behavior:contain; overflow-anchor:none; scrollbar-width:thin; position:relative; }
+/* Seven fixed columns with matching headers and vertical hour scrolling. */
+.history-calendar-scroll { height:640px; max-height:72vh; min-height:300px; overflow-y:auto; overflow-x:hidden; overscroll-behavior:contain; scrollbar-width:thin; position:relative; }
 .history-calendar-scroll:focus-visible { outline:3px solid var(--focus-ring); outline-offset:-3px; }
-.history-calendar-grid { display:grid; grid-template-columns:48px repeat(var(--day-count),var(--day-width)); width:max-content; }
+.history-calendar-grid { display:grid; grid-template-columns:48px repeat(7,minmax(0,1fr)); width:100%; }
 .history-time-axis { position:sticky; left:0; z-index:6; background:var(--surface); color:var(--muted); font-size:10px; font-variant-numeric:tabular-nums; border-right:1px solid var(--border); }
 .history-time-axis > span { position:absolute; right:7px; transform:translateY(2px); }
 .history-axis-heading { height:108px; position:sticky; top:0; z-index:7; background:var(--surface); border-bottom:1px solid var(--border); }
@@ -108,3 +108,16 @@
 .history-block.is-short strong { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin:0; }
 .history-block.is-tiny { padding:0; border-block:0; border-radius:2px; }
 .history-block.is-tiny > * { visibility:hidden; }
+
+@media(max-width:520px) {
+  .history-calendar-grid { grid-template-columns:32px repeat(7,minmax(0,1fr)); }
+  .history-time-axis { font-size:8px; }
+  .history-time-axis > span { right:3px; }
+  .history-axis-heading span { font-size:8px; }
+  .history-day-heading { grid-template-columns:1fr; gap:0; justify-items:center; padding:4px 0; }
+  .history-day-heading > span { font-size:9px; }
+  .history-day-heading strong { font-size:12px; width:22px; height:22px; }
+  .history-day-heading small { font-size:8px; }
+  .history-day-brief summary { font-size:9px; gap:1px; flex-wrap:wrap; line-height:1.15; text-align:center; padding:2px; }
+  .history-block strong { font-size:9px; }
+}

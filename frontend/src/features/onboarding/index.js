@@ -7,7 +7,7 @@ const VERSION = 1;
 const steps = [
   {view:'goals',target:'[data-goal-create=project]',title:'Plan your work',description:'Add a Project with steps, or a standalone Task. Star tasks to prioritize them on Today.'},
   {view:'dashboard',target:'#start-pomodoro',title:'Start focusing',description:'Press Start focus to begin. When you end a session, add a note and mark what you worked on or finished.'},
-  {view:'history',target:'#history-next',title:'Review your time',description:'Scroll across weeks to see saved sessions. Select a block to read its notes and tasks.'},
+  {view:'history',target:'#history-next',title:'Review your time',description:'Use the arrows to review seven days at a time. Select a block to read its notes and tasks.'},
 ];
 
 export function initOnboarding({ preferences = {}, showToast, navigate }) {
