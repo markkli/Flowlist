@@ -65,7 +65,7 @@ upgrades. `.env` files, database files, logs, builds, and caches are ignored.
 ## Repository structure
 
 ```text
-macos/                  # native local menu bar app, Today window, WidgetKit target
+macos/                  # native Mac workspace, menu timer, sync, WidgetKit target
 backend/
   app/
     main.py             # app assembly, CORS, health
@@ -99,8 +99,10 @@ without rewriting the interface. FastAPI, SQLAlchemy, Alembic, SQLite for local
 development, and PostgreSQL for the container stack remain in place.
 
 The [Mac companion](macos/README.md) is a native SwiftUI app in this repository.
-Build a local `.app` with `bash macos/scripts/build-local.sh`. Its first prototype
-stores sessions on the Mac; account/cloud synchronization is a separate milestone.
+Build a local `.app` with `bash macos/scripts/build-local.sh`. It includes native Plan and History,
+a compact menu timer, and account-specific offline session sync. Native Google
+sign-in requires one additional Supabase redirect URL; widget installation requires
+an Xcode signing team. See the companion README for setup and release limits.
 
 ## Product behavior
 

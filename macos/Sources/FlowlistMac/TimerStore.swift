@@ -2,33 +2,54 @@ import AppKit
 import Combine
 import UserNotifications
 import WidgetKit
+import Network
 #if SWIFT_PACKAGE
 import FlowlistCore
 #endif
 
 @MainActor final class TimerStore: ObservableObject {
-    @Published private(set) var workspace: LocalWorkspace
+    @Published var workspace = LocalWorkspace()
     @Published var now = Date()
     @Published var error: String?
     @Published var permission: UNAuthorizationStatus = .notDetermined
     @Published var showReminderPrompt = false
     @Published var selectedTab = AppTab.today
     @Published var storageUnavailable = false
-    let file: WorkspaceFile?
+    var file: WorkspaceFile?
+    var rootFolder: URL?
+    let cloud: CloudClient
+    @Published var account: CloudIdentity?
+    @Published var busy = false
+    @Published var connecting = false
+    @Published var syncError: String?
+    @Published var lastSynced: Date?
+    @Published var historyHasMore = true
+    var lastSyncAttempt = Date.distantPast
     private var pulse: AnyCancellable?
     private var activation: AnyCancellable?
-    private let reminders = Reminders()
+    private lazy var reminders = Reminders()
+    private var previewMode = false
     private var wakeObserver: NSObjectProtocol?
+    private let network = NWPathMonitor()
 
-    init(preview: LocalWorkspace? = nil) {
+    init(preview: LocalWorkspace? = nil, client: CloudClient? = nil) {
+        cloud = client ?? CloudClient()
         if let preview {
+            previewMode = true
             workspace = preview
             file = nil
             return
         }
         let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Flowlist", isDirectory: true)
-        let file = WorkspaceFile(url: folder.appendingPathComponent("workspace.json"))
+        rootFolder = folder
+        var accountId: String?
+        do {
+            try cloud.restore()
+            account = cloud.identity
+            accountId = account?.id
+        } catch { self.error = error.localizedDescription }
+        let file = WorkspaceFile(url: (try? AccountFiles.workspaceURL(root: folder, accountId: accountId)) ?? folder.appendingPathComponent("workspace.json"))
         self.file = file
         do { workspace = try file.load() }
         catch {
@@ -41,13 +62,19 @@ import FlowlistCore
         tick()
         refreshReminders()
         publishWidget()
+        Task { await sync() }
+        network.pathUpdateHandler = { [weak self] path in
+            if path.status == .satisfied { Task { @MainActor in self?.refreshIfNeeded() } }
+        }
+        network.start(queue: DispatchQueue(label: "dev.flowlist.connection"))
         pulse = Timer.publish(every: 1, on: .main, in: .common).autoconnect().sink { [weak self] _ in self?.tick() }
         activation = NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
-            .sink { [weak self] _ in self?.refreshPermission() }
+            .sink { [weak self] _ in self?.refreshPermission(); self?.refreshIfNeeded() }
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
         ) { [weak self] _ in Task { @MainActor in self?.tick() } }
     }
+    deinit { network.cancel(); if let wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver) } }
     var timer: FocusTimer { workspace.timer }
     var theme: Landscape { Landscape(rawValue: workspace.theme) ?? .coast }
     var remainingText: String {
@@ -62,23 +89,26 @@ import FlowlistCore
         return "Start focus"
     }
     var primarySymbol: String { timer.isActive && !timer.isPaused ? "pause.fill" : "play.fill" }
-    func change(_ update: (inout LocalWorkspace) -> Void) {
-        guard !storageUnavailable else { return }
+    @discardableResult func change(_ update: (inout LocalWorkspace) -> Void) -> Bool {
+        guard !storageUnavailable else { return false }
         var next = workspace
         update(&next)
         do {
             try file?.save(next)
             let timerChanged = workspace.timer != next.timer
             let soundChanged = workspace.soundEnabled != next.soundEnabled
-            let widgetChanged = timerChanged || workspace.theme != next.theme || workspace.configuration != next.configuration
+            let widgetChanged = timerChanged || workspace.theme != next.theme || workspace.configuration != next.configuration || workspace.showArtwork != next.showArtwork
             workspace = next
             if timerChanged || soundChanged { refreshReminders() }
             if widgetChanged { publishWidget() }
+            return true
         } catch {
             self.error = "Couldn’t save on this Mac. Check free disk space and folder permissions, then try again."
+            return false
         }
     }
     func primaryAction() {
+        guard !connecting else { return }
         now = Date()
         if timer.phase == .review { selectedTab = .today; return }
         change { state in
@@ -97,8 +127,11 @@ import FlowlistCore
         }
     }
     func finish() { now = Date(); change { $0.timer.finish(at: now) }; selectedTab = .today }
-    func saveSession() { change { $0.saveSession() } }
-    func discard() { change { $0.timer = FocusTimer(); $0.note = "" } }
+    func saveSession() {
+        guard !connecting, workspace.note.count <= 2000 else { return }
+        if change({ $0.saveSession(upload: account != nil) }) { Task { await sync() } }
+    }
+    func discard() { change { $0.timer = FocusTimer(); $0.note = ""; $0.selections = [] } }
     func tick() {
         let current = Date()
         // Idle/paused surfaces do not need to redraw once per second.
@@ -136,11 +169,11 @@ import FlowlistCore
         }
         refreshReminders()
     }
-    private func refreshReminders() {
-        guard file != nil else { return } // View previews never schedule notifications.
+    func refreshReminders() {
+        guard file != nil, !previewMode else { return } // View previews never schedule notifications.
         reminders.schedule(timer: timer, sound: workspace.soundEnabled)
     }
-    private func publishWidget() {
+    func publishWidget() {
         // The unsigned local package has no shared app group. It never claims widget support.
         guard let group = Bundle.main.object(forInfoDictionaryKey: "FlowlistAppGroup") as? String,
               !group.isEmpty, !group.contains("$("),
@@ -208,13 +241,15 @@ final class Reminders: NSObject, UNUserNotificationCenterDelegate {
     // Keep a scene action after the main window closes, so widget deep links and
     // notification clicks can reopen it while only the menu bar is present.
     static var openToday: (() -> Void)?
+    static var openTab: ((AppTab) -> Void)?
+    static func showTab(_ tab: AppTab) { openTab?(tab) }
     static var pending = false
     static func showToday() {
         if let openToday { openToday() } else { pending = true }
     }
 }
 enum AppTab: String, CaseIterable, Identifiable {
-    case today = "Today", history = "History", settings = "Settings"
+    case today = "Today", plan = "Plan", history = "History", settings = "Settings"
     var id: String { rawValue }
-    var symbol: String { switch self { case .today: "timer"; case .history: "calendar"; case .settings: "slider.horizontal.3" } }
+    var symbol: String { switch self { case .today: "timer"; case .plan: "checklist"; case .history: "calendar"; case .settings: "slider.horizontal.3" } }
 }

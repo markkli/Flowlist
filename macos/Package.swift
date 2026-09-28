@@ -8,6 +8,7 @@ let package = Package(
     targets: [
         .target(name: "FlowlistCore"),
         .executableTarget(name: "FlowlistMac", dependencies: ["FlowlistCore"], resources: [.copy("Resources")]),
-        .testTarget(name: "FlowlistCoreTests", dependencies: ["FlowlistCore"])
+        .testTarget(name: "FlowlistCoreTests", dependencies: ["FlowlistCore"]),
+        .testTarget(name: "FlowlistMacTests", dependencies: ["FlowlistMac", "FlowlistCore"])
     ]
 )

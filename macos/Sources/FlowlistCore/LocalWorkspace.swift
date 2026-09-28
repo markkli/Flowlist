@@ -7,20 +7,34 @@ public struct LocalWorkspace: Codable, Equatable, Sendable {
     public var sessions: [LocalSession] = []
     public var note = ""
     public var theme = "coast"
+    public var showArtwork: Bool?
     public var soundEnabled = true
     public var showMenuTime = true
     public var reminderPromptSeen = false
+    public var plan: PlanCache?
+    public var selections: [WorkSelection]?
+    public var cloudHistory: [RemoteSession]?
     public init() {}
     public var isValid: Bool {
         version == 1 && configuration.isValid && timer.isValid
         && ["coast", "grove", "hills"].contains(theme)
         && sessions.allSatisfy { $0.endedAt >= $0.startedAt && $0.configuration.isValid }
     }
-    public mutating func saveSession() {
-        guard let session = LocalSession(timer: timer, note: note) else { return }
+    public mutating func saveSession(upload: Bool = false) {
+        var work = selections ?? []
+        for project in plan?.projects ?? [] {
+            let completedParents = Set(work.filter(\.completed).map(\.taskId))
+            for task in project.tasks where task.parentId.map({ completedParents.contains($0) }) == true {
+                if let i = work.firstIndex(where: { $0.taskId == task.id }) { work[i].completed = true }
+                else { work.append(WorkSelection(task: task, project: project, completed: true)) }
+            }
+        }
+        guard let session = LocalSession(timer: timer, note: note, selections: work, upload: upload) else { return }
         if !sessions.contains(where: { $0.id == session.id }) { sessions.insert(session, at: 0) }
+        for selection in work where selection.completed { plan?.setCompleted(selection.taskId, completed: true) }
         timer = FocusTimer()
         note = ""
+        selections = []
     }
 }
 
@@ -52,10 +66,12 @@ public struct WidgetSnapshot: Codable, Sendable {
     public var timer: FocusTimer
     public var configuration: TimerConfiguration
     public var theme: String
+    public var showArtwork: Bool?
     public init(workspace: LocalWorkspace) {
         timer = workspace.timer
         configuration = workspace.configuration
         theme = workspace.theme
+        showArtwork = workspace.showArtwork
     }
     public static let key = "flowlist.widget.snapshot.v1"
 }

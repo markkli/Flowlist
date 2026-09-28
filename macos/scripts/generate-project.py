@@ -51,7 +51,7 @@ def configurations(name, settings):
         ids.append(add("config:" + name + mode, "XCBuildConfiguration", name=mode, buildSettings=values))
     return add("configs:" + name, "XCConfigurationList", buildConfigurations=ids, defaultConfigurationIsVisible=0, defaultConfigurationName="Release")
 
-base = dict(SWIFT_VERSION="5.0", MACOSX_DEPLOYMENT_TARGET="14.0", SDKROOT="macosx", CODE_SIGN_STYLE="Automatic", ENABLE_HARDENED_RUNTIME="YES", PRODUCT_NAME="$(TARGET_NAME)", COMBINE_HIDPI_IMAGES="YES")
+base = dict(ALWAYS_SEARCH_USER_PATHS="NO", SWIFT_VERSION="5.0", MACOSX_DEPLOYMENT_TARGET="14.0", SDKROOT="macosx", CODE_SIGN_STYLE="Automatic", ENABLE_HARDENED_RUNTIME="YES", PRODUCT_NAME="$(TARGET_NAME)", COMBINE_HIDPI_IMAGES="YES")
 widget_settings = dict(base, PRODUCT_BUNDLE_IDENTIFIER="dev.flowlist.mac.widget", INFOPLIST_FILE="Configuration/Widget-Info.plist", CODE_SIGN_ENTITLEMENTS="Configuration/Widget.entitlements", APPLICATION_EXTENSION_API_ONLY="YES", SKIP_INSTALL="YES")
 widget_sources = core + ["Sources/FlowlistMac/Design.swift", "Widget/FlowlistWidget.swift"]
 widget_target = add("target:widget", "PBXNativeTarget", name="FlowlistWidget", productName="FlowlistWidget", productReference=widget_product, productType="com.apple.product-type.app-extension", buildConfigurationList=configurations("widget", widget_settings), buildPhases=[build_phase("widget-sources", "PBXSourcesBuildPhase", widget_sources), build_phase("widget-resources", "PBXResourcesBuildPhase", resources)], buildRules=[], dependencies=[])

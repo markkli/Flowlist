@@ -18,6 +18,24 @@
 			"sourceTree" = "<group>";
 			"lastKnownFileType" = "sourcecode.swift";
 		};
+		"33C63D12487A33D77CB7F73B" = {
+			"isa" = "PBXFileReference";
+			"path" = "Sources/FlowlistCore/PKCE.swift";
+			"sourceTree" = "<group>";
+			"lastKnownFileType" = "sourcecode.swift";
+		};
+		"C31752CBE1DB6B52635CE572" = {
+			"isa" = "PBXFileReference";
+			"path" = "Sources/FlowlistCore/WorkspaceModels.swift";
+			"sourceTree" = "<group>";
+			"lastKnownFileType" = "sourcecode.swift";
+		};
+		"A2F589FC4A56495D21845BBA" = {
+			"isa" = "PBXFileReference";
+			"path" = "Sources/FlowlistMac/CloudClient.swift";
+			"sourceTree" = "<group>";
+			"lastKnownFileType" = "sourcecode.swift";
+		};
 		"3444F35C1DF182E48715AC3D" = {
 			"isa" = "PBXFileReference";
 			"path" = "Sources/FlowlistMac/Design.swift";
@@ -30,6 +48,18 @@
 			"sourceTree" = "<group>";
 			"lastKnownFileType" = "sourcecode.swift";
 		};
+		"CB6317CDAF8438F7F0B780D6" = {
+			"isa" = "PBXFileReference";
+			"path" = "Sources/FlowlistMac/HistoryView.swift";
+			"sourceTree" = "<group>";
+			"lastKnownFileType" = "sourcecode.swift";
+		};
+		"2E1888AD856E3BAEA8E0277E" = {
+			"isa" = "PBXFileReference";
+			"path" = "Sources/FlowlistMac/PlanView.swift";
+			"sourceTree" = "<group>";
+			"lastKnownFileType" = "sourcecode.swift";
+		};
 		"CA922FB7921971B1B1C399DF" = {
 			"isa" = "PBXFileReference";
 			"path" = "Sources/FlowlistMac/TimerStore.swift";
@@ -39,6 +69,12 @@
 		"B2177F413DF5BA12CA9F5CAA" = {
 			"isa" = "PBXFileReference";
 			"path" = "Sources/FlowlistMac/TimerViews.swift";
+			"sourceTree" = "<group>";
+			"lastKnownFileType" = "sourcecode.swift";
+		};
+		"BFD238EE83B39F68C4D96280" = {
+			"isa" = "PBXFileReference";
+			"path" = "Sources/FlowlistMac/WorkspaceStore.swift";
 			"sourceTree" = "<group>";
 			"lastKnownFileType" = "sourcecode.swift";
 		};
@@ -99,12 +135,13 @@
 		"870B3294C0CBD48AF6BBCC1B" = {
 			"isa" = "PBXGroup";
 			"sourceTree" = "<group>";
-			"children" = ("33B44ABF4C229D6968FCE3BC", "E8F0FD1A4F410ADF2CD0FC2D", "3444F35C1DF182E48715AC3D", "8C2DA708AD622976316CF66C", "CA922FB7921971B1B1C399DF", "B2177F413DF5BA12CA9F5CAA", "116AC72143A2DBD1782F3B06", "898299983A689512960060CF", "2B29207D0860F0317BB8C8F1", "B064EAF4B300EDC9BEB39725", "D87B28BD19C8901E4EA98547", "BF5FC45F9862B2BAAE53D7C4", "FBDC4F23F93125BBEEAE800C");
+			"children" = ("33B44ABF4C229D6968FCE3BC", "E8F0FD1A4F410ADF2CD0FC2D", "33C63D12487A33D77CB7F73B", "C31752CBE1DB6B52635CE572", "A2F589FC4A56495D21845BBA", "3444F35C1DF182E48715AC3D", "8C2DA708AD622976316CF66C", "CB6317CDAF8438F7F0B780D6", "2E1888AD856E3BAEA8E0277E", "CA922FB7921971B1B1C399DF", "B2177F413DF5BA12CA9F5CAA", "BFD238EE83B39F68C4D96280", "116AC72143A2DBD1782F3B06", "898299983A689512960060CF", "2B29207D0860F0317BB8C8F1", "B064EAF4B300EDC9BEB39725", "D87B28BD19C8901E4EA98547", "BF5FC45F9862B2BAAE53D7C4", "FBDC4F23F93125BBEEAE800C");
 		};
 		"E07930319D7D3EA19A026B89" = {
 			"isa" = "XCBuildConfiguration";
 			"name" = "Debug";
 			"buildSettings" = {
+				"ALWAYS_SEARCH_USER_PATHS" = "NO";
 				"SWIFT_VERSION" = "5.0";
 				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
 				"SDKROOT" = "macosx";
@@ -126,6 +163,7 @@
 			"isa" = "XCBuildConfiguration";
 			"name" = "Release";
 			"buildSettings" = {
+				"ALWAYS_SEARCH_USER_PATHS" = "NO";
 				"SWIFT_VERSION" = "5.0";
 				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
 				"SDKROOT" = "macosx";
@@ -156,6 +194,14 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "E8F0FD1A4F410ADF2CD0FC2D";
 		};
+		"7E83DA7FCBE05A86E896FAC1" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "33C63D12487A33D77CB7F73B";
+		};
+		"7ABEC4CF32265DECA017805A" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "C31752CBE1DB6B52635CE572";
+		};
 		"204973C182C68F788AD6E156" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "3444F35C1DF182E48715AC3D";
@@ -167,7 +213,7 @@
 		"63CE7886BFE0F651D1CD249B" = {
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = "2147483647";
-			"files" = ("243C935655C0885A24AD2A31", "242C24264350836740C19BB2", "204973C182C68F788AD6E156", "9584B05E185B35E3D19CF5A9");
+			"files" = ("243C935655C0885A24AD2A31", "242C24264350836740C19BB2", "7E83DA7FCBE05A86E896FAC1", "7ABEC4CF32265DECA017805A", "204973C182C68F788AD6E156", "9584B05E185B35E3D19CF5A9");
 			"runOnlyForDeploymentPostprocessing" = "0";
 		};
 		"647EFDB421E2148731897B30" = {
@@ -235,6 +281,7 @@
 			"isa" = "XCBuildConfiguration";
 			"name" = "Debug";
 			"buildSettings" = {
+				"ALWAYS_SEARCH_USER_PATHS" = "NO";
 				"SWIFT_VERSION" = "5.0";
 				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
 				"SDKROOT" = "macosx";
@@ -254,6 +301,7 @@
 			"isa" = "XCBuildConfiguration";
 			"name" = "Release";
 			"buildSettings" = {
+				"ALWAYS_SEARCH_USER_PATHS" = "NO";
 				"SWIFT_VERSION" = "5.0";
 				"MACOSX_DEPLOYMENT_TARGET" = "14.0";
 				"SDKROOT" = "macosx";
@@ -282,6 +330,18 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "E8F0FD1A4F410ADF2CD0FC2D";
 		};
+		"44FA9D9D595C586B8972C99D" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "33C63D12487A33D77CB7F73B";
+		};
+		"FA33A89381A8A7FA2B6BD51B" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "C31752CBE1DB6B52635CE572";
+		};
+		"23EBA372DA833ED8090DC234" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "A2F589FC4A56495D21845BBA";
+		};
 		"7EE85497A89F547D302D8239" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "3444F35C1DF182E48715AC3D";
@@ -289,6 +349,14 @@
 		"B5D24C5FC64497E282B2B403" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "8C2DA708AD622976316CF66C";
+		};
+		"1540596E2948CD1DE04C1976" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "CB6317CDAF8438F7F0B780D6";
+		};
+		"49D89D2AFE1F196C4C437C6F" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "2E1888AD856E3BAEA8E0277E";
 		};
 		"2BB2B8AC27856CC4019FC848" = {
 			"isa" = "PBXBuildFile";
@@ -298,6 +366,10 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "B2177F413DF5BA12CA9F5CAA";
 		};
+		"918A959FC88FBEECDB96D381" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "BFD238EE83B39F68C4D96280";
+		};
 		"E99D7D6E7B8D8660066E31A1" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "116AC72143A2DBD1782F3B06";
@@ -305,7 +377,7 @@
 		"507A349611DBB42F9CF9069B" = {
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = "2147483647";
-			"files" = ("B5FA2D660A1D29406AAC102D", "7755AF525CA2E04493CB10FE", "7EE85497A89F547D302D8239", "B5D24C5FC64497E282B2B403", "2BB2B8AC27856CC4019FC848", "9B266C67EA3A617F6BD84EF6", "E99D7D6E7B8D8660066E31A1");
+			"files" = ("B5FA2D660A1D29406AAC102D", "7755AF525CA2E04493CB10FE", "44FA9D9D595C586B8972C99D", "FA33A89381A8A7FA2B6BD51B", "23EBA372DA833ED8090DC234", "7EE85497A89F547D302D8239", "B5D24C5FC64497E282B2B403", "1540596E2948CD1DE04C1976", "49D89D2AFE1F196C4C437C6F", "2BB2B8AC27856CC4019FC848", "9B266C67EA3A617F6BD84EF6", "918A959FC88FBEECDB96D381", "E99D7D6E7B8D8660066E31A1");
 			"runOnlyForDeploymentPostprocessing" = "0";
 		};
 		"2419F8442FDF89AAC308A1CC" = {

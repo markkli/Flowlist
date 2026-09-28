@@ -3,7 +3,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 swift build -c release
 FLOWLIST_BIN_DIR="$(swift build -c release --show-bin-path)"
-FLOWLIST_APP="$PWD/build/Flowlist.app"
+mkdir -p "$PWD/build"
+FLOWLIST_PACKAGE="$(mktemp -d "$PWD/build/package.XXXXXX")"
+FLOWLIST_APP="$FLOWLIST_PACKAGE/Flowlist.app"
+FLOWLIST_DESTINATION="$PWD/build/Flowlist.app"
 mkdir -p "$FLOWLIST_APP/Contents/MacOS" "$FLOWLIST_APP/Contents/Resources"
 cp "$FLOWLIST_BIN_DIR/Flowlist" "$FLOWLIST_APP/Contents/MacOS/Flowlist"
 # Bundle native resources in the standard location; the app prefers Bundle.main.
@@ -22,5 +25,11 @@ with open(pathlib.Path(sys.argv[1]) / "Contents/Info.plist", "wb") as output:
     plistlib.dump(info, output)
 PY
 codesign --force --deep --sign - "$FLOWLIST_APP"
+# Preserve the inode of a running earlier build until that process exits.
+if [[ -d "$FLOWLIST_DESTINATION" ]]; then
+  mv "$FLOWLIST_DESTINATION" "$FLOWLIST_PACKAGE/previous.app"
+fi
+mv "$FLOWLIST_APP" "$FLOWLIST_DESTINATION"
+FLOWLIST_APP="$FLOWLIST_DESTINATION"
 echo "Built $FLOWLIST_APP"
 echo "Open with: open '$FLOWLIST_APP'"

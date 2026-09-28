@@ -72,7 +72,7 @@ struct FocusWidgetView: View {
             }
         }
         .foregroundStyle(.white)
-        .containerBackground(for: .widget) { LandscapeBackground(theme: theme) }
+        .containerBackground(for: .widget) { LandscapeBackground(theme: theme, showArtwork: entry.snapshot.showArtwork ?? true) }
         .widgetURL(URL(string: "flowlist://today"))
     }
 }

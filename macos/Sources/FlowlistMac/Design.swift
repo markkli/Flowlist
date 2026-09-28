@@ -11,6 +11,17 @@ enum Landscape: String, CaseIterable, Identifiable {
         case .hills: Color(red: 0.92, green: 0.78, blue: 0.62)
         }
     }
+    var tint: Color {
+        let theme = self
+        return Color(nsColor: NSColor(name: nil) { appearance in
+            let dark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            switch theme {
+            case .coast: return dark ? NSColor(red: 0.67, green: 0.82, blue: 0.87, alpha: 1) : NSColor(red: 0.20, green: 0.40, blue: 0.48, alpha: 1)
+            case .grove: return dark ? NSColor(red: 0.78, green: 0.83, blue: 0.65, alpha: 1) : NSColor(red: 0.33, green: 0.42, blue: 0.23, alpha: 1)
+            case .hills: return dark ? NSColor(red: 0.92, green: 0.78, blue: 0.62, alpha: 1) : NSColor(red: 0.51, green: 0.34, blue: 0.20, alpha: 1)
+            }
+        })
+    }
     var ink: Color {
         switch self {
         case .coast: Color(red: 0.07, green: 0.13, blue: 0.16)
@@ -45,11 +56,12 @@ enum Artwork {
 
 struct LandscapeBackground: View {
     let theme: Landscape
+    var showArtwork = true
     var body: some View {
         GeometryReader { geometry in
             ZStack {
                 theme.ink
-                if let image = Artwork.image(theme) {
+                if showArtwork, let image = Artwork.image(theme) {
                     Image(nsImage: image).resizable().scaledToFill()
                         .frame(width: geometry.size.width, height: geometry.size.height).clipped()
                 }

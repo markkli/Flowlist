@@ -10,6 +10,16 @@ import SwiftUI
         .defaultSize(width: 1080, height: 760)
         .commands {
             CommandGroup(replacing: .newItem) { }
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings…") { store.selectedTab = .settings; AppRouting.showTab(.settings) }.keyboardShortcut(",")
+            }
+            CommandMenu("Workspace") {
+                Button("Today") { AppRouting.showTab(.today) }.keyboardShortcut("1")
+                Button("Plan") { AppRouting.showTab(.plan) }.keyboardShortcut("2")
+                Button("History") { AppRouting.showTab(.history) }.keyboardShortcut("3")
+                Divider()
+                Button("Refresh") { Task { await store.sync() } }.keyboardShortcut("r").disabled(store.account == nil || store.busy)
+            }
             CommandGroup(after: .appInfo) {
                 Button("Open web dashboard", action: openDashboard)
             }

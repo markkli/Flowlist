@@ -134,10 +134,15 @@ public struct LocalSession: Codable, Equatable, Identifiable, Sendable {
     public let startedAt: Date
     public let endedAt: Date
     public let segments: [FocusSegment]
-    public let note: String
+    public var note: String
     public let configuration: TimerConfiguration
+    public var selections: [WorkSelection]?
+    public var needsUpload: Bool?
+    public var remoteId: Int?
+    public var uploadError: String?
+    public var uploadErrorCode: Int?
     public var seconds: TimeInterval { segments.reduce(0) { $0 + $1.seconds } }
-    public init?(timer: FocusTimer, note: String) {
+    public init?(timer: FocusTimer, note: String, selections: [WorkSelection] = [], upload: Bool = false) {
         guard timer.phase == .review, timer.recordedSeconds >= 1,
               let startedAt = timer.startedAt, let endedAt = timer.endedAt else { return nil }
         id = timer.id
@@ -146,5 +151,7 @@ public struct LocalSession: Codable, Equatable, Identifiable, Sendable {
         segments = timer.segments
         self.note = note.trimmingCharacters(in: .whitespacesAndNewlines)
         configuration = timer.configuration
+        self.selections = selections
+        needsUpload = upload
     }
 }

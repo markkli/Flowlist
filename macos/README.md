@@ -1,12 +1,10 @@
-# Flowlist for Mac — local prototype
+# Flowlist for Mac
 
-The native companion lives in the same repository as the web dashboard and API.
-It requires macOS 14 or newer. SwiftUI handles the menu bar panel and Today window;
-`FlowlistCore` contains the timer and persistence without UI dependencies.
+The native macOS 14+ app lives alongside the web dashboard and FastAPI service.
+SwiftUI owns the windows and menu panel; `FlowlistCore` owns the timer, local data,
+and shared widget snapshot. There are no third-party native dependencies.
 
-## Try the app without full Xcode
-
-With Apple's Command Line Tools and Swift 6 installed:
+## Run locally
 
 ```sh
 cd macos
@@ -14,93 +12,117 @@ bash scripts/build-local.sh
 open build/Flowlist.app
 ```
 
-The build is signed ad hoc for local development, not notarized for distribution.
-Do not send this build to beta users as a finished installer. The script builds
-for the current Mac's architecture. Closing the main window leaves the menu bar
-timer running; use the menu bar's **… → Quit Flowlist** to quit explicitly.
+This produces an ad-hoc-signed development app for the current Mac architecture,
+not a notarized installer. Closing the window leaves the menu timer running.
+Use **… → Quit Flowlist** in the menu panel to quit explicitly.
 
-Implemented:
+## Implemented
 
-- Menu bar panel: start, pause, resume, finish, open Today or Settings.
-- Native Today window, local session history, optional finish note, JSON export.
-- Coast, Grove, and Hills artwork and matching control colors.
-- Notifications at focus and break boundaries, optional chime, one-time opt-in.
-- Persisted deadlines and pause state, atomic writes, sleep/relaunch recovery.
-- A single timer store shared by the menu bar and Today window.
+- Compact menu dial with Start, Pause, Resume, round indicators, and Finish.
+  Finish opens Today in the main app; the panel never embeds a record editor.
+- Native Today, Plan, History, and Settings, plus keyboard navigation (⌘1–3).
+- Projects, standalone tasks, one subtask level, completion, rename, deletion,
+  and priorities. Task creation uses a destination tree. Projects can close when
+  all tasks are finished; completed items can be shown and reopened.
+- Finish review with a note, **Worked on**, and **Finished**. Completing a parent
+  completes its children; completing a child leaves its parent open.
+- Rolling seven-day history with arrows, a full-day time grid, proportional
+  blocks, and separate brief-session summaries. Record editing does not alter Plan.
+- Coast, Grove, and Hills with matching controls; native light/dark appearance, solid backgrounds, and optional login startup.
+- OS-scheduled focus/break reminders, optional chime, and one-time opt-in.
+- Local Google sign-in via ASWebAuthenticationSession and Supabase PKCE, verified
+  against the existing API. Access/refresh tokens live only in Keychain.
+- Account-specific cached Plan and history, and a persisted session upload queue.
+  A session UUID is reused on every retry to avoid duplicate uploads.
 
-Breaks start automatically. A completed break waits for **Start focus**. The app
-never credits later unattended rounds after sleep, and paused time is excluded.
-Notifications use the OS scheduler; delivery is subject to macOS permissions,
-Focus settings, and sleep. Local fallback chimes require the app to be running.
+Breaks start automatically. A completed break waits for **Start focus**.
+Paused time is excluded, and sleep never creates unattended later rounds.
+Timer and review state survive restart. Notifications depend on macOS permission,
+Focus settings, and sleep; fallback chimes require a running app.
 
-Local data is in `~/Library/Application Support/Flowlist/workspace.json` with
-owner-only file permissions. A damaged or unsupported file is not overwritten:
-the app displays an error and disables mutations. Keep this directory when
-upgrading. No secrets, database credentials, or service-role keys are bundled.
+## Connect the existing beta account
 
-**This build does not sign in or sync with the website.** Local notes and history
-remain separate from the user's cloud account. Plan opens the existing dashboard
-in the browser. The app makes no API calls. The browser and Mac timers are not
-coordinated yet; use one at a time until sync is implemented.
+In Supabase **Authentication → URL Configuration → Redirect URLs**, add exactly:
 
-## Tests and visual checks
+```text
+flowlist://auth-callback
+```
+
+Keep the existing website URLs. This is an additional native callback, not a new
+Google client or a change to Google's existing Supabase redirect URI. Then open
+Flowlist **Settings → Continue with Google**. The existing beta access rules still
+apply. No client secret, database URL, or service-role key belongs in the app.
+
+Native sign-in needs a real browser/account pass after this dashboard setting is
+saved. Automated tests use a substituted network and memory-only credentials;
+they do not claim to verify Google's production redirect or macOS Keychain prompts.
+
+## Local data and synchronization
+
+- Guest data: `~/Library/Application Support/Flowlist/workspace.json`.
+- Account data: `~/Library/Application Support/Flowlist/accounts/<user-uuid>/workspace.json`.
+- Files are atomically replaced with owner-only permissions. Unknown/damaged
+  files are preserved and mutations disabled, with a recovery message.
+- Signing in/out switches files; it does **not** upload or import a guest's work.
+  Finish/save the active session before switching accounts. Pending account
+  uploads stay in that account's file when signed out.
+- Timer/session saving works offline. Signed-in Plan changes require a connection;
+  uncertain mutations are not automatically repeated. Refresh before retrying.
+- Sync runs at sign-in, save, refresh, app activation, and connectivity recovery.
+  Session uploads use the existing server's idempotency key, and history edits use
+  revision checks. Missing tasks keep the session pending for explicit resolution.
+- Pending uploads cannot be edited/deleted while their server result is uncertain.
+  After acknowledgement, edit the corresponding cloud history record normally.
+- History initially caches 100 records, supports older-page loading, and fetches
+  the displayed calendar window separately. Cached data remains available offline.
+
+The **Mac menu, app, and desktop widget share one timer**. The existing web timer
+is still independent: saved work syncs, but an active countdown does not transfer
+between devices. Use one running timer at a time. Cross-device timer ownership
+and conflict warnings remain a separate feature, not an implied part of sync.
+
+## Test and inspect
 
 ```sh
 bash scripts/test.sh
 bash scripts/preview-ui.sh
+xcodebuild -project Flowlist.xcodeproj -scheme Flowlist -configuration Debug \
+  -derivedDataPath build/Xcode CODE_SIGNING_ALLOWED=NO build
 ```
 
-The test script handles the Swift Testing framework locations in both Xcode and
-the standalone Command Line Tools. Tests cover boundaries, pause/resume, long
-sleep, long breaks, idempotent saving, validation, and storage recovery. Visual
-checks render the app's own views to `build/previews/`; they do not capture or
-automate the desktop or access the user's workspace data.
+Tests cover deadlines, pause/sleep, persistence, old prototype files, hierarchy,
+account separation, PKCE, API date/payload formats, offline retry, refresh tokens,
+missing tasks, and native local CRUD. Sync tests use URLProtocol and a memory
+credential vault; no live account is contacted. Preview rendering captures only
+the app's own views into `build/previews/`, never the user's desktop.
 
-## Desktop widget (Xcode required to install)
+## Desktop widget
 
-`Flowlist.xcodeproj` contains the app and an embedded WidgetKit extension. The
-small and medium widgets read a shared snapshot, display the countdown/theme,
-and open `flowlist://today` when clicked. This is the agreed first-version
-fallback: start the timer from Today. Direct interactive widget Start/Pause is
-not implemented yet. The widget does not run an independent timer.
+The checked-in Xcode project contains the app and WidgetKit extension. Small and
+medium widgets show the countdown and landscape; clicking opens Today. Start is
+in the app for this version. The widget never owns a separate timer.
 
-After installing and opening Xcode once:
+1. Open `Flowlist.xcodeproj`; select your signing team for **both** targets.
+2. Both targets use `$(TeamIdentifierPrefix)dev.flowlist.shared`. Keep the app-group
+   values in their Info.plist files and entitlements identical.
+3. Run the Flowlist scheme, launch the app once, then use macOS **Edit Widgets**.
+4. Check focus → rest → ready, pause, and the Today link with the main window closed.
 
-1. Open `Flowlist.xcodeproj` and select a signing team for both targets.
-2. Both use `$(TeamIdentifierPrefix)dev.flowlist.shared` for the same Mac app
-   group. Keep the Info.plist values and entitlements identical.
-3. Select the Flowlist scheme and run. Launch the containing app at least once,
-   then add Flowlist through macOS **Edit Widgets**.
-4. Verify the snapshot, focus-to-rest boundary, pause display, and Today deep
-   link with the main window closed. Widget refresh timing is controlled by macOS.
+Unsigned compilation has been checked. Signing, registration in the widget gallery,
+and notification delivery still need a manual Mac integration pass. The SwiftPM
+local package intentionally omits the extension/app group. Do not assume an unsigned
+Xcode build is enough to register a working widget.
 
-The project is checked in. To regenerate after adding source/resource files:
+Regenerate after adding source/resource files:
 
 ```sh
 python3 scripts/generate-project.py
 ```
 
-The local SwiftPM `.app` intentionally has no widget extension or app-group
-entitlement. The signed Xcode build is required to test widget installation.
-Signing, widget registration, and system notification delivery require a manual
-Mac integration pass; compilation alone does not prove these behaviors.
+## Before distributing to testers
 
-## Next milestone: accounts and sync
-
-Keep the current FastAPI/Supabase service. Before connecting this app:
-
-1. Add native browser-based sign-in with a verified callback and Keychain token
-   storage; bind local records to an account only with an explicit import choice.
-2. Add an offline upload queue using stable session IDs. Retry safely without
-   duplicate history. Preserve locally saved sessions until acknowledged.
-3. Fetch Plan/priorities for the local finish screen; reconcile task updates and
-   deletions. Never store an admin/service key in the app.
-4. Define timer ownership across web and Mac. Show an existing active session
-   before starting another; don't silently merge or overwrite timers.
-5. Test account switching, revoked sessions, duplicate requests, loss of network,
-   background reminders, sleep, and quitting/relaunching.
-
-The existing web timer stays unchanged during this local prototype. The pending
-web Guide migration is also separate; this Mac work doesn't require touching the
-live database. A distributable beta additionally needs Developer ID signing,
-notarization, an update path, and widget installation verification.
+Verify Google login and account isolation with two real accounts, offline/relaunch
+recovery, notifications, and the signed widget. Then add Developer ID signing,
+notarization, a versioned installer, and an update mechanism. This is a development
+build, not yet a distributable Mac beta. No web deployment or live database migration
+is required for these native changes; the pending web Guide migration stays separate.

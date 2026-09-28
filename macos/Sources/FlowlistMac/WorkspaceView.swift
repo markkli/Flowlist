@@ -1,5 +1,6 @@
 import SwiftUI
 import UserNotifications
+import ServiceManagement
 #if SWIFT_PACKAGE
 import FlowlistCore
 #endif
@@ -8,64 +9,71 @@ struct WorkspaceView: View {
     @EnvironmentObject var store: TimerStore
     @Environment(\.openWindow) private var openWindow
     var body: some View {
-        NavigationSplitView {
-            VStack(alignment: .leading, spacing: 24) {
-                HStack(spacing: 10) {
-                    FlowlistMark()
-                    Text("Flowlist").font(.system(size: 22, weight: .semibold))
-                }.padding(.horizontal, 16).padding(.top, 24)
-                List(selection: $store.selectedTab) {
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 26) {
+                HStack(spacing: 10) { FlowlistMark(); Text("Flowlist").font(.system(size: 22, weight: .semibold)) }.padding(.top, 12)
+                VStack(spacing: 6) {
                     ForEach(AppTab.allCases) { tab in
-                        Label(tab.rawValue, systemImage: tab.symbol).tag(tab).padding(.vertical, 5)
+                        Button { store.selectedTab = tab } label: {
+                            Label(tab.rawValue, systemImage: tab.symbol).font(.system(size: 14, weight: .medium))
+                                .frame(maxWidth: .infinity, alignment: .leading).padding(12)
+                                .background(store.selectedTab == tab ? store.theme.tint.opacity(0.14) : .clear, in: RoundedRectangle(cornerRadius: 9))
+                                .contentShape(Rectangle())
+                        }.buttonStyle(.plain).accessibilityAddTraits(store.selectedTab == tab ? .isSelected : [])
                     }
-                }.listStyle(.sidebar)
-                VStack(alignment: .leading, spacing: 14) {
-                    Button(action: openDashboard) { Label("Open web dashboard", systemImage: "arrow.up.right.square") }
-                        .buttonStyle(.plain).font(.callout)
-                    Label("On this Mac", systemImage: "internaldrive").font(.caption).foregroundStyle(.secondary)
-                }.padding(18)
-            }
-            .navigationSplitViewColumnWidth(min: 190, ideal: 210, max: 250)
-        } detail: {
+                }
+                Spacer()
+                VStack(alignment: .leading, spacing: 12) {
+                    Button { store.selectedTab = .settings } label: {
+                        Label(store.account?.email ?? "On this Mac", systemImage: store.account == nil ? "internaldrive" : "person.crop.circle")
+                            .lineLimit(1).truncationMode(.middle)
+                    }.buttonStyle(.plain).help(store.account?.email ?? "Local workspace")
+                    if store.account != nil {
+                        HStack(spacing: 7) {
+                            if store.busy { ProgressView().controlSize(.mini) }
+                            else { Image(systemName: store.syncError == nil && store.pendingCount == 0 ? "checkmark.icloud" : "icloud.slash") }
+                            Text(store.busy ? "Syncing" : store.pendingCount > 0 ? "\(store.pendingCount) waiting to sync" : store.syncError == nil ? "Connected" : "Sync paused")
+                        }.font(.caption).foregroundStyle(.secondary)
+                    }
+                    Divider()
+                    Button(action: openDashboard) { Label("Web dashboard", systemImage: "arrow.up.right.square") }.buttonStyle(.plain).foregroundStyle(.secondary)
+                }.font(.callout)
+            }.padding(20).frame(width: 184).background(.ultraThinMaterial)
+            Divider()
             ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
+                VStack(alignment: .leading, spacing: 26) {
                     HStack {
-                        Text(store.selectedTab.rawValue).font(.system(size: 32, weight: .semibold))
+                        Text(store.selectedTab.rawValue).font(.system(size: 30, weight: .semibold))
                         Spacer()
-                        if store.selectedTab == .today {
-                            Text(store.now, format: .dateTime.weekday(.wide).month(.abbreviated).day())
-                                .foregroundStyle(.secondary).font(.callout)
+                        if store.selectedTab == .today { Text(store.now, format: .dateTime.weekday(.wide).month(.abbreviated).day()).foregroundStyle(.secondary).font(.callout) }
+                        if store.account != nil {
+                            Button { Task { await store.sync() } } label: { Image(systemName: "arrow.clockwise").frame(width: 30, height: 30) }
+                                .buttonStyle(.plain).disabled(store.busy).help("Refresh workspace").accessibilityLabel("Refresh workspace")
                         }
                     }
-                    if let error = store.error {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text(error).foregroundStyle(.red)
-                            if store.storageUnavailable { Button("Open data folder", action: store.openDataFolder) }
-                            else { Button("Dismiss") { store.error = nil } }
-                        }.padding().frame(maxWidth: .infinity, alignment: .leading)
-                            .background(.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                    if let error = store.error ?? store.syncError {
+                        HStack(alignment: .top) {
+                            Text(error).font(.callout).fixedSize(horizontal: false, vertical: true)
+                            Spacer()
+                            Button { store.error = nil; store.syncError = nil } label: { Image(systemName: "xmark") }.buttonStyle(.plain).accessibilityLabel("Dismiss message")
+                        }.padding(14).background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
                     }
                     switch store.selectedTab {
                     case .today: today
+                    case .plan: PlanView()
                     case .history: HistoryView()
                     case .settings: PreferencesView()
                     }
-                }.padding(32).frame(maxWidth: 1100, alignment: .leading).frame(maxWidth: .infinity)
-            }
-            .background(Color(nsColor: .windowBackgroundColor))
-        }
-        .frame(minWidth: 960, minHeight: 640)
-        .onOpenURL { url in
-            if url.scheme == "flowlist", url.host == "today" {
-                store.selectedTab = .today
-                openWindow(id: "main")
+                }.padding(30).frame(maxWidth: 1150, alignment: .leading).frame(maxWidth: .infinity)
+            }.background(Color(nsColor: .windowBackgroundColor))
+        }.frame(minWidth: 960, minHeight: 640).tint(store.theme.tint)
+        .onAppear {
+            AppRouting.openTab = { tab in
+                store.selectedTab = tab; openWindow(id: "main")
                 NSApplication.shared.activate(ignoringOtherApps: true)
             }
-        }
-        .onAppear {
             AppRouting.openToday = {
-                store.selectedTab = .today
-                openWindow(id: "main")
+                store.selectedTab = .today; openWindow(id: "main")
                 NSApplication.shared.activate(ignoringOtherApps: true)
             }
             if AppRouting.pending { AppRouting.pending = false; AppRouting.showToday() }
@@ -73,61 +81,60 @@ struct WorkspaceView: View {
     }
     private var today: some View {
         VStack(alignment: .leading, spacing: 24) {
-            if store.timer.phase == .review { ReviewView() }
-            else { FocusCard() }
+            if store.timer.phase == .review { ReviewView() } else { FocusCard() }
             if store.showReminderPrompt { ReminderPrompt().frame(maxWidth: .infinity, alignment: .leading) }
-            HStack(alignment: .top, spacing: 24) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Today’s focus").font(.headline)
-                    Text(focusDuration(todaySeconds)).font(.system(size: 28, weight: .medium, design: .rounded))
-                    Text("\(todayCount) saved \(todayCount == 1 ? "session" : "sessions")").font(.caption).foregroundStyle(.secondary)
-                }.frame(maxWidth: .infinity, alignment: .leading)
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Your workspace").font(.headline)
-                    Text("Projects and priorities are on the web dashboard.").font(.callout).foregroundStyle(.secondary)
-                    Button("Open Plan", action: openDashboard).buttonStyle(.link)
-                }.frame(maxWidth: .infinity, alignment: .leading)
-            }.padding(24).background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 16))
-            Text("Local preview · Sessions stay on this Mac. Cloud sync is coming next.")
-                .font(.caption).foregroundStyle(.secondary)
-        }
-    }
-    private var todayCount: Int { store.workspace.sessions.filter { Calendar.current.isDateInToday($0.endedAt) }.count }
-    private var todaySeconds: TimeInterval { store.workspace.sessions.filter { Calendar.current.isDateInToday($0.endedAt) }.reduce(0) { $0 + $1.seconds } }
-}
-
-struct HistoryView: View {
-    @EnvironmentObject var store: TimerStore
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
             HStack {
-                Text("Saved on this Mac").foregroundStyle(.secondary)
+                Text("Priorities").font(.title3.weight(.semibold))
                 Spacer()
-                Button("Export sessions", action: store.exportSessions).disabled(store.workspace.sessions.isEmpty)
+                Button("Open Plan") { store.selectedTab = .plan }.buttonStyle(.link)
             }
-            if store.workspace.sessions.isEmpty {
-                ContentUnavailableView("Your focus history starts here", systemImage: "clock", description: Text("Finish and save a session to see it here."))
-                    .frame(maxWidth: .infinity).padding(.vertical, 60)
-            }
-            ForEach(store.workspace.sessions) { session in
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Text(focusDuration(session.seconds)).font(.headline)
-                        Spacer()
-                        Text(session.endedAt, format: .dateTime.month(.abbreviated).day().hour().minute()).font(.callout).foregroundStyle(.secondary)
+            if store.priorities.isEmpty {
+                Text("Star tasks in Plan to keep them here.").font(.callout).foregroundStyle(.secondary).padding(.bottom, 16)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(store.priorities) { task in
+                        HStack(spacing: 12) {
+                            Button { Task { await store.setCompleted(task, value: true) } } label: { Image(systemName: "square").font(.title3) }.buttonStyle(.plain).accessibilityLabel("Complete \(task.title)")
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(task.title)
+                                Text(store.project(for: task)?.title ?? "Tasks").font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Menu {
+                                Button("Move up") { Task { await store.movePriority(task.id, offset: -1) } }
+                                Button("Move down") { Task { await store.movePriority(task.id, offset: 1) } }
+                                Button("Remove priority") { Task { await store.prioritize(task) } }
+                            } label: { Image(systemName: "ellipsis") }.menuStyle(.borderlessButton).fixedSize().accessibilityLabel("Priority options")
+                        }.padding(16)
+                        if task.id != store.priorities.last?.id { Divider() }
                     }
-                    Text(session.note.isEmpty ? "General focus" : session.note).foregroundStyle(.secondary).textSelection(.enabled)
-                }.padding(20).frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 14))
+                }.background(.background, in: RoundedRectangle(cornerRadius: 14)).disabled(store.busy)
             }
         }
     }
 }
 
 struct PreferencesView: View {
+    @State private var loginEnabled = SMAppService.mainApp.status == .enabled
     @EnvironmentObject var store: TimerStore
     var body: some View {
         Form {
+            Section("Account") {
+                if let account = store.account {
+                    LabeledContent("Google account", value: account.email)
+                    if let last = store.lastSynced { LabeledContent("Last synced") { Text(last, style: .relative) } }
+                    HStack {
+                        Button("Sync now") { Task { await store.sync() } }.disabled(store.busy)
+                        Spacer()
+                        Button("Sign out", action: store.disconnect).disabled(!store.canSwitchAccount)
+                    }
+                } else {
+                    Text("Connect your web account to sync projects and focus history. Local-only work stays separate.").font(.callout).foregroundStyle(.secondary)
+                    Button("Continue with Google") { Task { await store.connect() } }.disabled(!store.canSwitchAccount)
+                }
+                if store.connecting { ProgressView("Opening sign-in…").controlSize(.small) }
+                if store.timer.phase != .idle { Text("Save or discard the current session before switching accounts.").font(.caption).foregroundStyle(.secondary) }
+            }
             Section("Timer") {
                 Stepper("Focus: \(store.workspace.configuration.focusMinutes) minutes", value: binding(\.configuration.focusMinutes), in: 5...120, step: 5)
                 Stepper("Short break: \(store.workspace.configuration.breakMinutes) minutes", value: binding(\.configuration.breakMinutes), in: 1...60)
@@ -139,6 +146,7 @@ struct PreferencesView: View {
                 Picker("Landscape", selection: binding(\.theme)) {
                     ForEach(Landscape.allCases) { theme in Text(theme.title).tag(theme.rawValue) }
                 }
+                Toggle("Show landscape artwork", isOn: Binding(get: { store.workspace.showArtwork ?? true }, set: { value in store.change { $0.showArtwork = value } }))
                 Toggle("Show countdown in menu bar", isOn: binding(\.showMenuTime))
             }
             Section("Reminders") {
@@ -154,13 +162,24 @@ struct PreferencesView: View {
                     }
                 }
             }
+            Section("Startup") {
+                Toggle("Open Flowlist at login", isOn: Binding(get: { loginEnabled }, set: { value in
+                    do {
+                        if value { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+                        loginEnabled = SMAppService.mainApp.status == .enabled
+                    } catch { store.error = "Couldn’t change login startup. Move Flowlist to Applications and try again." }
+                }))
+                if SMAppService.mainApp.status == .requiresApproval {
+                    Button("Approve in Login Items") { SMAppService.openSystemSettingsLoginItems() }
+                }
+            }
             Section("Storage") {
-                Text("This preview works offline. Your timer, notes, and history are stored on this Mac, separately from your web account.")
+                Text("The timer works offline. Signed-in sessions sync when connected; changes to a synced Plan need a connection.")
                     .font(.callout).foregroundStyle(.secondary)
                 Button("Open data folder", action: store.openDataFolder)
                 Button("Export sessions", action: store.exportSessions).disabled(store.workspace.sessions.isEmpty)
             }
-        }.formStyle(.grouped).frame(minHeight: 690).disabled(store.storageUnavailable)
+        }.formStyle(.grouped).frame(minHeight: 1050).disabled(store.storageUnavailable)
             .onAppear { store.refreshPermission() }
     }
     private func binding<T>(_ path: WritableKeyPath<LocalWorkspace, T>) -> Binding<T> {
