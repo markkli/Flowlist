@@ -31,7 +31,7 @@ private struct QueueItem: Decodable { let task: PlanTask }
         do {
             let credentials = try await cloud.signIn()
             try acceptAccount(credentials)
-            await sync()
+            Task { await self.sync() }
         } catch { self.error = error.localizedDescription }
     }
     func connectWithEmail(code: String) async throws {
@@ -40,7 +40,7 @@ private struct QueueItem: Decodable { let task: PlanTask }
         defer { connecting = false }
         let credentials = try await cloud.verifyEmailCode(code)
         try acceptAccount(credentials)
-        await sync()
+        Task { await self.sync() }
     }
     private func acceptAccount(_ credentials: CloudCredentials) throws {
         guard let rootFolder else { throw CloudFailure(message: "The local account folder is unavailable.") }

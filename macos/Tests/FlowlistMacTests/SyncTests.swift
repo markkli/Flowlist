@@ -11,15 +11,20 @@ private final class MemoryVault: AuthVault {
 }
 private final class StubTransport: URLProtocol {
     static var respond: ((URLRequest) throws -> (Int, String))!
+    static var asyncRespond: (@MainActor (URLRequest) async throws -> (Int, String))?
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
+      Task {
         do {
-            let (status, body) = try Self.respond(request)
+            let status: Int, body: String
+            if let asyncRespond = Self.asyncRespond { (status, body) = try await asyncRespond(request) }
+            else { (status, body) = try Self.respond(request) }
             client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])!, cacheStoragePolicy: .notAllowed)
             client?.urlProtocol(self, didLoad: Data(body.utf8))
             client?.urlProtocolDidFinishLoading(self)
         } catch { client?.urlProtocol(self, didFailWithError: error) }
+      }
     }
     override func stopLoading() {}
 }
@@ -94,6 +99,39 @@ private final class StubTransport: URLProtocol {
         #expect(store.workspace.sessions.count == 1)
         #expect(store.plan.projects[0].tasks[1].completed)
         #expect(!store.plan.projects[0].tasks[0].completed)
+    }
+
+    @Test func verifiedSignInUnlocksLocalTimerBeforeBackgroundSync() async throws {
+        let (client, _) = try client()
+        let store = TimerStore(preview: LocalWorkspace(), client: client)
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        store.rootFolder = folder
+        defer { StubTransport.asyncRespond = nil;try? FileManager.default.removeItem(at: folder) }
+        let identity = self.user
+        var syncReads = 0
+        StubTransport.asyncRespond = { request in
+            switch request.url!.path {
+            case "/api/config": return (200, #"{"auth_mode":"supabase","supabase_url":"https://example.supabase.co","supabase_key":"sb_publishable_test","email_enabled":true}"#)
+            case "/auth/v1/otp": return (200, "{}")
+            case "/auth/v1/verify": return (200, "{\"access_token\":\"new-token\",\"refresh_token\":\"new-refresh\",\"expires_in\":3600,\"user\":{\"id\":\"\(identity.id)\",\"email\":\"\(identity.email)\"}}")
+            case "/api/account": return (200, "{\"id\":\"\(identity.id)\",\"email\":\"\(identity.email)\"}")
+            default:
+                #expect(!store.connecting)
+                syncReads += 1
+                return (200, "[]")
+            }
+        }
+        try await client.sendEmailCode(identity.email)
+        try await store.connectWithEmail(code: "123456")
+        #expect(!store.connecting && store.account == identity)
+        store.change { $0.reminderPromptSeen = true } // Unit runner has no notification bundle.
+        store.primaryAction()
+        #expect(store.timer.phase == .focus)
+        for _ in 0..<100 {
+            if syncReads > 0 && !store.busy { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(syncReads > 0 && !store.busy)
     }
     @Test func uncertainUploadRetriesSameIdAndOnlyMarksAcknowledgedSession() async throws {
         let (client, _) = try client()
