@@ -30,4 +30,5 @@ def public_config():
     return {'auth_mode': 'supabase', 'supabase_url': supabase_url(), 'supabase_key': key,
             'google_enabled': os.getenv('FLOWLIST_GOOGLE_LOGIN', 'false') == 'true',
             'email_enabled': os.getenv('FLOWLIST_EMAIL_LOGIN', 'false') == 'true',
+            'plan_idempotency': True,
             'signup_enabled': os.getenv('FLOWLIST_BETA_SIGNUPS', 'invite') == 'open'}

@@ -98,5 +98,5 @@ struct MenuPanel: View {
 }
 
 func openDashboard() {
-    NSWorkspace.shared.open(URL(string: "https://flowlist-beta.onrender.com/#goals")!)
+    NSWorkspace.shared.open(URL(string: "https://flowlist-beta.onrender.com/app/#goals")!)
 }

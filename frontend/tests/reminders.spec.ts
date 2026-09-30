@@ -18,7 +18,7 @@ test.beforeEach(async({context})=>{
 });
 
 async function startMinimized(page:Page) {
-  await page.goto('/');
+  await page.goto('/app/');
   await page.locator('#start-pomodoro').click();
   await expect(page.locator('#focus-overlay')).toBeVisible();
   await page.getByRole('button',{name:'Minimize timer'}).click();
@@ -48,7 +48,7 @@ test('every automatic interval gets a quiet notice without opening the timer or 
 test('desktop reminders require opt-in, persist, remain silent and can be turned off',async({page})=>{
   await fakeNotifications(page,'granted','granted',true);
   await page.clock.install();
-  await page.goto('/');
+  await page.goto('/app/');
   await page.locator('#timer-settings-toggle').click();
   await page.getByRole('button',{name:'Enable desktop reminders'}).click();
   await expect(page.locator('#desktop-reminders-toggle')).toHaveAttribute('aria-pressed','true');
@@ -69,7 +69,7 @@ test('desktop reminders require opt-in, persist, remain silent and can be turned
 for(const permission of ['denied','default']) test(`permission ${permission} keeps in-app reminders usable`,async({page})=>{
   await fakeNotifications(page,permission,'denied');
   await page.clock.install();
-  await page.goto('/');
+  await page.goto('/app/');
   await page.locator('#timer-settings-toggle').click();
   if(permission==='default') await page.getByRole('button',{name:'Enable desktop reminders'}).click();
   await expect(page.locator('#desktop-reminders-status')).toContainText('Notifications are blocked');
@@ -83,7 +83,7 @@ for(const permission of ['denied','default']) test(`permission ${permission} kee
 
 test('manual skip and end do not send completion reminders',async({page})=>{
   await fakeNotifications(page,'granted');
-  await page.goto('/');
+  await page.goto('/app/');
   await page.locator('#start-pomodoro').click();
   await page.getByRole('button',{name:'Skip to break',exact:true}).click();
   await expect(page.locator('#focus-phase-label')).toHaveText('Short break');
@@ -100,12 +100,12 @@ test('two tabs advance a shared interval once and emit one desktop notice',async
   for(const tab of [page,other]) {
     await fakeNotifications(tab,'granted','granted',true);
   }
-  await page.goto('/');
+  await page.goto('/app/');
   await page.locator('#timer-settings-toggle').click();
   await page.getByRole('button',{name:'Enable desktop reminders'}).click();
   await page.getByRole('button',{name:'Close timer settings'}).click();
   await startMinimized(page);
-  await other.goto('/');
+  await other.goto('/app/');
   await page.clock.fastForward(25*60000);
   for(const tab of [page,other]) await expect(tab.locator('#timer-mini-copy')).toContainText('Short break');
   const counts=await Promise.all([page,other].map(tab=>tab.evaluate(()=>(window as any).__reminders.messages.length)));
@@ -115,7 +115,7 @@ test('two tabs advance a shared interval once and emit one desktop notice',async
 for(const width of [375,768,1440]) test(`reminder settings fit at ${width}px without notification support`,async({page},testInfo)=>{
   await page.setViewportSize({width,height:width===768?375:960});
   await page.addInitScript(()=>{delete (window as any).Notification;});
-  await page.goto('/');
+  await page.goto('/app/');
   for(const theme of ['light','dark']) {
     await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
     await page.locator('#timer-settings-toggle').click();
@@ -164,7 +164,7 @@ test('chime is on by default, fires at a boundary, and can be muted without hidi
 
 test('first timer click offers reminders, Enable asks once, and granted permission is remembered', async({page})=>{
  await fakeNotifications(page);
- await page.goto('/');
+ await page.goto('/app/');
  await expect(page.locator('#reminder-invitation')).toBeHidden();
  expect(await page.evaluate(()=>(window as any).__reminders.requests)).toBe(0);
  await page.locator('#start-pomodoro').click();
@@ -185,7 +185,7 @@ test('first timer click offers reminders, Enable asks once, and granted permissi
 
 test('Not now remembers the choice without disabling the chime or settings opt-in',async({page})=>{
  await fakeNotifications(page);
- await page.goto('/');
+ await page.goto('/app/');
  await page.locator('#start-pomodoro').click();
  await page.getByRole('button',{name:'Not now',exact:true}).click();
  await page.reload();
@@ -201,7 +201,7 @@ test('Not now remembers the choice without disabling the chime or settings opt-i
 
 for(const permission of ['granted','denied']) test(`existing ${permission} permission never prompts again`,async({page})=>{
  await fakeNotifications(page,permission);
- await page.goto('/');
+ await page.goto('/app/');
  await page.locator('#start-pomodoro').click();
  await expect(page.locator('#focus-overlay')).toBeVisible();
  await expect(page.locator('#reminder-invitation')).toBeHidden();
@@ -212,7 +212,7 @@ for(const permission of ['granted','denied']) test(`existing ${permission} permi
 test('a deliberate reminder opt-out is respected even with browser permission',async({page})=>{
  await fakeNotifications(page,'granted');
  await page.addInitScript(()=>localStorage.setItem('flowlist-desktop-reminders','off'));
- await page.goto('/');
+ await page.goto('/app/');
  await page.locator('#start-pomodoro').click();
  await expect(page.locator('#focus-overlay')).toBeVisible();
  await expect(page.locator('#reminder-invitation')).toBeHidden();
@@ -222,7 +222,7 @@ test('a deliberate reminder opt-out is respected even with browser permission',a
 for(const width of [375,768,1440]) test(`reminder invitation is reachable at ${width}px`,async({page},testInfo)=>{
  await fakeNotifications(page);
  await page.setViewportSize({width,height:width===768?375:850});
- await page.goto('/');
+ await page.goto('/app/');
  await page.locator('#start-pomodoro').click();
  await expect(page.locator('#reminder-invitation')).toBeVisible();
  await page.locator('#reminder-invitation-enable').scrollIntoViewIfNeeded();

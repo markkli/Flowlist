@@ -1,43 +1,42 @@
-# Release status and next phase
+# Release status
 
-Updated September 28, 2026. Repository cleanup is the current phase. The following
-product changes remain proposals until the owner approves proceeding.
+Updated September 29, 2026. The cleanup was completed in `2cb52f3`. The approved
+Mac beta launch work is on `codex/mac-beta-launch`; production has not been
+replaced by this branch.
 
-## Current state
+## Prepared in this branch
 
-The hosted beta provides the shared Home, Plan, and History workspace through
-FastAPI and Supabase authentication. The Mac development build bundles that same
-interface and adds local Plan/session saving, background account sync, a compact
-menu timer, and a WidgetKit target. Native Google sign-in and guest use exist.
+- Public product and download pages, with a separate static hosting build.
+- Existing browser workspace at `/app/`, with legacy bookmarks and Google
+  callbacks forwarded on the existing origin.
+- Mac Google/guest entry and email-code support gated by sender configuration.
+- Guide followed by once-per-device menu-bar setup. Mac settings can change the
+  menu choice later. No repeated notification permission prompt is added.
+- Durable Plan-create receipts and native retry support. A lost response can
+  retry without creating a duplicate. Legacy ambiguous uploads remain guarded.
+- Ad-hoc signed, architecture-labelled Mac ZIP; checksum verification and a
+  draft-release workflow. The desktop widget is omitted from this distribution.
 
-Local signing/build success is not distribution readiness. The Mac has no
-notarized download, updater, or App Store release process yet. Pending sync
-limitations and remaining manual integration checks are listed in
-[REPOSITORY-REVIEW.md](REPOSITORY-REVIEW.md).
+## External steps still required
 
-## Proposed next phase — not implemented in the cleanup
+1. Select and purchase a domain. Create the static hosting project and connect
+   its DNS after the branch is reviewed and merged.
+2. Verify a sending domain in Resend, configure Supabase SMTP/code templates,
+   and test a real email sign-in before enabling it publicly.
+3. Deploy API migration `20260928_16`, then intentionally enable open signup in
+   both the API and Supabase. Check Google OAuth audience settings.
+4. Test the actual ZIP's first-run approval on another Mac/fresh account, publish
+   the reviewed release, and promote its checksum-verified public manifest.
 
-1. An explanatory product home page and a Mac download page. Decide whether to
-   keep the current web workspace at a separate path/subdomain before replacing
-   it; existing users and auth redirects must keep working.
-2. A first-launch choice of Google, Apple, email, or guest. Guest data stays local;
-   any later transfer to an account should be an explicit, reviewable action.
-3. The Guide, followed by menu-bar and widget setup prompts. Explain what is
-   already enabled and avoid repeatedly asking for granted permissions.
-4. A distribution choice: direct notarized download or App Store. Resolve signing,
-   installer/update delivery, privacy information, and support/recovery first.
+The website download button is intentionally unavailable until the ZIP exists
+at a verified public URL. Apple sign-in, notarization, App Store distribution,
+automatic updates, and a distributable desktop widget remain deferred. The owner
+has chosen not to buy Apple Developer membership for this beta.
 
-Future iOS clients can share account data through the existing API. Active timer
-handoff and concurrent editing require explicit conflict rules; saving records
-to the same account alone does not implement those features.
+See [WEBSITE-LAUNCH.md](WEBSITE-LAUNCH.md) for the exact commands and provider
+settings. [REPOSITORY-REVIEW.md](REPOSITORY-REVIEW.md) remains the historical
+cleanup review; its observations should not be mistaken for current release
+validation.
 
-## Existing operational guides
-
-- [Render setup](RENDER-SETUP.md)
-- [Authentication, PostgreSQL, backups, and local-data import](BETA-SETUP.md)
-- [Invite-only tester onboarding](TESTER-ONBOARDING.md)
-- [Open signup configuration](OPEN-BETA.md)
-- [Mac build/signing and current sync limitations](../macos/README.md)
-
-These are distinct deployment/access modes. Do not apply every guide to a single
-environment or assume that a documented configuration has been deployed.
+Future iOS clients can share saved account data. Live timer handoff and
+concurrent-edit conflict handling are separate work, not implied by account sync.

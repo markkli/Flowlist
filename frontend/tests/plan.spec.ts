@@ -57,7 +57,7 @@ test.beforeEach(async ({page}) => {
 
 test('collapsed sections stay compact; Add expands before focusing the composer', async ({page}) => {
   await page.setViewportSize({width:375,height:812});
-  await page.goto('/#goals');
+  await page.goto('/app/#goals');
   const section=page.locator('#goal-1');
   await section.getByRole('button',{name:'Collapse AI engineering',exact:true}).click();
   expect((await section.boundingBox())!.height).toBeLessThan(120);
@@ -70,7 +70,7 @@ test('collapsed sections stay compact; Add expands before focusing the composer'
 
 test('flat tasks have no hierarchy placeholders or second action row', async ({page}) => {
   await page.setViewportSize({width:375,height:812});
-  await page.goto('/#goals');
+  await page.goto('/app/#goals');
   const row=page.locator('[data-task-id="4"] > .task-row');
   await expect(row.getByRole('button',{name:'Pay bill',exact:true})).toBeVisible();
   await expect(row.locator('.task-chevron')).toHaveCount(0);
@@ -84,7 +84,7 @@ test('flat tasks have no hierarchy placeholders or second action row', async ({p
 
 test('menus stay in viewport, support arrows and Escape, and return focus after rename cancel', async ({page}) => {
   await page.setViewportSize({width:375,height:812});
-  await page.goto('/#goals');
+  await page.goto('/app/#goals');
   const trigger=page.getByRole('button',{name:'Actions for Pay bill',exact:true});
   await trigger.click();
   const menu=page.getByRole('menu',{name:'Actions for Pay bill',exact:true});
@@ -103,7 +103,7 @@ test('menus stay in viewport, support arrows and Escape, and return focus after 
 });
 
 test('task menu reorder persists and leaves focus on the moved task', async ({page}) => {
-  await page.goto('/#goals');
+  await page.goto('/app/#goals');
   await page.getByRole('button',{name:'Actions for Read notes',exact:true}).click();
   await page.getByRole('menu',{name:'Actions for Read notes',exact:true}).getByRole('menuitem',{name:'Move up',exact:true}).click();
   await expect(page.locator('#goal-3 .task-title')).toHaveText(['Read notes','Pay bill']);
@@ -113,7 +113,7 @@ test('task menu reorder persists and leaves focus on the moved task', async ({pa
 });
 
 test('leaving an unchanged title does not steal focus from its action menu', async ({page}) => {
-  await page.goto('/#goals');
+  await page.goto('/app/#goals');
   await page.getByRole('button',{name:'Pay bill',exact:true}).click();
   await expect(page.locator('[data-task-id="4"] .task-edit-title')).toBeFocused();
   await page.getByRole('button',{name:'Actions for Pay bill',exact:true}).click();
@@ -122,7 +122,7 @@ test('leaving an unchanged title does not steal focus from its action menu', asy
 });
 
 test('Plan has two creation choices and no AI drafting actions', async ({page}) => {
-  await page.goto('/#goals');
+  await page.goto('/app/#goals');
   await expect(page.locator('[data-goal-create]')).toHaveCount(2);
   await expect(page.locator('.goal-type-label').first()).toHaveText('Project');
   await page.getByRole('button',{name:'Actions for Learn retrieval',exact:true}).click();
@@ -131,7 +131,7 @@ test('Plan has two creation choices and no AI drafting actions', async ({page}) 
 });
 
 test('stars prioritize parents and smaller steps, and unstar keeps the task', async ({page}) => {
-  await page.goto('/#goals');
+  await page.goto('/app/#goals');
   const star=page.getByRole('button',{name:'Prioritize Learn retrieval',exact:true});
   await star.click();
   await expect(page.getByRole('button',{name:'Unstar Learn retrieval',exact:true})).toHaveAttribute('aria-pressed','true');
@@ -145,7 +145,7 @@ test('stars prioritize parents and smaller steps, and unstar keeps the task', as
 });
 
 test('each task keeps a checkbox; completing children leaves the parent open with its disclosure', async ({page}) => {
-  await page.goto('/#goals');
+  await page.goto('/app/#goals');
   const parent=page.getByRole('checkbox',{name:'Complete task: Learn retrieval',exact:true});
   await expect(parent).toBeVisible();
   await expect(page.getByRole('button',{name:'Collapse Learn retrieval',exact:true})).toBeVisible();
@@ -161,7 +161,7 @@ test('each task keeps a checkbox; completing children leaves the parent open wit
 });
 
 test('completing a parent cascades down and Undo preserves previously finished children', async ({page}) => {
-  await page.goto('/#goals');
+  await page.goto('/app/#goals');
   await page.getByRole('checkbox',{name:'Complete task: Build an index',exact:true}).check();
   await page.getByRole('checkbox',{name:'Complete task: Learn retrieval',exact:true}).check();
   await expect(page.locator('#goal-1 .goal-task-list > .task-node')).toHaveCount(0);
@@ -174,7 +174,7 @@ test('completing a parent cascades down and Undo preserves previously finished c
 });
 
 test('a subtask cannot create a third level', async ({page}) => {
-  await page.goto('/#goals');
+  await page.goto('/app/#goals');
   await page.getByRole('button',{name:'Actions for Build an index',exact:true}).click();
   const menu=page.getByRole('menu',{name:'Actions for Build an index',exact:true});
   await expect(menu.getByRole('menuitem',{name:/Add a smaller step|Draft smaller steps/})).toHaveCount(0);
@@ -182,7 +182,7 @@ test('a subtask cannot create a third level', async ({page}) => {
 
 test('floating navigation stays fixed, uses minimal space, and hides on short plans and other views', async ({page}) => {
   await page.setViewportSize({width:768,height:600});
-  await page.goto('/#goals');
+  await page.goto('/app/#goals');
   const rail=page.getByRole('navigation',{name:'Jump to a project'});
   await expect(rail).toBeVisible();
   const initial=(await rail.boundingBox())!;
@@ -202,7 +202,7 @@ test('floating navigation stays fixed, uses minimal space, and hides on short pl
 test('a tall direction stays active until the next direction reaches the reading position', async ({page}) => {
   await page.setViewportSize({width:768,height:600});
   await page.route('**/api/goals?*',async route=>{const goals=[{id:1,title:'AI engineering',goal_type:'project',completed:false,position:1,tasks:[] as any[]},{id:2,title:'Responsive QA',goal_type:'project',completed:false,position:2,tasks:[]}];goals[0].tasks=Array.from({length:35},(_,i)=>({id:100+i,goal_id:1,parent_id:null,depth:1,title:`Step ${i+1}`,completed:false,position:i}));await route.fulfill({json:goals});});
-  await page.goto('/#goals');
+  await page.goto('/app/#goals');
   await expect(page.locator('#goal-1 .task-row')).toHaveCount(35);
   await page.locator('#goal-1').evaluate(el=>{const box=el.getBoundingClientRect();window.scrollTo(0,scrollY+box.bottom-500);});
   await expect(page.getByRole('button',{name:'Jump to AI engineering',exact:true})).toHaveAttribute('aria-current','location');
@@ -212,7 +212,7 @@ test('a tall direction stays active until the next direction reaches the reading
 test('an overflowing navigator can reach its first and last direction', async ({page}) => {
   await page.setViewportSize({width:768,height:600});
   await page.route('**/api/goals?*',route=>route.fulfill({json:Array.from({length:20},(_,i)=>({id:i+1,title:`Direction ${i+1}`,goal_type:'project',completed:false,position:i}))}));
-  await page.goto('/#goals');
+  await page.goto('/app/#goals');
   const rail=page.getByRole('navigation',{name:'Jump to a project'});
   await expect(rail).toBeVisible();
   const first=rail.getByRole('button',{name:'Jump to Direction 1',exact:true});
@@ -226,7 +226,7 @@ test('an overflowing navigator can reach its first and last direction', async ({
 for (const width of [375,768,1440]) {
   test(`nested outline stays readable at ${width}px in both themes`, async ({page}) => {
     await page.setViewportSize({width,height:900});
-    await page.goto('/#goals');
+    await page.goto('/app/#goals');
     await expect(page.getByRole('button',{name:'Build an index',exact:true})).toBeVisible();
     for(let i=0;i<2;i++) {
       expect(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -244,7 +244,7 @@ test('Plan batches task loading and rolls back a rejected priority click', async
     await new Promise(resolve=>setTimeout(resolve,250));
     await route.fulfill({status:503,json:{detail:'Could not save priority'}});
   });
-  await page.goto('/#goals');
+  await page.goto('/app/#goals');
   await page.getByRole('button',{name:'Prioritize Learn retrieval',exact:true}).click();
   await expect(page.getByRole('button',{name:'Unstar Learn retrieval',exact:true})).toHaveAttribute('aria-pressed','true');
   await expect(page.locator('#app-toast')).toContainText('Could not save priority');

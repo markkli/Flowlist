@@ -10,6 +10,7 @@ private final class APIAuthVault: AuthVault {
     func clear() throws { value = nil }
 }
 private final class APITransport: URLProtocol {
+    static var idempotencyEnabled = false
     static var respond: ((URLRequest) throws -> (Int, String))!
     static var delayedResponse: ((URLRequest) async -> (Int, String))?
     override class func canInit(with request: URLRequest) -> Bool { true }
@@ -18,7 +19,10 @@ private final class APITransport: URLProtocol {
         Task {
           do {
             let (status, body): (Int, String)
-            if let delayed = Self.delayedResponse { (status, body) = await delayed(request) }
+            if request.url?.path == "/api/config" {
+                (status, body) = (200, "{\"auth_mode\":\"supabase\",\"supabase_url\":\"https://example.supabase.co\",\"supabase_key\":\"sb_publishable_test\",\"plan_idempotency\":\(Self.idempotencyEnabled)}")
+            }
+            else if let delayed = Self.delayedResponse { (status, body) = await delayed(request) }
             else { (status, body) = try Self.respond(request) }
             client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])!, cacheStoragePolicy: .notAllowed)
             client?.urlProtocol(self, didLoad: Data(body.utf8)); client?.urlProtocolDidFinishLoading(self)
@@ -278,6 +282,33 @@ private actor ResponseGate {
         store.workspace = restored
         await #expect(throws: (any Error).self) { try await store.drainPlanOutbox(owner: store.account!.id) }
         #expect(calls == 1 && store.plan.projects[0].tasks[0].title == "Keep me")
+    }
+
+    @Test func receiptBackedCreateRetriesAfterRestartWithTheSameRequestIdentity() async throws {
+        APITransport.idempotencyEnabled = true
+        defer { APITransport.idempotencyEnabled = false }
+        let store = try signedStore()
+        _ = try await WebWorkspaceAPI(store: store).request(path: "/standalone-tasks", method: "POST", body: ["title":"Keep exactly once"])
+        let key = try #require(store.workspace.planOutbox?.first?.id.uuidString)
+        var transmitted: [String] = []
+        APITransport.respond = { request in
+            transmitted.append(request.value(forHTTPHeaderField: "Idempotency-Key") ?? "missing")
+            throw URLError(.networkConnectionLost) // The server may already have committed.
+        }
+        await #expect(throws: (any Error).self) { try await store.drainPlanOutbox(owner: store.account!.id) }
+        #expect(store.workspace.planOutbox?.first?.uncertain == false)
+        #expect(store.workspace.planOutbox?.first?.usesIdempotency == true)
+        store.workspace.planOutbox?[0].sending = true // Also cover termination before catch/checkpoint.
+        let restarted = try signedStore()
+        restarted.workspace = try JSONDecoder().decode(LocalWorkspace.self, from: JSONEncoder().encode(store.workspace))
+        APITransport.respond = { request in
+            transmitted.append(request.value(forHTTPHeaderField: "Idempotency-Key") ?? "missing")
+            return (200, #"{"id":9,"goal_id":8}"#)
+        }
+        try await restarted.drainPlanOutbox(owner: restarted.account!.id)
+        #expect(transmitted == [key, key])
+        #expect(restarted.plan.projects[0].tasks.count == 1 && restarted.plan.projects[0].tasks[0].id == 9)
+        #expect(restarted.workspace.planOutbox?.isEmpty == true)
     }
 
     @Test func definitelyOfflineCreationCanRetryAndDiskFailureDoesNotAcknowledgeSave() async throws {

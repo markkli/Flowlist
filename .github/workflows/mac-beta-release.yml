@@ -1,0 +1,31 @@
+name: Prepare Mac beta download
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  package:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm --prefix frontend ci
+      - run: bash macos/scripts/build-web.sh
+      - run: bash macos/scripts/test.sh
+      - run: bash macos/scripts/package-beta.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flowlist-mac-beta
+          path: macos/build/releases/
+      - name: Create a draft release for review
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' macos/build/Flowlist.app/Contents/Info.plist)
+          gh release create "mac-v$version" macos/build/releases/* \
+            --draft --target "$GITHUB_SHA" --title "Flowlist for Mac $version beta" \
+            --notes-file docs/MAC-BETA-RELEASE.md

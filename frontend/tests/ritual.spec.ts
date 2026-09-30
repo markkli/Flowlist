@@ -18,7 +18,7 @@ test.beforeEach(async ({page}) => {
 });
 
 test('refresh restores reflection and task selections; Escape keeps the draft', async ({page}) => {
-  await page.goto('/');
+  await page.goto('/app/');
   await page.getByRole('button',{name:/Start a 25-minute/}).click();
   await page.getByRole('button',{name:'End session',exact:true}).first().click();
   await expect(page.getByRole('dialog',{name:'Save your progress'})).toBeVisible();
@@ -35,7 +35,7 @@ test('refresh restores reflection and task selections; Escape keeps the draft', 
 
 test('timer minimizes, retains plan navigation and restores after refresh', async ({page}) => {
   await page.clock.install();
-  await page.goto('/');
+  await page.goto('/app/');
   await page.getByRole('button',{name:/Start a 25-minute/}).click();
   await expect(page.getByRole('dialog',{name:'Pomodoro timer'})).toBeVisible();
   await page.clock.fastForward(90000);
@@ -57,7 +57,7 @@ test('a failed save retries with the same ritual ID and keeps the reflection', a
     bodies.push(route.request().postDataJSON());
     await route.fulfill(bodies.length===1 ? {status:503,json:{detail:'Try again'}} : {json:{id:1}});
   });
-  await page.goto('/');
+  await page.goto('/app/');
   await page.getByRole('button',{name:/Start a 25-minute/}).click();
   await page.locator('#focus-exit').click();
   await page.locator('#session-attribution-overlay').getByLabel('What did you do?').fill('Retry this safely');
@@ -73,7 +73,7 @@ test('a failed save retries with the same ritual ID and keeps the reflection', a
 test('quotes in titles remain text and do not create attributes', async ({page}) => {
   const title = 'Review "quoted" title" autofocus onfocus="alert(1)';
   await page.route('**/api/dashboard?*', route => route.fulfill({json:{...dashboard,queue:[{task:{...task,title},goal}],goals:[{goal,tasks:[{...task,title}]}]}}));
-  await page.goto('/');
+  await page.goto('/app/');
   await expect(page.locator('.agenda-title')).toHaveText(title);
   await expect(page.locator('.agenda-title')).toHaveAttribute('title',title);
   await expect(page.locator('[onfocus]')).toHaveCount(0);
@@ -85,7 +85,7 @@ test('deleted history can be restored with Undo', async ({page}) => {
   await page.route('**/api/sessions?*', route => route.fulfill({json:removed ? [] : [session]}));
   await page.route('**/api/sessions/1', route => { removed=true; return route.fulfill({json:{deleted:true}}); });
   await page.route('**/api/sessions/1/restore', route => { removed=false; return route.fulfill({json:session}); });
-  await page.goto('/#history');
+  await page.goto('/app/#history');
   await page.getByRole('button',{name:'All records',exact:true}).click();
   await page.getByRole('button',{name:'Delete Saved ritual'}).click();
   await page.getByRole('button',{name:'Undo',exact:true}).click();
@@ -94,14 +94,14 @@ test('deleted history can be restored with Undo', async ({page}) => {
 
 test('narrow layouts have no horizontal overflow', async ({page}) => {
   await page.setViewportSize({width:375,height:812});
-  await page.goto('/#goals');
+  await page.goto('/app/#goals');
   await expect(page.getByRole('heading',{name:'Plan',exact:true})).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 
 test('timer keyboard focus remains inside the dialog', async ({page}) => {
-  await page.goto('/');
+  await page.goto('/app/');
   await page.getByRole('button',{name:/Start a 25-minute/}).click();
   for(let i=0;i<9;i++) {
     await page.keyboard.press('Tab');
@@ -113,7 +113,7 @@ for(const width of [375,768,1024,1440]) {
   test(`dark and light layouts at ${width}px`, async ({page}) => {
     await page.setViewportSize({width,height:width === 768 ? 375 : 900});
     await page.emulateMedia({reducedMotion:'reduce'});
-    await page.goto('/#goals');
+    await page.goto('/app/#goals');
     await expect(page.getByRole('heading',{name:'Plan',exact:true})).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.getByRole('button',{name:'Switch color theme'}).click();
@@ -123,7 +123,7 @@ for(const width of [375,768,1024,1440]) {
 
 test('attribution remains usable on a narrow screen with enlarged text', async ({page}) => {
   await page.setViewportSize({width:375,height:812});
-  await page.goto('/');
+  await page.goto('/app/');
   await page.addStyleTag({content:'body { font-size: 20px; }'});
   await page.getByRole('button',{name:/Start a 25-minute/}).click();
   await page.locator('#focus-exit').click();
@@ -143,7 +143,7 @@ test('retired task drafts are preserved in the note without creating tasks', asy
       draftTask:'Remember this', draftDestination:'__tasks__', draftGroup:'Website', draftGroupType:'project'
     }));
   });
-  await page.goto('/');
+  await page.goto('/app/');
   await expect(page.locator('#session-summary')).toHaveValue('Session notes\n\nUnadded task: Remember this (Website)');
   await expect(page.getByText('Add a missing task',{exact:true})).toHaveCount(0);
   await page.reload();
@@ -155,7 +155,7 @@ test('saved ritual includes actual focus intervals and excludes the break',async
   await page.clock.pauseAt(new Date('2026-09-19T12:00:00Z'));
   const bodies:any[]=[];
   await page.route('**/api/sessions',async route=>{bodies.push(route.request().postDataJSON());await route.fulfill({json:{id:1}});});
-  await page.goto('/');
+  await page.goto('/app/');
   await page.getByRole('button',{name:/Start a 25-minute/}).click();
   // Start acquires a browser lock asynchronously; wait for the running UI before advancing time.
   await expect(page.locator('#focus-overlay')).toBeVisible();

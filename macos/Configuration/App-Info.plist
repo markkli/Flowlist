@@ -6,8 +6,8 @@
 <key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 <key>CFBundleName</key><string>Flowlist</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.4.0</string>
-<key>CFBundleVersion</key><string>6</string>
+<key>CFBundleShortVersionString</key><string>0.5.0</string>
+<key>CFBundleVersion</key><string>7</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>CFBundleIconFile</key><string>Flowlist</string>

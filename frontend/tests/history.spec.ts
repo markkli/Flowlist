@@ -29,7 +29,7 @@ async function setup(page: Page) {
     if(path==='/api/export')json={format:'flowlist',schema_version:1,goals:[],tasks:[],queue:[],sessions};
     await route.fulfill({json});
   });
-  await page.goto('/#history');
+  await page.goto('/app/#history');
   return {sessions,updates,getTaskWrites:()=>taskWrites};
 }
 

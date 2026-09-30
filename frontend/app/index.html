@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en" data-appearance="grove">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Flowlist</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260920-2">
+
+</head>
+<body>
+  <section id="auth-screen" class="auth-screen" aria-label="Sign in to Flowlist">
+    <div class="auth-scene"><div class="auth-wordmark"><img src="/brand/flowlist-mark.svg" alt="">Flowlist</div><div><h1>Make room for focus.</h1><p>Plan, focus, and track your progress.</p></div></div>
+    <div class="auth-content"><div class="auth-inner"><p class="kicker">Your workspace</p><h2>Welcome to Flowlist</h2><p id="auth-beta-note">A quiet place for your work.</p><p id="auth-loading" role="status">Opening your workspace…</p>
+    <div id="auth-google-option" class="auth-google-option" hidden>
+      <button id="auth-google" class="auth-google" type="button"><img src="/brand/google-g.png" width="20" height="20" alt=""><span id="auth-google-label">Continue with Google</span></button>
+      <div id="auth-divider" class="auth-divider" hidden>or continue with email</div>
+    </div>
+    <form id="auth-form" hidden><label for="auth-email">Email address</label><input class="field" id="auth-email" type="email" autocomplete="email" required maxlength="254" placeholder="you@example.com"><div id="auth-code-row" hidden><label for="auth-code">Email code</label><input class="field" id="auth-code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" maxlength="10" placeholder="Enter your code"></div><button class="primary-btn" id="auth-submit" type="submit">Send sign-in code</button><button class="text-btn" id="auth-change-email" type="button" hidden>Use another email or request a new code</button></form>
+    <p id="auth-status" role="status"></p><p class="field-error" id="auth-error" role="alert"></p><button class="secondary-btn" id="auth-retry" hidden>Retry</button>
+    <details class="auth-privacy"><summary>About your data in this beta</summary><p>Flowlist stores your projects, tasks, focus history, and reflections in your private account. Supabase handles sign-in, including Google when enabled. Google sign-in requests only your basic profile and email address. Unsaved timers stay on this browser; appearance settings stay on this device.</p><p>AI enrichment is disabled in the hosted beta. Export your saved data from History. You can delete your account and app data from the account menu. Backups may retain deleted records according to the hosting provider’s retention period.</p><p>Keep this tab open for interval reminders. Browser sleep can delay them. This is beta software; keep an export of work you need.</p></details>
+    </div></div>
+  </section>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#" aria-label="Flowlist home">
+        <img class="brand-mark" src="/brand/flowlist-mark.svg" width="38" height="38" alt="" aria-hidden="true">
+        <span><strong>Flowlist</strong><small>Focus &amp; progress</small></span>
+      </a>
+      <nav class="nav" aria-label="Main navigation">
+        <button class="nav-item active" id="nav-dashboard"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z"/></svg><span>Home</span></button>
+        <button class="nav-item" id="nav-goals"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 7 2 2 3-4m3 2h8M4 16l2 2 3-4m3 2h8"/></svg><span>Plan</span></button>
+        <button class="nav-item" id="nav-history"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4m8-4v4M7 11h10"/></svg><span>History</span></button>
+      </nav>
+      <div class="sidebar-summary"><span>This week</span><strong id="side-session-count">— sessions</strong><small>Focused work logged</small></div>
+      <details id="account-controls" class="account-controls" hidden>
+        <summary><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"/><path d="M5 20v-2a7 7 0 0 1 14 0v2"/></svg><span>Account</span><svg class="account-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></summary>
+        <div class="account-content">
+          <p id="account-email"></p>
+          <button id="account-signout" class="text-btn" type="button">Sign out</button>
+          <details>
+            <summary>Delete account</summary>
+            <p>This permanently deletes your projects, tasks, queue, and history. Export from History first if you need a copy.</p>
+            <p id="account-delete-beta-note" hidden>In this private beta, deleting your account also removes your sign-in access. You will need a new invitation to return.</p>
+            <form id="account-delete-form"><label for="account-delete-confirm">Type DELETE to confirm</label><input id="account-delete-confirm" class="field" pattern="DELETE" required autocomplete="off"><button id="account-delete" class="text-btn danger" type="submit">Delete my account</button><p id="account-error" class="field-error" role="alert"></p></form>
+          </details>
+        </div>
+      </details>
+    </aside>
+
+    <div class="workspace">
+      <header class="toolbar">
+        <p class="date-line" id="top-date"></p>
+        <div class="toolbar-actions"><button class="help-trigger" id="help-toggle" type="button" aria-haspopup="dialog" aria-controls="onboarding-overlay"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v15M12 5C9 3 5 3 3 4v15c3-1 6-1 9 1 3-2 6-2 9-1V4c-2-1-6-1-9 1Z"/></svg><span>Guide</span></button><span class="connection-state"><i></i><span id="connection-label">Local</span></span><button class="icon-btn" id="appearance-toggle" aria-label="Appearance" aria-haspopup="dialog" aria-controls="appearance-overlay"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="m3 16 5-5 4 4 4-6 5 7"/><circle cx="8" cy="7" r="1"/></svg></button><button class="icon-btn" id="theme-toggle" aria-label="Switch color theme"><svg id="theme-icon" viewBox="0 0 24 24" aria-hidden="true"></svg></button></div>
+      </header>
+
+      <main id="main-content" tabindex="-1"><div id="connection-error" class="connection-error hidden" role="alert"><span id="connection-error-copy"></span><button id="retry-view" class="secondary-btn" type="button">Retry</button></div>
+        <section id="view-dashboard" class="view">
+          <header class="page-heading"><div><h1 id="dashboard-greeting">Home</h1></div></header>
+          <div class="today-grid">
+            <article class="focus-card">
+              <img class="focus-atmosphere" src="/images/focus-grove.webp" width="1600" height="800" alt="" aria-hidden="true">
+              <div class="focus-top"><span class="status"><i></i>Pomodoro</span><button class="focus-settings" id="timer-settings-toggle" type="button" aria-haspopup="dialog" aria-controls="timer-settings-overlay" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10m4 0h2M4 17h2m4 0h10M14 4v6M7 14v6"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg><span id="timer-settings-label">Settings</span></button></div>
+              <div class="focus-content focus-editorial"><div class="focus-start"><div class="focus-display" id="hero-time" aria-label="Focus duration">25:00</div><button class="focus-start-button" id="start-pomodoro" type="button" aria-label="Start a 25-minute focus session"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 9 6-9 6Z"/></svg><span>Start focus</span></button></div><dl class="focus-cycle-summary" aria-label="Timer configuration"><div><dt>Focus</dt><dd><span id="cycle-focus">25</span><small>min</small></dd></div><div><dt>Short break</dt><dd><span id="cycle-break">5</span><small>min</small></dd></div><div><dt>Rounds</dt><dd><span id="cycle-rounds">4</span></dd></div><div><dt>Long break</dt><dd><span id="cycle-long-break">15</span><small>min</small></dd></div></dl></div>
+            </article>
+            <article class="panel agenda-panel">
+              <div class="panel-heading"><h2>Priority tasks <small id="priority-count"></small></h2></div>
+
+              <div class="agenda" id="today-agenda"></div>
+            </article>
+          </div>
+
+          <div class="lower-grid">
+            <article class="panel activity-panel">
+              <div class="panel-heading"><h2>Activity</h2><span class="panel-meta">16 weeks</span></div>
+              <div class="stat-strip"><div class="stat"><b id="stat-streak">0</b><span>day streak</span></div><div class="stat"><b id="stat-sessions">0</b><span>sessions</span></div><div class="stat"><b id="stat-minutes">0</b><span>minutes</span></div></div>
+              <div class="heatmap" aria-label="Focus activity for the last sixteen weeks"><div class="heatmap-labels" aria-hidden="true"><span>Mon</span><span>Wed</span><span>Fri</span></div><div class="heatmap-content"><div class="heatmap-months" id="heatmap-months"></div><div class="heatmap-grid" id="activity-heatmap"></div></div></div>
+              <div class="heatmap-footer"><span>Less</span><div class="heatmap-scale" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><span>More</span></div>
+            </article>
+            <article class="panel goals-panel"><div class="panel-heading"><h2>Active goals</h2><button class="quiet-link" id="open-roadmap-2">See all</button></div><div class="roadmap-list" id="dashboard-goals"></div></article>
+          </div>
+        </section>
+
+        <section id="view-goals" class="view hidden">
+          <header class="page-heading plan-page-heading">
+            <div class="plan-cover">
+              <img class="plan-atmosphere" src="/images/focus-grove.webp" width="1600" height="800" alt="" aria-hidden="true">
+              <div class="plan-cover-copy"><h1>Plan</h1></div>
+              <p class="plan-overview" id="plan-overview">0 projects</p>
+            </div>
+            <div class="plan-create-actions" aria-label="Add to plan">
+              <span>Create</span>
+              <div class="plan-create-options"><button type="button" data-goal-create="project"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 6V5a1 1 0 0 1 1-1h4l2 2h6a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6Z"/></svg>Project</button>
+              <button type="button" data-goal-create="standalone"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3.5" y="3.5" width="13" height="13" rx="3"/><path d="m6.5 10 2.5 2.5 4.5-5"/></svg>Task</button></div>
+            </div>
+          </header>
+          <div class="roadmap-layout">
+            <aside class="plan-index hidden" aria-label="Plan index">
+              <nav class="plan-index-list" id="plan-index-list" aria-label="Jump to a project"></nav>
+            </aside>
+            <div class="plan-main">
+              <aside class="new-goal panel hidden" id="goal-composer">
+                <div class="new-goal-copy"><p class="kicker" id="goal-composer-kicker">New project</p><h2 id="goal-composer-heading">What are you building?</h2></div>
+                <form id="goal-form" class="new-goal-form">
+                  <label><span>Name</span><input id="goal-title" class="field" type="text" maxlength="120" placeholder="e.g. Build portfolio" required></label>
+                  <div class="new-goal-actions"><button class="text-btn" id="cancel-goal-composer" type="button">Cancel</button><button class="primary-btn">Add</button></div>
+                </form>
+              </aside>
+              <div id="goals" class="goal-stack"></div>
+              <details class="completed-directions hidden" id="completed-directions"><summary><span>Completed projects</span><b id="completed-directions-count">0</b><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg></summary><div id="completed-directions-list" class="completed-directions-list"></div></details>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-history" class="view hidden">
+          <header class="page-heading history-heading"><div><h1>History</h1></div><button class="secondary-btn" id="history-export" type="button">Export data</button></header>
+          <div class="history-toolbar"><div class="history-view-switch" role="group" aria-label="History view"><button type="button" id="history-week-tab" aria-pressed="true">Calendar</button><button type="button" id="history-list-tab" aria-pressed="false">All records</button></div><button id="history-deleted" class="text-btn" type="button" aria-pressed="false">Show deleted records</button></div>
+          <p class="field-error" id="history-error" role="alert"></p>
+          <section id="history-week" aria-label="Seven-day focus history">
+            <div class="history-week-toolbar"><div class="history-week-navigation"><button class="secondary-btn" type="button" id="history-prev" aria-label="Previous 7 days">‹</button><h2 id="history-week-label"></h2><button class="secondary-btn" type="button" id="history-next" aria-label="Next 7 days">›</button><button class="text-btn" type="button" id="history-current" aria-label="Last 7 days">Today</button></div><p id="history-week-total" role="status"></p></div>
+            <p class="history-timezone" id="history-timezone"></p><div id="history-timeline"></div>
+            <section id="history-untimed" class="hidden"><h2>Records without focus blocks</h2><p class="page-description">Saved sessions without recorded times.</p><div id="history-untimed-list" class="archive-list"></div></section>
+          </section>
+          <div id="history-view" class="archive-list hidden"></div><button id="history-more" class="secondary-btn hidden" type="button">Load more</button>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div id="history-detail-overlay" class="overlay session-review hidden" role="dialog" aria-modal="true" aria-labelledby="history-detail-title">
+    <section class="history-detail-modal" tabindex="-1">
+      <header><div><p class="kicker">Focus record</p><h2 id="history-detail-title"></h2></div><button class="text-btn" id="history-detail-close" type="button" aria-label="Close focus record">×</button></header>
+      <p id="history-detail-meta" class="page-description"></p><div id="history-detail-blocks"></div>
+      <form id="history-edit-form">
+        <div class="session-note-field"><label for="history-reflection">What did you do? <span>Optional note</span></label><textarea class="field session-note" id="history-reflection" rows="3" maxlength="2000" placeholder="What moved forward? What is next?"></textarea></div>
+        <fieldset class="history-edit-work"><legend>Session tasks</legend><p id="history-choice-help" class="attribution-summary"><strong>Worked on</strong> records effort. <strong>Finished</strong> records completion for this session only; Plan stays unchanged.</p>
+          <label class="sr-only" for="history-task-search">Find a task</label><input class="field" type="search" id="history-task-search" placeholder="Find a task or project">
+          <p id="history-task-status" role="status"></p><button type="button" class="text-btn hidden" id="history-tasks-retry">Retry loading tasks</button>
+          <div id="history-edit-attributions" class="attribution-options"></div>
+        </fieldset>
+        <p class="field-error" id="history-edit-error" role="alert"></p><button type="button" class="text-btn hidden" id="history-reload-record">Reload saved version</button>
+        <footer class="attribution-actions"><button class="text-btn" type="button" id="history-edit-cancel">Cancel</button><button class="primary-btn" id="history-edit-save" type="submit">Save changes</button></footer>
+      </form>
+    </section>
+  </div>
+
+  <template id="goal-template">
+    <article class="goal-card">
+      <header class="goal-card-head">
+        <button class="goal-collapse plan-icon" type="button" aria-expanded="true"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg></button>
+        <div class="goal-card-copy">
+          <h2><button class="goal-title inline-title" type="button"></button></h2>
+          <form class="goal-title-form inline-edit hidden"><input class="field goal-edit-title" type="text" maxlength="120" aria-label="Project name"><button class="sr-only">Save</button></form>
+          <div class="direction-meta"><span class="goal-type-label"></span><span class="goal-progress-copy"></span></div>
+          <p class="goal-description hidden"></p>
+        </div>
+        <div class="goal-actions">
+          <button class="goal-add-step" type="button" aria-label="Add step"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg><span class="goal-action-label">Add step</span></button>
+          <button class="plan-icon goal-more" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="16" cy="10" r="1.5"/></svg></button>
+          <div class="plan-menu goal-menu" popover="auto" role="menu">
+            <button class="rename-goal" type="button" role="menuitem">Rename</button>
+            <button class="goal-move-up" type="button" role="menuitem">Move up</button>
+            <button class="goal-move-down" type="button" role="menuitem">Move down</button>
+            <hr><button class="delete-goal danger" type="button" role="menuitem">Remove project</button>
+          </div>
+        </div>
+      </header>
+      <div class="goal-body">
+        <div class="goal-status hidden"><span class="goal-status-copy"></span><button class="goal-complete text-btn hidden" type="button">Close project</button></div>
+        <form class="task-form step-composer hidden"><label><span class="step-composer-label">New step</span><input class="field" type="text" maxlength="120" placeholder="Describe the next meaningful step" aria-label="New task"></label><button class="secondary-btn">Add</button><button class="text-btn cancel-step-composer" type="button">Cancel</button></form>
+        <section class="goal-outline" aria-label="Active steps"><ul class="goal-task-list task-list"></ul><p class="goal-empty-state hidden">Add a step when you’re ready to begin.</p></section>
+        <details class="completed-tasks hidden"><summary><span><b class="completed-count">0</b> completed</span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg></summary><ul class="completed-task-list"></ul></details>
+      </div>
+    </article>
+  </template>
+
+  <template id="task-template">
+    <li class="task-node">
+      <div class="task-row">
+        <button class="task-chevron plan-icon hidden" type="button" aria-expanded="true"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg></button>
+        <input type="checkbox" class="task-completed" aria-label="Complete task">
+        <div class="task-copy"><button class="task-title inline-title" type="button"></button><span class="task-progress task-meta"></span></div>
+        <button class="task-priority plan-icon" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z"/></svg></button><button class="reorder-handle task-reorder-handle plan-icon" type="button" aria-label="Reorder task" title="Drag to reorder, or use Alt + Up / Down"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="7" cy="6" r="1"/><circle cx="13" cy="6" r="1"/><circle cx="7" cy="10" r="1"/><circle cx="13" cy="10" r="1"/><circle cx="7" cy="14" r="1"/><circle cx="13" cy="14" r="1"/></svg></button>
+        <button class="task-more plan-icon" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4" cy="10" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="16" cy="10" r="1.5"/></svg></button>
+        <div class="plan-menu task-menu" popover="auto" role="menu">
+          <button class="queue-task" type="button" role="menuitem">Add to focus queue</button>
+          <button class="rename-task" type="button" role="menuitem">Rename</button>
+          <button class="add-subtask" type="button" role="menuitem">Add a smaller step</button>
+          <button class="task-move-up" type="button" role="menuitem">Move up</button>
+          <button class="task-move-down" type="button" role="menuitem">Move down</button>
+          <hr><button class="delete-task danger" type="button" role="menuitem">Remove task</button>
+        </div>
+      </div>
+      <form class="task-edit-form inline-edit hidden"><input class="field task-edit-title" type="text" maxlength="120" aria-label="Task title"><button class="sr-only">Save</button></form>
+      <form class="subtask-form step-composer nested-form hidden"><label><span>New substep</span><input class="field" type="text" maxlength="120" placeholder="Describe the smaller step" aria-label="Subtask title"></label><button class="secondary-btn">Add</button><button class="text-btn cancel-subtask" type="button">Cancel</button></form>
+      <ul class="subtask-list task-list nested-list" data-task-children></ul>
+    </li>
+  </template>
+
+  <template id="session-template"><article class="session-row panel"><div class="session-copy"><div class="session-title"></div><div class="session-summary-note"></div><div class="session-attributions"></div><div class="session-meta"></div></div><div class="session-actions"><span class="session-status pill"></span><button class="session-delete icon-btn" type="button" aria-label="Delete focus record"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5"/></svg></button></div></article></template>
+  <div id="focus-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-label="Pomodoro timer"><div class="timer-modal pomodoro-modal" tabindex="-1"><button class="text-btn timer-minimize" id="focus-minimize" type="button">Minimize timer</button><div class="pomodoro-modal-top"><span id="focus-phase-label" class="status"><i></i>Focus</span><span id="focus-cycle-copy">25 minute interval</span></div><h2 id="focus-task-title">Focus session</h2><section id="reminder-invitation" class="reminder-invitation" aria-labelledby="reminder-invitation-title" hidden><strong id="reminder-invitation-title">Know when it’s time to switch</strong><p id="reminder-invitation-copy"></p><div><button type="button" class="text-btn" id="reminder-invitation-later">Not now</button><button type="button" class="secondary-btn" id="reminder-invitation-enable">Enable notifications</button></div><p id="reminder-invitation-status" role="status"></p></section><div class="timer-orbit" id="focus-orbit"><div id="focus-time" class="timer-time">25:00<span>Remaining</span></div></div><div class="focus-actions"><button id="focus-add-plan" class="text-btn timer-plan" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Add to plan</span></button><button id="focus-exit" class="text-btn timer-exit" type="button">End session</button><button id="focus-skip" class="secondary-btn timer-skip" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 6 9 6-9 6V6Zm12 0v12"/></svg><span id="focus-skip-label">Skip to break</span></button></div></div></div>
+  <div id="plan-capture-overlay" class="overlay plan-capture-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="plan-capture-title"><section class="quick-plan-modal" tabindex="-1"><header class="settings-modal-header"><div><h2 id="plan-capture-title">Add a task</h2></div><button class="icon-btn" id="plan-capture-close" type="button" aria-label="Close add to plan"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg></button></header><form id="plan-capture-form"><label for="plan-capture-name"><span>Task</span></label><input class="field" id="plan-capture-name" type="text" maxlength="120" placeholder="Task name" required><div id="plan-capture-tree"></div><p class="capture-helper">The timer keeps running.</p><p class="field-error" id="plan-capture-error" role="alert"></p><footer class="settings-actions"><button class="text-btn" id="plan-capture-cancel" type="button">Cancel</button><button class="primary-btn" type="submit">Add task</button></footer></form></section></div>
+  <div id="session-attribution-overlay" class="overlay attribution-overlay session-review hidden" role="dialog" aria-modal="true" aria-labelledby="attribution-title"><section class="attribution-modal" tabindex="-1"><header class="session-review-heading"><div><p class="kicker" id="attribution-status">Session complete</p><h2 id="attribution-title">Save your progress</h2></div><strong id="attribution-minutes" class="session-duration">25 minutes</strong></header><form id="session-attribution-form">
+  <div class="session-note-field"><label for="session-summary">What did you do? <span>Optional note</span></label><textarea class="field session-note" id="session-summary" rows="3" maxlength="2000" placeholder="What moved forward? What is next?"></textarea></div>
+  <fieldset><legend>Update your tasks <span>Optional</span></legend>
+    <p class="attribution-summary" id="attribution-choice-help"><strong>Worked on</strong> logs progress. <strong>Finished</strong> checks the task off in Plan.</p>
+    <div class="attribution-options" id="attribution-options"></div><p class="attribution-general-note">No tasks selected? Your time and note are saved as General focus.</p>
+  </fieldset><p class="field-error" id="attribution-error" role="alert"></p><footer class="attribution-actions"><button class="text-btn" id="attribution-later" type="button">Save later</button><button class="text-btn danger" id="discard-session" type="button">Discard</button><button class="primary-btn" id="save-session" type="submit">Save session</button></footer></form></section></div>
+  <div id="timer-settings-overlay" class="overlay settings-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="timer-settings-title"><section class="settings-modal" tabindex="-1"><header class="settings-modal-header"><div><p class="kicker">Pomodoro cycle</p><h2 id="timer-settings-title">Timer settings</h2></div><button class="icon-btn" id="timer-settings-close" type="button" aria-label="Close timer settings"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg></button></header><p class="settings-intro">A long break begins after the final focus round.</p><form id="timer-settings-form"><div class="settings-grid"><label><span>Focus</span><div class="number-field"><input class="field" id="focus-minutes-setting" type="number" min="5" max="120" value="25"><small>min</small></div></label><label><span>Short break</span><div class="number-field"><input class="field" id="break-minutes-setting" type="number" min="1" max="60" value="5"><small>min</small></div></label><label><span>Rounds</span><div class="number-field"><input class="field" id="rounds-setting" type="number" min="2" max="8" value="4"><small>rounds</small></div></label><label><span>Long break</span><div class="number-field"><input class="field" id="long-break-minutes-setting" type="number" min="5" max="90" value="15"><small>min</small></div></label></div><section class="timer-reminders" aria-labelledby="timer-reminders-title"><h3 id="timer-reminders-title">Interval reminders</h3><label class="sound-setting"><span>Gentle chime</span><input id="reminder-sound-toggle" type="checkbox" checked></label><p>Popup reminders and a chime are on by default while this tab is running.</p><p id="desktop-reminders-status" role="status"></p><button type="button" class="secondary-btn" id="desktop-reminders-toggle" aria-pressed="false" aria-describedby="desktop-reminders-status">Enable desktop reminders</button><p class="reminders-note">Quiet messages when focus or a break ends. Keep Flowlist open in a tab; sleep or a suspended browser can delay reminders.</p></section><p class="field-error" id="timer-settings-error" role="alert"></p><footer class="settings-actions"><button class="text-btn" id="timer-settings-cancel" type="button">Cancel</button><button class="primary-btn" type="submit">Save cycle</button></footer></form></section></div>
+  <div id="celebration-overlay" class="overlay hidden"><div class="timer-modal celebration"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 40V15m0 7-9-8m9 15 10-9M15 40h18"/><path d="M24 15c-2-6-7-9-13-7 1 7 5 10 13 10m0 2c2-7 7-10 14-9-1 7-5 11-14 12"/></svg><span class="status"><i></i>Goal complete</span><h2 id="celebration-goal-title">Goal complete</h2><p>Nice work. Take a moment before choosing what comes next.</p><div class="focus-actions"><button id="celebration-dismiss" class="primary-btn">Continue</button></div></div></div>
+  <div id="timer-mini" class="timer-mini hidden" aria-label="Current ritual"><button id="timer-mini-open" type="button"><span id="timer-mini-copy"></span><span class="mini-action">Open</span></button><button class="text-btn" id="timer-mini-end" type="button">End session</button></div>
+  <aside id="interval-reminder" class="interval-reminder" hidden aria-label="Timer reminder"><div role="status" aria-live="polite" aria-atomic="true"><strong id="interval-reminder-title"></strong><p id="interval-reminder-copy"></p></div><div class="interval-reminder-actions"><button id="interval-reminder-open" type="button">Open timer</button><button id="interval-reminder-dismiss" type="button">Got it</button></div></aside>
+  <div id="app-toast" class="app-toast" role="status" aria-live="polite"></div>
+  <div id="appearance-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="appearance-title">
+    <section class="appearance-modal">
+      <header><div><p class="kicker">Make room for focus</p><h2 id="appearance-title">Appearance</h2></div><button type="button" class="icon-btn" id="appearance-close" aria-label="Close appearance">×</button></header>
+      <p>Coordinated colors and artwork for your whole workspace. Saved on this device.</p>
+      <fieldset><legend>Landscapes</legend><div id="appearance-landscapes" class="appearance-landscapes"></div></fieldset>
+      <fieldset><legend>Solid colors</legend><div id="appearance-colors" class="appearance-colors"></div></fieldset>
+      <fieldset class="artwork-switches"><legend>Panel artwork</legend><label for="focus-artwork">Pomodoro artwork<input id="focus-artwork" type="checkbox"></label><label for="plan-artwork">Plan artwork<input id="plan-artwork" type="checkbox"></label><p id="artwork-note"></p></fieldset>
+      <footer><button class="secondary-btn" id="appearance-reset" type="button">Reset appearance</button><button class="primary-btn" id="appearance-done" type="button">Done</button></footer>
+    </section>
+  </div>
+  <div id="onboarding-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="onboarding-title" aria-describedby="onboarding-description">
+    <div id="guide-backdrop" aria-hidden="true"><i></i></div><div id="guide-tab-highlight" aria-hidden="true" hidden></div><div id="guide-example" role="group" aria-label="Guide example. Nothing is saved." hidden></div><div id="guide-spotlight" aria-hidden="true"></div>
+    <section class="guide-modal"><header class="guide-top"><span><span id="onboarding-tab"></span> · <span id="onboarding-count" aria-live="polite"></span></span><button class="text-btn" id="onboarding-skip" type="button">Close guide</button></header><h2 id="onboarding-title" tabindex="-1"></h2><p id="onboarding-description"></p><div id="guide-priority-preview" hidden></div><fieldset id="guide-example-choice" hidden><legend>Your example project</legend><label><input type="radio" name="guide-example-choice" value="keep" checked> Keep example</label><label><input type="radio" name="guide-example-choice" value="remove"> Remove example</label></fieldset><p id="guide-error" role="alert" hidden></p><footer class="guide-footer"><button class="text-btn" id="onboarding-back" type="button">Back</button><button class="primary-btn" id="onboarding-next" type="button">Next</button></footer></section>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

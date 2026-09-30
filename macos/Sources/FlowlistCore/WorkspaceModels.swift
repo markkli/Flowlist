@@ -178,6 +178,8 @@ public struct PlanChange: Codable, Equatable, Sendable {
     public var sending = false
     public var error: String?
     public var uncertain = false
+    /// Nil on older queues whose requests may have reached a non-idempotent server.
+    public var usesIdempotency: Bool?
     public init(path: String, method: String, body: Data, bindings: [String: Int] = [:]) {
         self.path = path; self.method = method; self.body = body; self.bindings = bindings
     }

@@ -78,6 +78,10 @@ import WebKit
         web.reload()
         do {
             try await wait(web, "document.body.classList.contains('app-ready') && document.querySelector('#top-date').textContent.length>0", label: "JavaScript module bootstrap")
+            // Fresh-device setup belongs after the Guide. This test app has its
+            // own preferences and never changes the installed app's menu choice.
+            try await web.evaluateJavaScript("document.querySelector('.mac-setup-overlay:not(.hidden) button')?.click()")
+            try await wait(web, "!document.querySelector('.mac-setup-overlay:not(.hidden)')", label: "Mac setup")
             try await wait(web, "!document.querySelector('#view-dashboard').hasAttribute('aria-busy') && document.querySelector('#today-agenda').textContent.includes('Understand Pomodoro')", label: "local dashboard API")
             try await check(web, "location.protocol==='flowlist-app:' && location.host==='workspace'", "custom app scheme")
             try await check(web, "['.focus-card','.agenda-panel','.activity-panel','.goals-panel'].every(s=>{const e=document.querySelector(s);return e&&getComputedStyle(e).display!=='none'&&e.getBoundingClientRect().width>100})", "all four dashboard cards")

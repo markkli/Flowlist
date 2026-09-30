@@ -13,6 +13,7 @@ WidgetKit extension.
 - [Render deployment](docs/RENDER-SETUP.md) and [backend/auth setup](docs/BETA-SETUP.md)
 - [Review findings and validation](docs/REPOSITORY-REVIEW.md)
 - [Release status and next phase](docs/SHIPPING.md)
+- [Public website, Mac download, domain, and email sender](docs/WEBSITE-LAUNCH.md)
 
 ## Run the website locally
 
@@ -25,7 +26,7 @@ npm --prefix frontend ci
 ./scripts/run-local.sh
 ```
 
-Open [localhost:5500](http://127.0.0.1:5500). The launcher applies migrations to
+Open the [product site](http://127.0.0.1:5500/) or [workspace](http://127.0.0.1:5500/app/). The launcher applies migrations to
 `backend/flowlist.local.db`, starts FastAPI on port 8000, and starts Vite with an
 `/api` proxy. It creates the ignored `backend/local-development.env` from its
 example on first use. AI history titles are optional and disabled by default.

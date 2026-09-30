@@ -7,6 +7,7 @@ export interface NativeState {
   planSyncIssue?:string|null;
   planSyncUncertain?:boolean;
   onboarding?: {version:number | null};
+  macSetup?: {version:number; menuEnabled:boolean; widgetIncluded:boolean};
   timer: NativeTimer | null;
   settings: TimerSettings;
   preferences: {appearance:{preset:string; focusArtwork:boolean; planArtwork:boolean}; theme:string};

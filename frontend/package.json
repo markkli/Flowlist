@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5500 --strictPort",
     "build": "tsc --noEmit && vite build",
+    "build:site": "npm run build -- --mode site",
     "preview": "vite preview --host 127.0.0.1 --port 8010 --strictPort",
     "test": "vitest run",
     "test:e2e": "playwright test"

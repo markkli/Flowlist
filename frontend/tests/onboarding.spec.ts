@@ -45,7 +45,7 @@ async function nextStep(page:any){await page.getByRole('button',{name:'Next',exa
 async function finishGuide(page:any){while(await page.getByRole('button',{name:'Next',exact:true}).count())await nextStep(page);await page.getByRole('button',{name:'Finish guide',exact:true}).click();}
 
 test('first sign-in requires the complete guide, uses safe examples, and persists completion',async({page})=>{
- const writes=await setup(page);await page.goto('/');
+ const writes=await setup(page);await page.goto('/app/');
  await expect(guide(page)).toBeVisible();await expect(page.locator('#onboarding-title')).toBeFocused();
  await expect(page.getByRole('button',{name:'Close guide',exact:true})).toBeHidden();
  await page.keyboard.press('Escape');await expect(guide(page)).toBeVisible();expect(writes.filter(path=>path!=='/api/guide/example')).toEqual([]);
@@ -76,7 +76,7 @@ test('first sign-in requires the complete guide, uses safe examples, and persist
 });
 
 test('reload resumes a required guide without treating partial progress as completion',async({page})=>{
- const writes=await setup(page);await page.goto('/');await nextStep(page);await nextStep(page);
+ const writes=await setup(page);await page.goto('/app/');await nextStep(page);await nextStep(page);
  await expect(page.locator('#onboarding-count')).toHaveText('3 / 7');await page.reload();
  await expect(page.locator('#onboarding-count')).toHaveText('3 / 7');await expect(page.getByRole('button',{name:'Next',exact:true})).toBeEnabled();
  await page.keyboard.press('Escape');await expect(guide(page)).toBeVisible();expect(writes.filter(path=>path!=='/api/guide/example')).toEqual([]);
@@ -84,27 +84,27 @@ test('reload resumes a required guide without treating partial progress as compl
 });
 
 test('keyboard focus stays inside and a failed completion sync is remembered locally',async({page})=>{
- await setup(page,{failSave:true});await page.goto('/');await expect(guide(page)).toBeVisible();
+ await setup(page,{failSave:true});await page.goto('/app/');await expect(guide(page)).toBeVisible();
  for(let i=0;i<12;i++){await page.keyboard.press(i%2?'Shift+Tab':'Tab');expect(await guide(page).evaluate((node:HTMLElement)=>node.contains(document.activeElement))).toBe(true);}
  await finishGuide(page);await expect(guide(page)).toBeHidden();await expect(page.locator('#app-toast')).toContainText('could not sync');
  await page.reload();await expect(page.locator('#help-toggle')).toBeVisible();await expect(guide(page)).toBeHidden();
 });
 
 test('previous users can replay the expanded guide without being forced through it',async({page})=>{
- await setup(page,{version:1});await page.goto('/');await expect(page.locator('#help-toggle')).toBeVisible();await expect(guide(page)).toBeHidden();
+ await setup(page,{version:1});await page.goto('/app/');await expect(page.locator('#help-toggle')).toBeVisible();await expect(guide(page)).toBeHidden();
  await page.getByRole('button',{name:'Guide',exact:true}).click();await expect(page.locator('#onboarding-count')).toHaveText('1 / 7');
  await page.getByRole('button',{name:'Close guide',exact:true}).click();await expect(guide(page)).toBeHidden();
 });
 
 test('another account requires its own guide; sign-out closes it and its examples',async({page})=>{
  await page.addInitScript(()=>localStorage.setItem('flowlist-onboarding-v2:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','complete'));
- await setup(page,{id:other});await page.goto('/');await nextStep(page);await expect(page.locator('.guide-live-priority')).toBeVisible();
+ await setup(page,{id:other});await page.goto('/app/');await nextStep(page);await expect(page.locator('.guide-live-priority')).toBeVisible();
  await page.evaluate(()=>{localStorage.removeItem('sb-beta-auth-token');const channel=new BroadcastChannel('sb-beta-auth-token');channel.postMessage({event:'SIGNED_OUT',session:null});channel.close();});
  await expect(guide(page)).toBeHidden();await expect(page.locator('#auth-screen')).toBeVisible();await expect(page.locator('.app-shell')).toBeHidden();
 });
 
 test('guide waits for authentication and a restored timer, then starts when it is saved',async({page})=>{
- await setup(page,{autoSignIn:false});await page.goto('/');await expect(page.locator('#auth-google')).toBeVisible();await expect(guide(page)).toBeHidden();
+ await setup(page,{autoSignIn:false});await page.goto('/app/');await expect(page.locator('#auth-google')).toBeVisible();await expect(guide(page)).toBeHidden();
  await setup(page);
  await page.addInitScript(()=>localStorage.setItem('flowlist-ritual-v2:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',JSON.stringify({id:'restored',phase:'focus',elapsedSeconds:0,round:1,settings:{focus:25,break:5,longBreak:15,rounds:4},deadline:Date.now()+600000,blockSeconds:1500,breakKind:'short',minimized:false,summary:'',selections:[],startedAt:Date.now(),blocks:[]})));
  await page.reload();await expect(page.locator('#focus-overlay')).toBeVisible();await expect(guide(page)).toBeHidden();
@@ -113,7 +113,7 @@ test('guide waits for authentication and a restored timer, then starts when it i
 });
 
 for(const [width,height] of [[375,812],[812,375],[1440,900]])test(`guide fits ${width}×${height}, tracks each target and exposes all steps`,async({page},testInfo)=>{
- await page.setViewportSize({width,height});await setup(page);await page.goto('/');await expect(guide(page)).toBeVisible();
+ await page.setViewportSize({width,height});await setup(page);await page.goto('/app/');await expect(guide(page)).toBeVisible();
  for(const theme of ['light','dark']) {
   await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
   if(theme==='dark')for(let i=0;i<6;i++)await page.getByRole('button',{name:'Back',exact:true}).click();
@@ -135,7 +135,7 @@ for(const [width,height] of [[375,812],[812,375],[1440,900]])test(`guide fits ${
 });
 
 test('highlight follows movement without a resize and adapts after viewport resizing',async({page})=>{
- await setup(page);await page.goto('/');await expect(page.getByRole('button',{name:'Next',exact:true})).toBeEnabled();
+ await setup(page);await page.goto('/app/');await expect(page.getByRole('button',{name:'Next',exact:true})).toBeEnabled();
  await page.locator('.plan-create-options').evaluate(node=>(node as HTMLElement).style.transform='translate(9px, 13px)');
  await expect.poll(async()=>{const a=(await page.locator('.plan-create-options').boundingBox())!,b=(await page.locator('#guide-spotlight').boundingBox())!;return Math.abs(b.x-(a.x-3))+Math.abs(b.y-(a.y-3));}).toBeLessThan(1);
  await page.setViewportSize({width:375,height:812});
@@ -144,7 +144,7 @@ test('highlight follows movement without a resize and adapts after viewport resi
 
 
 test('Remove example deletes only the marked sample after the guide',async({page})=>{
- const writes=await setup(page);await page.goto('/');
+ const writes=await setup(page);await page.goto('/app/');
  for(let i=0;i<6;i++)await nextStep(page);
  await page.getByRole('radio',{name:'Remove example',exact:true}).check();
  await page.getByRole('button',{name:'Finish guide',exact:true}).click();await expect(guide(page)).toBeHidden();
@@ -152,7 +152,7 @@ test('Remove example deletes only the marked sample after the guide',async({page
 });
 
 test('sample creation and removal failures remain recoverable',async({page})=>{
- await setup(page);await page.route('**/api/guide/example',route=>route.fulfill({status:503,json:{detail:'Offline'}}));await page.goto('/');
+ await setup(page);await page.route('**/api/guide/example',route=>route.fulfill({status:503,json:{detail:'Offline'}}));await page.goto('/app/');
  await expect(page.getByRole('button',{name:'Retry',exact:true})).toBeEnabled();
  await page.unroute('**/api/guide/example');await page.getByRole('button',{name:'Retry',exact:true}).click();
  for(let i=0;i<6;i++)await nextStep(page);
@@ -165,7 +165,7 @@ test('sample creation and removal failures remain recoverable',async({page})=>{
 test('an older server without Guide routes still provides the full walkthrough',async({page})=>{
  const writes=await setup(page);
  await page.route('**/api/guide/example',route=>route.fulfill({status:404,json:{detail:'Not Found'}}));
- await page.goto('/');await expect(page.locator('#onboarding-title')).toHaveText('Make a plan');
+ await page.goto('/app/');await expect(page.locator('#onboarding-title')).toHaveText('Make a plan');
  await nextStep(page);
  await expect(page.locator('#guide-example')).toContainText('no changes to your Plan');
  await page.getByRole('button',{name:'Prioritize example task',exact:true}).click();
@@ -183,7 +183,7 @@ test('an older server without Guide routes still provides the full walkthrough',
 test('failed required Guide has an exit without marking it complete or immediately reopening',async({page})=>{
  const writes=await setup(page);
  await page.route('**/api/guide/example',route=>route.fulfill({status:503,json:{detail:'Offline'}}));
- await page.goto('/');await expect(page.getByRole('button',{name:'Use Flowlist',exact:true})).toBeEnabled();
+ await page.goto('/app/');await expect(page.getByRole('button',{name:'Use Flowlist',exact:true})).toBeEnabled();
  await page.getByRole('button',{name:'Use Flowlist',exact:true}).click();await expect(guide(page)).toBeHidden();
  await page.locator('#nav-dashboard').click();await page.locator('#timer-settings-toggle').click();
  await page.getByRole('button',{name:'Save cycle',exact:true}).click();await expect(guide(page)).toBeHidden();
@@ -198,7 +198,7 @@ test('failed required Guide has an exit without marking it complete or immediate
 for(const width of [375,1024,1440])test(`practice cards clear the navigation and stay readable at ${width}px`,async({page},testInfo)=>{
  await page.setViewportSize({width,height:812});await setup(page);
  await page.route('**/api/guide/example',route=>route.fulfill({status:404,json:{detail:'Not Found'}}));
- await page.goto('/');await nextStep(page);
+ await page.goto('/app/');await nextStep(page);
  for(const step of [2,5]) {
   if(step===5)for(let i=0;i<3;i++)await nextStep(page);
   const stage=page.locator('#guide-example'),ring=page.locator('#guide-tab-highlight');
@@ -216,7 +216,7 @@ for(const width of [375,1024,1440])test(`practice cards clear the navigation and
 });
 
 test('Plan to Home keeps the scrim and does not wait for a slow dashboard response',async({page})=>{
- await setup(page);await page.goto('/');await nextStep(page);
+ await setup(page);await page.goto('/app/');await nextStep(page);
  let release!:()=>void;const held=new Promise<void>(resolve=>release=resolve);
  await page.route('**/api/dashboard?**',async route=>{await held;await route.fulfill({json:emptyDashboard});});
  await page.evaluate(()=>{
@@ -236,7 +236,7 @@ test('Plan to Home keeps the scrim and does not wait for a slow dashboard respon
 
 
 test('rounded targets use matching rounded cutouts without rectangular corners',async({page},testInfo)=>{
- await setup(page);await page.goto('/');
+ await setup(page);await page.goto('/app/');
  for(let step=0;step<7;step++) {
   if(step)await nextStep(page);
   if(![0,2,3,6].includes(step))continue;

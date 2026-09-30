@@ -181,6 +181,7 @@ export function initOnboarding({preferences={},showToast,prepareExample=()=>{},n
       });
     }
     (returnFocus?.isConnected&&returnFocus.getClientRects().length?returnFocus:trigger).focus();
+    if(completed)window.dispatchEvent(new Event('flowlist:guide-complete'));
   }
   function advance(){if(next.disabled||preparing)return;if(!error.hidden&&!sample){prepare();return;}if(index<steps.length-1){index++;render();}else finish();}
   function startIfNew(){const ritual=isNative()?nativeState()?.timer:readRitual();if(preferences.automatic&&!acknowledged&&!deferred&&(!ritual||ritual.phase==='saved'))open(true);}

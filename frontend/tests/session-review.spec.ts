@@ -9,7 +9,7 @@ for (const width of [375,768,1440]) for (const empty of [true,false]) {
    return route.fulfill({json:path==='/api/config'?{auth_mode:'local'}:path==='/api/dashboard'?{queue:[],goals:[],stats:{current_streak:0,total_sessions:0,total_minutes:0},week_sessions:0,activity:[]}:path==='/api/focus-options'?options:[]});
   });
   await page.clock.install();
-  await page.goto('/');
+  await page.goto('/app/');
   await page.locator('#start-pomodoro').click();
   await expect(page.locator('#focus-overlay')).toBeVisible();
   await page.clock.fastForward(7000);

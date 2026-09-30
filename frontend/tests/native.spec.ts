@@ -56,7 +56,7 @@ async function installBridge(page:Page, notifications='granted') {
 }
 
 test('Mac uses all approved dashboard cards and saves timer settings through native host',async({page})=>{
-  await installBridge(page);await page.goto('/');
+  await installBridge(page);await page.goto('/app/');
   await expect(page.locator('.focus-card')).toBeVisible();
   for(const title of ['Priority tasks','Activity','Active goals'])await expect(page.getByRole('heading',{name:title})).toBeVisible();
   await expect(page.locator('#stat-minutes')).toHaveText('300');
@@ -73,7 +73,7 @@ test('Mac uses all approved dashboard cards and saves timer settings through nat
 
 test('Mac status includes pending Plan changes and gives sync errors precedence', async ({page}) => {
   await installBridge(page);
-  await page.goto('/');
+  await page.goto('/app/');
   await expect(page.locator('#connection-label')).toHaveText('On this Mac');
   await page.evaluate(() => {
     Object.assign((window as any).__nativeHost, {planPendingCount: 2, pendingCount: 1});
@@ -89,7 +89,7 @@ test('Mac status includes pending Plan changes and gives sync errors precedence'
 });
 
 test('Mac timer has one native authority, pause/resume and durable review before save',async({page})=>{
-  await installBridge(page);await page.goto('/');
+  await installBridge(page);await page.goto('/app/');
   await page.locator('#start-pomodoro').click();
   await expect(page.getByRole('dialog',{name:'Pomodoro timer'})).toBeVisible();
   await page.locator('#focus-native-primary').click();
@@ -113,7 +113,7 @@ test('Mac timer has one native authority, pause/resume and durable review before
 });
 
 test('menu timer events render ready state and finish opens full review',async({page})=>{
-  await installBridge(page);await page.goto('/');
+  await installBridge(page);await page.goto('/app/');
   await page.locator('#start-pomodoro').click();
   await page.locator('#focus-minimize').click();
   await page.evaluate(()=>{
@@ -137,7 +137,7 @@ test('menu timer events render ready state and finish opens full review',async({
 });
 
 test('native notifications offered once and saved permission is respected',async({page})=>{
-  await installBridge(page,'default');await page.goto('/');
+  await installBridge(page,'default');await page.goto('/app/');
   await page.locator('#start-pomodoro').click();
   await expect(page.locator('#reminder-invitation')).toBeVisible();
   await page.locator('#reminder-invitation-later').click();
@@ -152,7 +152,7 @@ test('native notifications offered once and saved permission is respected',async
 
 
 test('failed native draft and discard preserve the review for retry',async({page})=>{
-  await installBridge(page);await page.goto('/');
+  await installBridge(page);await page.goto('/app/');
   await page.locator('#start-pomodoro').click();await page.locator('#focus-exit').click();
   await page.locator('#session-summary').fill('Keep this work safe.');
   await page.evaluate(()=>{(window as any).__rejectNativeAction='draft';});
@@ -170,7 +170,7 @@ test('failed native draft and discard preserve the review for retry',async({page
 });
 
 test('elapsed browser time never advances the native timer independently',async({page})=>{
-  await installBridge(page);await page.clock.install();await page.goto('/');
+  await installBridge(page);await page.clock.install();await page.goto('/app/');
   await page.locator('#start-pomodoro').click();
   await page.clock.fastForward(35*60*1000);
   await expect(page.locator('#focus-phase-label')).toHaveText('Focus');
@@ -179,7 +179,7 @@ test('elapsed browser time never advances the native timer independently',async(
 
 
 test('offline session remains visible in History and explicit recovery preserves time and note',async({page})=>{
-  await installBridge(page);await page.goto('/#history');
+  await installBridge(page);await page.goto('/app/#history');
   await page.evaluate(()=>{
     (window as any).__nativeHost.pendingRecords=[{id:'3d8f03f1-36fb-4231-9d3e-44890e93a9c1',title:'Portfolio work',seconds:1500,endedAt:'2026-09-28T15:00:00Z',note:'The first draft is ready.',error:'A task was removed.',errorCode:404}];
     (window as any).__emitNative();
@@ -210,7 +210,7 @@ test('signed-in Mac Guide works when the deployed beta lacks the example endpoin
   handler.postMessage=async(message:any)=>message.op==='api'&&message.path==='/guide/example'
     ? {ok:false,error:'Not Found',status:404}:original(message);
  });
- await page.goto('/');await expect(page.locator('#onboarding-title')).toHaveText('Make a plan');
+ await page.goto('/app/');await expect(page.locator('#onboarding-title')).toHaveText('Make a plan');
  await page.getByRole('button',{name:'Next',exact:true}).click();
  await page.getByRole('button',{name:'Prioritize example task',exact:true}).click();
  await expect(page.locator('#guide-priority-preview')).toContainText('Understand Pomodoro');
@@ -226,13 +226,86 @@ test('signed-in Mac Guide works when the deployed beta lacks the example endpoin
 test('a fresh Mac prompts for sign-in before Guide and offers an explicit local choice',async({page},testInfo)=>{
  await installBridge(page);
  await page.addInitScript(()=>{(window as any).__nativeHost.needsSignIn=true;});
- await page.goto('/');
+ await page.goto('/app/');
  await expect(page.getByRole('button',{name:'Continue with Google',exact:true}).first()).toBeVisible();
- await expect(page.locator('#auth-beta-note')).toContainText('saved on this Mac first');
+ await expect(page.locator('#auth-beta-note')).toContainText('Save on this Mac');
  await page.screenshot({animations:'disabled',path:testInfo.outputPath('first-launch.png')});
  await expect(page.locator('#onboarding-overlay')).toBeHidden();
- await page.getByRole('button',{name:'Continue without an account',exact:true}).click();
+ await page.getByRole('button',{name:'Continue as guest',exact:true}).click();
  await expect(page.locator('#auth-screen')).toBeHidden();
  await expect(page.locator('#start-pomodoro')).toBeVisible();
  expect(await page.evaluate(()=>(window as any).__nativeCalls.some((call:any)=>call.op==='account'&&call.action==='continueLocal'))).toBe(true);
+});
+
+test('guest entry works while cloud sign-in is unavailable; Mac setup follows the Guide and runs once',async({page})=>{
+ await installBridge(page);
+ await page.addInitScript(()=>{
+   const host=(window as any).__nativeHost, handler=(window as any).webkit.messageHandlers.flowlist;
+   host.needsSignIn=!localStorage.getItem('test-welcome');
+   host.macSetup={version:Number(localStorage.getItem('test-setup')||0),menuEnabled:true,widgetIncluded:false};
+   const prior=handler.postMessage;
+   handler.postMessage=async(message:any)=>{
+     if(message.op==='account'&&message.action==='providers')return new Promise(()=>{});
+     if(message.op==='account'&&message.action==='continueLocal')localStorage.setItem('test-welcome','true');
+     if(message.op==='macSetup'){localStorage.setItem('test-setup','1');localStorage.setItem('test-menu',String(message.menuEnabled));return {ok:true,value:{version:1}};}
+     return prior(message);
+   };
+ });
+ await page.goto('/app/');
+ await expect(page.getByRole('dialog',{name:'Keep focus within reach'})).toBeHidden();
+ await page.getByRole('button',{name:'Continue as guest'}).click();
+ // This fixture already completed Guide; a new device still gets setup.
+ await expect(page.getByRole('dialog',{name:'Keep focus within reach'})).toBeVisible();
+ await expect(page.locator('#mac-widget-copy')).toContainText('not included');
+ await page.locator('#mac-menu-enabled').uncheck();
+ await page.getByRole('button',{name:'Start using Flowlist'}).click();
+ expect(await page.evaluate(()=>localStorage.getItem('test-menu'))).toBe('false');
+ await page.reload();
+ await expect(page.locator('#start-pomodoro')).toBeVisible();
+ await expect(page.getByRole('dialog',{name:'Keep focus within reach'})).toBeHidden();
+});
+
+test('native email appears only when enabled and submits a code through the host',async({page})=>{
+ await installBridge(page);
+ await page.addInitScript(()=>{
+   (window as any).__nativeHost.needsSignIn=true;
+   const handler=(window as any).webkit.messageHandlers.flowlist,prior=handler.postMessage;
+   handler.postMessage=async(message:any)=>{
+     if(message.op==='account'&&message.action==='providers')return {ok:true,value:{google:true,email:true}};
+     if(message.op==='account'&&message.action==='emailVerify')return {ok:false,error:'That code expired. Request a new code.'};
+     return prior(message);
+   };
+ });
+ await page.goto('/app/');
+ await page.getByLabel('Email address',{exact:true}).fill('tester@example.invalid');
+ await page.getByRole('button',{name:'Send sign-in code'}).click();
+ await expect(page.locator('#auth-status')).toContainText('tester@example.invalid');
+ await page.getByLabel('Email code',{exact:true}).fill('123456');
+ await page.getByRole('button',{name:'Verify and continue'}).click();
+ await expect(page.locator('#auth-error')).toContainText('That code expired');
+ await expect(page.getByRole('button',{name:'Continue as guest'})).toBeEnabled();
+ expect(await page.evaluate(()=>(window as any).__nativeCalls.some((m:any)=>m.op==='account'&&m.action==='emailSend'&&m.email==='tester@example.invalid'))).toBe(true);
+});
+
+test('a new guest completes Guide before the Mac setup appears',async({page})=>{
+ await installBridge(page);
+ await page.addInitScript(()=>{
+   const host=(window as any).__nativeHost,handler=(window as any).webkit.messageHandlers.flowlist,prior=handler.postMessage;
+   Object.assign(host,{needsSignIn:true,onboarding:{version:null},macSetup:{version:0,menuEnabled:true,widgetIncluded:false}});
+   handler.postMessage=async(message:any)=>{
+     if(message.op==='account'&&message.action==='providers')return {ok:true,value:{google:true,email:false}};
+     if(message.op==='api'&&message.path==='/guide/example')return {ok:true,value:{id:-1,title:'Learn Flowlist',goal_type:'project',completed:false,tasks:[]}};
+     return prior(message);
+   };
+ });
+ await page.goto('/app/');
+ await page.getByRole('button',{name:'Continue as guest'}).click();
+ await expect(page.locator('#onboarding-overlay')).toBeVisible();
+ await expect(page.getByRole('dialog',{name:'Keep focus within reach'})).toBeHidden();
+ for(let step=1;step<=7;step++){
+   await expect(page.locator('#onboarding-count')).toHaveText(`${step} / 7`);
+   await page.locator('#onboarding-next').click();
+ }
+ await expect(page.locator('#onboarding-overlay')).toBeHidden();
+ await expect(page.getByRole('dialog',{name:'Keep focus within reach'})).toBeVisible();
 });

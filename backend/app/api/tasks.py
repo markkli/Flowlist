@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from uuid import UUID
+from fastapi import APIRouter, Depends, HTTPException, Header
+from app.services.mutations import create_once
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from app import schemas
@@ -88,28 +90,28 @@ def list_focus_options(db: Session = Depends(get_db)):
 
 @router.post("/tasks/{parent_id}/subtasks", response_model=schemas.Task)
 def create_subtask(
-    parent_id: int, task: schemas.TaskCreate, db: Session = Depends(get_db)
+    parent_id: int, task: schemas.TaskCreate, db: Session = Depends(get_db), idempotency_key: UUID | None = Header(default=None)
 ):
-    parent = find_task(db, parent_id)
-    if parent.goal.goal_type == "standalone":
-        raise HTTPException(status_code=400, detail="The Tasks list does not support nested steps")
-    if parent.parent_id is not None or parent.depth >= MAX_DEPTH:
-        raise HTTPException(
-            status_code=400,
-            detail="Subtasks cannot contain another level. Add a sibling subtask instead.",
+    def create():
+        parent = find_task(db, parent_id)
+        if parent.goal.goal_type == "standalone":
+            raise HTTPException(status_code=400, detail="The Tasks list does not support nested steps")
+        if parent.parent_id is not None or parent.depth >= MAX_DEPTH:
+            raise HTTPException(
+                status_code=400,
+                detail="Subtasks cannot contain another level. Add a sibling subtask instead.",
+            )
+        new_task = TaskModel(
+            goal_id=parent.goal_id,
+            parent_id=parent.id,
+            depth=parent.depth + 1,
+            position=next_task_position(db, parent.goal_id, parent.id),
+            **task.model_dump(),
         )
-    new_task = TaskModel(
-        goal_id=parent.goal_id,
-        parent_id=parent.id,
-        depth=parent.depth + 1,
-        position=next_task_position(db, parent.goal_id, parent.id),
-        **task.model_dump(),
-    )
-    reopen_task_lineage(db, new_task)
-    db.add(new_task)
-    db.commit()
-    db.refresh(new_task)
-    return new_task
+        reopen_task_lineage(db, new_task)
+        db.add(new_task)
+        return new_task
+    return create_once(db, idempotency_key, f"/tasks/{parent_id}/subtasks", task, schemas.Task, create)
 
 
 @router.post("/tasks/reorder", response_model=list[schemas.Task])

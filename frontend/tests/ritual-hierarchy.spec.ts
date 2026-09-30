@@ -49,7 +49,7 @@ async function openCheckout(page: Page, selections: {task_id: number; completed:
     }
     await route.fulfill({json});
   });
-  await page.goto('/');
+  await page.goto('/app/');
   await expect(page.getByRole('dialog', {name: 'Save your progress'})).toBeVisible();
   await expect(page.getByLabel('Finished Ship the release', {exact: true})).toBeVisible();
   return sessionBodies;

@@ -19,7 +19,7 @@ test('unregistered URL fragments fall back to Home without blanking the workspac
  const errors:string[]=[];
  page.on('pageerror',error=>errors.push(error.message));
  for(const fragment of ['constructor','toString','not-a-view']) {
-  await page.goto(`/#${fragment}`);
+  await page.goto(`/app/#${fragment}`);
   await expect(page.locator('#view-dashboard')).toBeVisible();
   await expect(page.getByRole('button',{name:'Home',exact:true})).toHaveAttribute('aria-current','page');
   await expect(page.locator('#hero-time')).toHaveText('25:00');
@@ -30,7 +30,7 @@ test('unregistered URL fragments fall back to Home without blanking the workspac
 });
 
 test('heatmap shows details on hover and opens the matching week by click or keyboard',async({page})=>{
- await page.goto('/');
+ await page.goto('/app/');
  const day=page.getByRole('button',{name:'Sep 18 · 25 min · 1 session',exact:true});
  await expect(day).toHaveCSS('cursor','pointer');
  await day.hover();
@@ -50,7 +50,7 @@ test('heatmap shows details on hover and opens the matching week by click or key
 for(const width of [375,1440])test(`Home has one clear timer and priority action at ${width}px`,async({page},testInfo)=>{
  await page.setViewportSize({width,height:900});
  await page.emulateMedia({reducedMotion:"reduce"});
- await page.goto('/');
+ await page.goto('/app/');
  const focus=page.locator('.focus-card'),priorities=page.locator('.agenda-panel');
  await expect(focus.getByRole('button')).toHaveCount(2);
  await expect(focus.getByRole('button',{name:'Settings',exact:true})).toBeVisible();
@@ -73,7 +73,7 @@ for(const width of [375,1440])test(`Home has one clear timer and priority action
 });
 
 test('cycle summary follows saved timer settings and survives reload',async({page})=>{
- await page.goto('/');await page.locator('#timer-settings-toggle').click();
+ await page.goto('/app/');await page.locator('#timer-settings-toggle').click();
  for(const [id,value] of [['focus-minutes-setting','45'],['break-minutes-setting','10'],['rounds-setting','3'],['long-break-minutes-setting','20']])await page.locator(`#${id}`).fill(value);
  await page.getByRole('button',{name:'Save cycle',exact:true}).click();
  for(let i=0;i<2;i++) {

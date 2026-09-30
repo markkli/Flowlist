@@ -32,13 +32,14 @@ struct WorkspaceView: View {
 }
 
 struct PreferencesView: View {
+    @AppStorage("flowlist.menu.enabled") private var menuEnabled = true
     @State private var loginEnabled = SMAppService.mainApp.status == .enabled
     @EnvironmentObject var store: TimerStore
     var body: some View {
         Form {
             Section("Account") {
                 if let account = store.account {
-                    LabeledContent("Google account", value: account.email)
+                    LabeledContent("Account", value: account.email)
                     if let last = store.lastSynced { LabeledContent("Last synced") { Text(last, style: .relative) } }
                     HStack {
                         Button("Sync now") { Task { await store.sync() } }.disabled(store.busy)
@@ -66,6 +67,7 @@ struct PreferencesView: View {
                 }
             }
             Section("Menu bar & startup") {
+                Toggle("Show Flowlist in the menu bar", isOn: $menuEnabled)
                 Toggle("Show countdown in menu bar", isOn: binding(\.showMenuTime))
                 Toggle("Open Flowlist at login", isOn: Binding(get: { loginEnabled }, set: { value in
                     do {

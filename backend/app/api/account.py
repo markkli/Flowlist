@@ -6,7 +6,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 from app.auth import Identity, get_identity, remove_auth_user
 from app.database import get_db, engine
-from app.models import UserModel, GoalModel, FocusSessionModel
+from app.models import UserModel, GoalModel, FocusSessionModel, PlanMutationModel
 from app.tenancy import TenantSession
 
 router = APIRouter()
@@ -40,6 +40,7 @@ def delete_account(body: Deletion, identity: Identity = Depends(get_identity)):
         user.deleted_at = datetime.now(timezone.utc)
         db.execute(delete(FocusSessionModel))
         db.execute(delete(GoalModel))
+        db.execute(delete(PlanMutationModel))
         db.commit()
     remove_auth_user(identity.id)
     return {'deleted': True}

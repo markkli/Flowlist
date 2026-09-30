@@ -18,7 +18,7 @@ export function captureGoogleCallback() {
       .some(value => value?.trim().toLowerCase() === 'signups not allowed for this instance'),
   };
   // Remove one-use codes and provider errors before any app request or rendering.
-  history.replaceState(null, '', '/');
+  history.replaceState(null, '', '/app/');
   return callback;
 }
 
@@ -58,6 +58,6 @@ export async function finishGoogleSignIn(client, callback, { emailEnabled = fals
   if (error || !data.session) {
     throw new Error(`Google sign-in could not be verified. ${emailEnabled ? 'Continue with Google again in this browser, or use an email code.' : 'Continue with Google again in this browser.'}`);
   }
-  history.replaceState(null, '', `/${views.includes(intent.view) ? intent.view : '#dashboard'}`);
+  history.replaceState(null, '', `/app/${views.includes(intent.view) ? intent.view : '#dashboard'}`);
   return data.session;
 }

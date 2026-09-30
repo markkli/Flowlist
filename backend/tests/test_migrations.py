@@ -18,7 +18,7 @@ def test_migration_url_preserves_percent_escapes(tmp_path):
         cwd=root, env=env, check=True, capture_output=True,
     )
     with sqlite3.connect(database) as db:
-        assert db.execute('SELECT version_num FROM alembic_version').fetchone() == ('20260927_15',)
+        assert db.execute('SELECT version_num FROM alembic_version').fetchone() == ('20260928_16',)
 
 
 def test_upgrade_and_downgrade_preserve_existing_records(tmp_path):

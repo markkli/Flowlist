@@ -200,23 +200,7 @@ export async function initAuth() {
 
 async function initNativeAuth() {
   const state=await bootstrapNative();
-  if(state.needsSignIn && !state.account) {
-    el('auth-loading').hidden=true;el('auth-google-option').hidden=false;
-    el('auth-beta-note').textContent='Sign in to sync your work. Changes are saved on this Mac first.';
-    document.querySelector('.auth-privacy').innerHTML='<summary>About your data</summary><p>Your tasks and focus sessions are saved on this Mac. With an account, they sync to your private cloud workspace. Work created without an account stays separate.</p>';
-    const local=document.createElement('button');local.className='text-btn';local.type='button';local.textContent='Continue without an account';
-    el('auth-google-option').after(local);
-    await new Promise(resolve=>{
-      local.onclick=async()=>{await nativeCall('account',{action:'continueLocal'});resolve();};
-      el('auth-google').onclick=async()=>{
-        el('auth-google').disabled=true;local.disabled=true;el('auth-error').textContent='';
-        el('auth-google-label').textContent='Connecting…';
-        try {await nativeCall('account',{action:'connect'});location.reload();}
-        catch(error){el('auth-error').textContent=error.message;el('auth-google').disabled=false;local.disabled=false;el('auth-google-label').textContent='Continue with Google';}
-      };
-    });
-    local.remove();
-  }
+  if(state.needsSignIn && !state.account) await chooseNativeAccount();
   configureAccount(state.account?.id || 'local-mac', null);
   document.documentElement.classList.add('native-app');
   document.body.classList.add('app-ready');
@@ -225,7 +209,7 @@ async function initNativeAuth() {
   el('account-email').textContent=state.account?.email || 'On this Mac';
   el('connection-label').textContent=state.account ? 'Connected' : 'On this Mac';
   const signout=el('account-signout');
-  signout.textContent=state.account ? 'Sign out' : 'Continue with Google';
+  signout.textContent=state.account ? 'Sign out' : 'Sign in';
   const error=el('account-error');
   // Account deletion remains in the web account page; native switching preserves local files.
   const deleteSection=el('account-delete-form').closest('details');deleteSection.hidden=true;
@@ -236,7 +220,7 @@ async function initNativeAuth() {
     catch(failure) {error.textContent=failure.message;}
     finally {button.disabled=false;}
   };
-  signout.onclick=()=>action(signout,state.account?'disconnect':'connect');
+  signout.onclick=()=>state.account?action(signout,'disconnect'):chooseNativeAccount(true);
   if(state.account) {
     const sync=document.createElement('button');sync.type='button';sync.className='text-btn';sync.textContent='Sync now';
     sync.onclick=()=>action(sync,'sync');signout.after(sync);
@@ -261,4 +245,80 @@ async function initNativeAuth() {
   settings.onclick=()=>action(settings,'settings');deleteSection.before(settings);
   return {onboarding:{automatic:true, version:state.onboarding?.version || 0,
     save:version=>nativeCall('api',{path:'/account/onboarding',method:'PATCH',body:{version}})}};
+}
+
+
+// The guest choice remains usable while cloud configuration loads or is offline.
+async function chooseNativeAccount(returning=false) {
+  const screen=el('auth-screen'), google=el('auth-google'), form=el('auth-form');
+  const submit=el('auth-submit'), change=el('auth-change-email');
+  const priorReady=document.body.classList.contains('app-ready');
+  document.body.classList.remove('app-ready');screen.hidden=false;
+  el('auth-loading').hidden=true;el('auth-google-option').hidden=false;
+  el('auth-beta-note').textContent='Save on this Mac. Sign in for background sync, or start as a guest.';
+  el('auth-google-label').textContent='Continue with Google';google.disabled=false;
+  document.querySelector('.auth-privacy').innerHTML='<summary>About your data</summary><p>Guest work stays on this Mac. Account work syncs to your private cloud workspace. Signing in does not upload or merge guest work.</p>';
+  form.hidden=true;el('auth-divider').hidden=true;form.inert=false;
+  el('auth-retry').hidden=true;el('auth-error').textContent='';el('auth-status').textContent='';
+  const guest=document.createElement('button');guest.className='native-guest secondary-btn';guest.type='button';
+  guest.textContent=returning?'Back to workspace':'Continue as guest';form.after(guest);
+  let busy=false, active=true, email='', providers=null;
+  function setBusy(value) {
+    busy=value;google.disabled=value;guest.disabled=value;submit.disabled=value;change.disabled=value;
+    form.inert=value;google.setAttribute('aria-busy',String(value));
+  }
+  function resetEmail() {
+    email='';el('auth-email').readOnly=false;el('auth-code').value='';el('auth-code').required=false;
+    el('auth-code-row').hidden=true;change.hidden=true;submit.textContent='Send sign-in code';
+    el('auth-status').textContent='';el('auth-error').textContent='';
+  }
+  resetEmail();
+  const loadProviders=async()=>{
+    try {
+      providers=await nativeCall('account',{action:'providers'});
+      if(!active)return;
+      el('auth-google-option').hidden=providers.google===false;
+      form.hidden=!providers.email;el('auth-divider').hidden=!(providers.google&&providers.email);
+      el('auth-retry').hidden=true;if(!busy)el('auth-error').textContent='';
+    } catch {
+      if(!active||busy)return;
+      el('auth-error').textContent='Cloud sign-in is taking longer to respond. You can continue locally or retry.';
+      el('auth-retry').hidden=false;
+    }
+  };
+  el('auth-retry').onclick=()=>{if(!busy)void loadProviders();};
+  // No request to Supabase or the API is necessary to enter a guest workspace.
+  void loadProviders();
+  await new Promise(resolve=>{
+    guest.onclick=async()=>{
+      if(busy)return;setBusy(true);
+      try {if(!returning)await nativeCall('account',{action:'continueLocal'});active=false;resolve();}
+      catch(error){el('auth-error').textContent=error.message;setBusy(false);}
+    };
+    google.onclick=async()=>{
+      if(busy)return;setBusy(true);el('auth-error').textContent='';el('auth-google-label').textContent='Connecting…';
+      try {await nativeCall('account',{action:'connect'});location.reload();}
+      catch(error){el('auth-error').textContent=error.message;setBusy(false);el('auth-google-label').textContent='Continue with Google';}
+    };
+    form.onsubmit=async event=>{
+      event.preventDefault();if(busy||!providers?.email)return;setBusy(true);el('auth-error').textContent='';
+      try {
+        if(!email) {
+          const entered=el('auth-email').value.trim();
+          await nativeCall('account',{action:'emailSend',email:entered});
+          email=entered;el('auth-email').readOnly=true;el('auth-code-row').hidden=false;
+          el('auth-code').required=true;change.hidden=false;submit.textContent='Verify and continue';
+          el('auth-status').textContent=`Enter the sign-in code sent to ${email}.`;
+        } else {await nativeCall('account',{action:'emailVerify',code:el('auth-code').value.trim()});location.reload();}
+      } catch(error){el('auth-error').textContent=error.message;}
+      finally{setBusy(false);if(email)el('auth-code').focus();}
+    };
+    change.onclick=async()=>{
+      if(busy)return;
+      try{await nativeCall('account',{action:'emailCancel'});resetEmail();el('auth-email').focus();}
+      catch(error){el('auth-error').textContent=error.message;}
+    };
+  });
+  guest.remove();form.onsubmit=null;screen.hidden=true;
+  if(priorReady)document.body.classList.add('app-ready');
 }

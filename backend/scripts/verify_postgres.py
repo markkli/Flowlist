@@ -28,7 +28,7 @@ with admin.begin() as db:
     # Grants and policies are database-specific, even when the role already exists.
     db.connection.driver_connection.execute(role_sql,prepare=False)
     for role in ('anon','authenticated'):
-        for table in ('goals','tasks','focus_sessions','focus_queue','app_users'):
+        for table in ('goals','tasks','focus_sessions','focus_queue','app_users','plan_mutations'):
             assert not db.scalar(text('SELECT has_table_privilege(:role,:table,\'SELECT\')'),{'role':role,'table':table})
     db.execute(text('SET LOCAL ROLE flowlist_api'))
     assert db.scalar(text('SELECT COUNT(*) FROM goals'))==0
@@ -58,6 +58,11 @@ client=TestClient(app)
 g=client.post('/goals',json={'title':'Postgres beta proof'});assert g.status_code==200,g.text
 goal=g.json();t=client.post(f"/goals/{goal['id']}/tasks",json={'title':'Private task'});assert t.status_code==200,t.text
 task=t.json()
+receipt={'Idempotency-Key':str(uuid4())}
+created=client.post('/standalone-tasks',json={'title':'Retry once'},headers=receipt)
+assert created.status_code==200,created.text
+assert client.post('/standalone-tasks',json={'title':'Retry once'},headers=receipt).json()==created.json()
+assert client.post('/standalone-tasks',json={'title':'Changed'},headers=receipt).status_code==409
 assert client.put('/queue',json={'ordered_ids':[task['id']]}).status_code==200
 s=client.post('/sessions',json={'client_id':'pg-test','planned_minutes':1,'actual_minutes':1,'completed':True,'tasks':[{'task_id':task['id'],'completed':False}]})
 assert s.status_code==200,s.text

@@ -42,6 +42,33 @@ private final class StubTransport: URLProtocol {
         state.note = "Draft"; state.saveSession(upload: true)
         return state
     }
+    @Test func emailSignInRequiresEnabledSenderAndVerifiesAccountBeforeReturningCredentials() async throws {
+        let (client, _) = try client()
+        var enabled = false, sent = 0
+        let identity = self.user
+        StubTransport.respond = { request in
+            switch request.url!.path {
+            case "/api/config": return (200, "{\"auth_mode\":\"supabase\",\"supabase_url\":\"https://example.supabase.co\",\"supabase_key\":\"sb_publishable_test\",\"email_enabled\":\(enabled),\"signup_enabled\":true}")
+            case "/auth/v1/otp": sent += 1;return (200, "{}")
+            case "/auth/v1/verify": return (200, "{\"access_token\":\"new-token\",\"refresh_token\":\"new-refresh\",\"expires_in\":3600,\"user\":{\"id\":\"\(identity.id)\",\"email\":\"\(identity.email)\"}}")
+            case "/api/account":
+                #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer new-token")
+                return (200, "{\"id\":\"\(identity.id)\",\"email\":\"\(identity.email)\"}")
+            default: Issue.record("Unexpected sign-in request");return (404,"{}")
+            }
+        }
+        await #expect(throws: (any Error).self) { try await client.sendEmailCode(identity.email) }
+        #expect(sent == 0)
+        enabled = true
+        try await client.sendEmailCode(identity.email)
+        await #expect(throws: (any Error).self) { try await client.sendEmailCode(identity.email) }
+        #expect(sent == 1)
+        await #expect(throws: (any Error).self) { _ = try await client.verifyEmailCode("wrong") }
+        let credentials = try await client.verifyEmailCode("123456")
+        #expect(credentials.user == identity && credentials.accessToken == "new-token")
+        #expect(client.credentials?.accessToken == "test-token") // Caller installs only after its local file is ready.
+        await #expect(throws: (any Error).self) { _ = try await client.verifyEmailCode("123456") }
+    }
     @Test func localPlanCRUDAndReviewWorkWithoutNetwork() async throws {
         let store = TimerStore(preview: LocalWorkspace())
         let bridge = WebBridge(store: store)

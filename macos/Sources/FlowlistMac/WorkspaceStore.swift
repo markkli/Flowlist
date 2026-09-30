@@ -30,16 +30,28 @@ private struct QueueItem: Decodable { let task: PlanTask }
         defer { connecting = false }
         do {
             let credentials = try await cloud.signIn()
-            guard let rootFolder else { return }
-            let target = WorkspaceFile(url: try AccountFiles.workspaceURL(root: rootFolder, accountId: credentials.user.id))
-            let loaded = try target.load()
-            try cloud.install(credentials)
-            file = target; workspace = loaded; account = credentials.user
-            UserDefaults.standard.set(true, forKey: "flowlist.welcome.seen")
-            error = nil; syncError = nil; lastSynced = nil
-            tick(); refreshReminders(); publishWidget()
+            try acceptAccount(credentials)
             await sync()
         } catch { self.error = error.localizedDescription }
+    }
+    func connectWithEmail(code: String) async throws {
+        guard canSwitchAccount else { throw CloudFailure(message: "Save or discard your current session before signing in.") }
+        connecting = true
+        defer { connecting = false }
+        let credentials = try await cloud.verifyEmailCode(code)
+        try acceptAccount(credentials)
+        await sync()
+    }
+    private func acceptAccount(_ credentials: CloudCredentials) throws {
+        guard let rootFolder else { throw CloudFailure(message: "The local account folder is unavailable.") }
+        let target = WorkspaceFile(url: try AccountFiles.workspaceURL(root: rootFolder, accountId: credentials.user.id))
+        let loaded = try target.load()
+        try cloud.install(credentials)
+        file = target; workspace = loaded; account = credentials.user
+        UserDefaults.standard.set(true, forKey: "flowlist.welcome.seen")
+        error = nil; syncError = nil; lastSynced = nil
+        webCacheGeneration += 1
+        tick(); refreshReminders(); publishWidget()
     }
     func disconnect() {
         guard canSwitchAccount, let rootFolder else { error = "Finish and save your current session before signing out."; return }
@@ -151,12 +163,23 @@ private struct QueueItem: Decodable { let task: PlanTask }
         return (parts.joined(separator: "/"), values)
     }
     func drainPlanOutbox(owner: String) async throws {
+        // Check the current server, not credentials saved by an older app. An
+        // older deployment may silently ignore an unknown idempotency header.
+        var supportsIdempotency: Bool?
         while let first = workspace.planOutbox?.first {
             guard account?.id == owner else { return }
-            if first.uncertain || (first.sending && first.createsRecord) {
+            if (first.uncertain || (first.sending && first.createsRecord)) && first.usesIdempotency != true {
                 change { $0.planOutbox?[0].uncertain = true; $0.planOutbox?[0].error = "The last upload was interrupted. Check the web workspace before retrying to avoid a duplicate." }
                 throw CloudFailure(message: "Plan sync needs attention. Your changes are saved on this Mac.")
             }
+            if first.createsRecord && supportsIdempotency == nil {
+                supportsIdempotency = try await cloud.publicConfiguration().planIdempotency == true
+                guard account?.id == owner else { return }
+            }
+            if first.usesIdempotency == true && supportsIdempotency != true {
+                throw CloudFailure(message: "The server needs an update before this saved change can safely retry.", status: 409)
+            }
+            let requestKey = first.createsRecord && supportsIdempotency == true ? first.id : nil
             let body = try JSONSerialization.jsonObject(with: first.body) as? [String: Any] ?? [:]
             let (path, translated) = translatePlanRequest(path: first.path, body: body)
             // An earlier create must resolve all dependent IDs before transmission.
@@ -173,10 +196,10 @@ private struct QueueItem: Decodable { let task: PlanTask }
                     throw CloudFailure(message: "A saved focus session must sync before its task can be deleted in the cloud.")
                 }
             }
-            guard change({ $0.planOutbox?[0].sending = true; $0.planOutbox?[0].error = nil }) else { throw CloudFailure(message: "Couldn’t save the sync checkpoint on this Mac.") }
+            guard change({ $0.planOutbox?[0].sending = true; $0.planOutbox?[0].error = nil; $0.planOutbox?[0].usesIdempotency = requestKey != nil }) else { throw CloudFailure(message: "Couldn’t save the sync checkpoint on this Mac.") }
             do {
                 let value: Any
-                do { value = try await cloud.requestJSON(path, method: first.method, body: try JSONSerialization.data(withJSONObject: translated), owner: owner) }
+                do { value = try await cloud.requestJSON(path, method: first.method, body: try JSONSerialization.data(withJSONObject: translated), owner: owner, idempotencyKey: requestKey) }
                 catch let error as CloudFailure where error.status == 404 && first.method == "DELETE" { value = [:] }
                 guard account?.id == owner, workspace.planOutbox?.first?.id == first.id else { return }
                 var aliases: [String: Int] = [:]
@@ -188,7 +211,7 @@ private struct QueueItem: Decodable { let task: PlanTask }
             } catch {
                 guard account?.id == owner else { return }
                 let failure = error as? CloudFailure
-                let ambiguous = first.createsRecord && !(failure?.definitelyUnsent ?? false) && ((failure?.status ?? 0) == 0 || (failure?.status ?? 0) >= 500)
+                let ambiguous = first.createsRecord && requestKey == nil && !(failure?.definitelyUnsent ?? false) && ((failure?.status ?? 0) == 0 || (failure?.status ?? 0) >= 500)
                 change { state in
                     state.planOutbox?[0].sending = false
                     state.planOutbox?[0].uncertain = ambiguous

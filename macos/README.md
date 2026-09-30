@@ -59,7 +59,7 @@ flowlist://auth-callback
 
 Keep the existing website URLs. This is an additional native callback, not a new
 Google client or a change to Google's existing Supabase redirect URI. Then open
-Flowlist **Account → Continue with Google**. The existing beta access rules still
+Flowlist **Account → Sign in**. The existing beta access rules still
 apply. No client secret, database URL, or service-role key belongs in the app.
 
 Native sign-in needs a real browser/account pass after this dashboard setting is
@@ -80,16 +80,16 @@ they do not claim to verify Google's production redirect or macOS Keychain promp
   before the UI reports success. Projects, tasks, nested tasks, completion, deletion,
   order, and priorities sync in the background. Temporary IDs are mapped to server
   IDs, including references in pending focus sessions and open review drafts.
-- New users see Google sign-in first, with an explicit local-only option. Returning
+- New users choose Google, email (when enabled), or an explicit guest option. Returning
   local users and restored accounts are not repeatedly prompted.
 - Sync resolves new Plan items before uploading sessions. Before deleting a task,
   it uploads pending sessions that reference it to preserve their history. A concurrent local edit prevents
   an older cloud snapshot from overwriting the local Plan. Field changes are applied
   in order; this is not collaborative, field-level conflict merging.
-- The existing server has no idempotency keys for task/project creation. Definite
-  offline failures can retry; an interrupted/ambiguous creation is paused rather
-  than automatically duplicated. Account shows the issue and an explicit retry
-  after checking the website. Validation/deletion conflicts remain visible, keep
+- Plan creates use durable request IDs when the server advertises support after
+  migration `20260928_16`. The local checkpoint remembers whether a request used
+  this protocol, so safe retries survive a restart. Older ambiguous uploads still
+  pause for review in Account. Validation/deletion conflicts remain visible, keep
   the local data, and require resolution rather than silently discarding the edit.
 - Sync runs at sign-in, save, refresh, app activation, and connectivity recovery.
   Session uploads use the existing server's idempotency key, and history edits use
@@ -188,3 +188,12 @@ is required for these native changes; the pending web Guide migration stays sepa
 Until the deployed API supports Guide examples, the walkthrough uses practice
 controls without adding an example project to the account. A failed Guide request
 always offers a way back to the workspace.
+
+## Website beta download
+
+Run `bash scripts/package-beta.sh` to produce a ZIP, SHA-256, and release manifest
+under `build/releases/`. The package is ad-hoc signed and contains no widget
+extension. See [the launch runbook](../docs/WEBSITE-LAUNCH.md) for static hosting,
+release verification, Google/email/guest entry, and the email sender rollout.
+First-device setup follows Guide and offers the menu-bar toggle. Reopen Mac
+settings to change it later. Email sign-in stays hidden until the server enables it.

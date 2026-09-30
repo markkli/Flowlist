@@ -21,7 +21,7 @@ test.beforeEach(async({context})=>{
  });
 });
 async function signIn(page:any){
- await page.goto('/');
+ await page.goto('/app/');
  await page.getByLabel('Email address',{exact:true}).fill(user.email);
  await page.getByRole('button',{name:'Send sign-in code'}).click();
  await page.getByLabel('Email code',{exact:true}).fill('123456');
@@ -34,7 +34,7 @@ test('Google-only beta hides email sending and completes Google sign-in',async({
  let emailsSent=0;
  await page.route('https://beta.supabase.co/auth/v1/otp',route=>{emailsSent++;return route.fulfill({json:{}});});
  await mockGoogle(page);
- await page.goto('/');
+ await page.goto('/app/');
  await expect(page.locator('#auth-beta-note')).toContainText('invited Google account');
  await expect(page.locator('#auth-form')).toBeHidden();
  await expect(page.locator('#auth-divider')).toBeHidden();
@@ -47,7 +47,7 @@ test('Google-only beta hides email sending and completes Google sign-in',async({
 
 test('missing provider flags hide email and explain unavailable sign-in',async({page})=>{
  await page.route('**/api/config',route=>route.fulfill({json:{auth_mode:'supabase',supabase_url:'https://beta.supabase.co',supabase_key:'sb_publishable_test',signup_enabled:false}}));
- await page.goto('/');
+ await page.goto('/app/');
  await expect(page.locator('#auth-error')).toContainText('Sign-in is not available');
  await expect(page.locator('#auth-form')).toBeHidden();
  await expect(page.locator('#auth-google-option')).toBeHidden();
@@ -91,7 +91,7 @@ async function mockGoogle(page:any, outcome:'success'|'cancel'|'invalid'|'signup
 
 test('Google uses PKCE, verifies beta access, restores the view, and clears the one-use callback',async({page})=>{
  const exchanges=await mockGoogle(page);
- await page.goto('/#goals');
+ await page.goto('/app/#goals');
  await page.getByRole('button',{name:'Continue with Google',exact:true}).click();
  await expect(page.locator('.app-shell')).toBeVisible();
  await expect(page).toHaveURL(/\/#goals$/);
@@ -104,7 +104,7 @@ test('Google uses PKCE, verifies beta access, restores the view, and clears the 
 
 for(const outcome of ['cancel','invalid'] as const) test(`Google ${outcome} returns safely to sign-in with email fallback`,async({page})=>{
  await mockGoogle(page,outcome);
- await page.goto('/');
+ await page.goto('/app/');
  await page.getByRole('button',{name:'Continue with Google',exact:true}).click();
  await expect(page.locator('#auth-error')).toContainText(outcome==='cancel'?'may have been canceled or blocked':'could not be verified');
  await expect(page.locator('#auth-error')).not.toContainText('untrusted-provider-text');
@@ -122,7 +122,7 @@ for(const outcome of ['cancel','invalid'] as const) test(`Google ${outcome} retu
 test('a Google session outside the beta allowlist cannot open the app',async({page})=>{
  await mockGoogle(page);
  await page.route('**/api/account',route=>route.fulfill({status:403,json:{detail:'This beta is invitation-only.'}}));
- await page.goto('/');
+ await page.goto('/app/');
  await page.getByRole('button',{name:'Continue with Google',exact:true}).click();
  await expect(page.locator('#auth-error')).toContainText('invitation-only');
  await expect(page.locator('.app-shell')).toBeHidden();
@@ -131,10 +131,10 @@ test('a Google session outside the beta allowlist cannot open the app',async({pa
 test('unsolicited or expired Google callbacks never exchange a code',async({page})=>{
  let exchanges=0;
  page.on('request',r=>{if(r.url().includes('grant_type=pkce'))exchanges++;});
- await page.goto('/?auth=google&code=unsolicited');
+ await page.goto('/app/?auth=google&code=unsolicited');
  await expect(page.locator('#auth-error')).toContainText('expired');
  await page.evaluate(()=>sessionStorage.setItem('flowlist-google-signin',JSON.stringify({startedAt:Date.now()-3600000,view:'#goals'})));
- await page.goto('/?auth=google&code=expired');
+ await page.goto('/app/?auth=google&code=expired');
  await expect(page.locator('#auth-error')).toContainText('expired');
  await expect(page.locator('.app-shell')).toBeHidden();
  expect(exchanges).toBe(0);
@@ -143,14 +143,14 @@ test('unsolicited or expired Google callbacks never exchange a code',async({page
 
 test('Google stays hidden until provider setup is enabled',async({page})=>{
  await page.route('**/api/config',route=>route.fulfill({json:{auth_mode:'supabase',supabase_url:'https://beta.supabase.co',supabase_key:'sb_publishable_test',signup_enabled:false,google_enabled:false,email_enabled:true}}));
- await page.goto('/');
+ await page.goto('/app/');
  await expect(page.getByLabel('Email address',{exact:true})).toBeVisible();
  await expect(page.getByRole('button',{name:'Continue with Google',exact:true})).toBeHidden();
 });
 
 test('a failed Google return does not silently reopen a previously signed-in account',async({page})=>{
  await signIn(page);
- await page.goto('/?auth=google&code=unsolicited');
+ await page.goto('/app/?auth=google&code=unsolicited');
  await expect(page.locator('#auth-error')).toContainText('expired');
  await expect(page.locator('.app-shell')).toBeHidden();
 });
@@ -159,7 +159,7 @@ test('email sign-in gates private requests, attaches a token, and never claims l
  const requests:string[]=[];
  page.on('request',r=>{if(r.url().includes('/api/')&&!r.url().endsWith('/config'))requests.push(r.headers().authorization||'missing');});
  await page.addInitScript(()=>localStorage.setItem('flowlist-ritual-v2',JSON.stringify({id:'local-secret',phase:'focus',elapsedSeconds:0,round:1,settings:{focus:25,break:5,rounds:4,longBreak:15},deadline:Date.now()+1500000,blockSeconds:1500,breakKind:'short',minimized:true,summary:'Private local note',selections:[]})));
- await page.goto('/');
+ await page.goto('/app/');
  await expect(page.getByRole('heading',{name:'Welcome to Flowlist'})).toBeVisible();
  await expect(page.locator('.app-shell')).toBeHidden();
  expect(requests).toEqual([]);
@@ -176,7 +176,7 @@ test('email sign-in gates private requests, attaches a token, and never claims l
 
 test('expired code and rejected beta access keep the app hidden and let the user retry',async({page})=>{
  await page.route('https://beta.supabase.co/auth/v1/verify',route=>route.fulfill({status:403,json:{message:'Token has expired or is invalid',code:'otp_expired'}}));
- await page.goto('/');
+ await page.goto('/app/');
  await page.getByLabel('Email address',{exact:true}).fill(user.email);
  await page.getByRole('button',{name:'Send sign-in code'}).click();
  await page.getByLabel('Email code',{exact:true}).fill('111111');
@@ -194,7 +194,7 @@ test('cross-tab sign-out freezes timers and private UI without deleting the acco
  await signIn(page);
  await page.locator('#start-pomodoro').click();
  await expect(page.locator('#focus-overlay')).toBeVisible();
- const other=await context.newPage();await other.goto('/');
+ const other=await context.newPage();await other.goto('/app/');
  await expect(other.locator('.app-shell')).toBeVisible();
  await other.getByRole('button',{name:'Minimize timer'}).click();
  await other.locator('#account-controls > summary').click();
@@ -226,7 +226,7 @@ test('account deletion requires typed confirmation and removes only this account
 });
 
 for(const width of [375,768,1440]) test(`sign-in fits ${width}px in both modes`,async({page},testInfo)=>{
- await page.setViewportSize({width,height:900});await page.goto('/');
+ await page.setViewportSize({width,height:900});await page.goto('/app/');
  await expect(page.getByLabel('Email address',{exact:true})).toBeVisible();
  for(const theme of ['light','dark']) {
   await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
@@ -239,7 +239,7 @@ for (const outcome of ['signup-query','signup-fragment','signup-legacy','cancel'
  test(`Google-only ${outcome} explains the failure without offering unavailable email login`,async({page})=>{
   await page.route('**/api/config',route=>route.fulfill({json:{auth_mode:'supabase',supabase_url:'https://beta.supabase.co',supabase_key:'sb_publishable_test',signup_enabled:false,google_enabled:true,email_enabled:false}}));
   const exchanges=await mockGoogle(page,outcome);
-  await page.goto('/');
+  await page.goto('/app/');
   await page.getByRole('button',{name:'Continue with Google',exact:true}).click();
   const error=page.locator('#auth-error');
   await expect(error).toContainText(outcome.startsWith('signup')?'New accounts are currently disabled':outcome==='cancel'?'may have been canceled or blocked':'could not be verified');

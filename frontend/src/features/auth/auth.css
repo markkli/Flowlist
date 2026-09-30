@@ -55,3 +55,5 @@ body:not(.app-ready) #timer-mini { display:none; }
  .auth-scene p { margin-bottom:0; font-size:14px; }
  .auth-content { padding:32px 24px; }
 }
+
+.native-guest { width:100%; min-height:48px; margin-top:16px; }

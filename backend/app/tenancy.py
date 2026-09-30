@@ -6,7 +6,7 @@ Raw SQL and bulk ORM inserts are forbidden in a user-scoped session.
 from fastapi import HTTPException
 from sqlalchemy import event, select
 from sqlalchemy.orm import Session, with_loader_criteria
-from app.models import GoalModel, TaskModel, FocusSessionModel, FocusQueueModel, FocusSessionTaskModel, FocusBlockModel
+from app.models import GoalModel, TaskModel, FocusSessionModel, FocusQueueModel, FocusSessionTaskModel, FocusBlockModel, PlanMutationModel
 
 
 class TenantSession(Session):
@@ -23,6 +23,7 @@ def scope_queries(state):
     tasks = select(TaskModel.id).where(TaskModel.goal_id.in_(goals))
     for model, condition in (
         (GoalModel, GoalModel.owner_id == owner),
+        (PlanMutationModel, PlanMutationModel.owner_id == owner),
         (FocusSessionModel, FocusSessionModel.owner_id == owner),
         (TaskModel, TaskModel.goal_id.in_(goals)),
         (FocusQueueModel, FocusQueueModel.task_id.in_(tasks)),
@@ -36,7 +37,7 @@ def scope_queries(state):
 def guard_writes(db, _context, _instances):
     owner = db.info['owner_id']
     for obj in db.new | db.dirty | db.deleted:
-        if isinstance(obj, (GoalModel, FocusSessionModel)):
+        if isinstance(obj, (GoalModel, FocusSessionModel, PlanMutationModel)):
             if obj in db.new and obj.owner_id is None:
                 obj.owner_id = owner
             if obj.owner_id != owner:

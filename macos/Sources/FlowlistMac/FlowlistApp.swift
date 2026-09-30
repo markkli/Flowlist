@@ -3,6 +3,7 @@ import SwiftUI
 @main struct FlowlistApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @StateObject private var store = TimerStore()
+    @AppStorage("flowlist.menu.enabled") private var menuEnabled = true
     var body: some Scene {
         Window("Flowlist", id: "main") {
             WorkspaceView().environmentObject(store)
@@ -28,7 +29,7 @@ import SwiftUI
             ScrollView { PreferencesView().environmentObject(store).padding(16) }
                 .frame(minWidth: 480, minHeight: 560)
         }.defaultSize(width: 540, height: 700)
-        MenuBarExtra {
+        MenuBarExtra(isInserted: $menuEnabled) {
             MenuPanel().environmentObject(store)
         } label: {
             HStack(spacing: 4) {

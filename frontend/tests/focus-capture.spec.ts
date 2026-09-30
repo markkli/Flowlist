@@ -4,7 +4,7 @@ async function setup(page:any){
  const goals=[{id:1,title:'Release',goal_type:'project',completed:false,tasks:[{id:10,title:'Ship the release',parent_id:null,depth:1},{id:11,title:'Nested review',parent_id:10,depth:2}]},{id:2,title:'Reading',goal_type:'project',completed:false,tasks:[]}];
  await page.addInitScript(()=>localStorage.setItem('flowlist-ritual-v2',JSON.stringify({id:'capture-test',phase:'focus',elapsedSeconds:0,round:1,settings:{focus:25,break:5,longBreak:15,rounds:4},deadline:Date.now()+1500000,blockSeconds:1500,breakKind:'short',minimized:false,summary:'',selections:[],blocks:[],startedAt:Date.now()})));
  await page.route('**/api/**',(route:any)=>{const path=new URL(route.request().url()).pathname;if(route.request().method()==='POST')writes.push({path,body:route.request().postDataJSON()});return route.fulfill({json:path==='/api/config'?{auth_mode:'local'}:path==='/api/dashboard'?{queue:[],goals:[],stats:{current_streak:0,total_sessions:0,total_minutes:0},week_sessions:0,activity:[]}:path==='/api/goals'?goals:[]});});
- await page.goto('/');await page.locator('#focus-add-plan').click();await expect(page.locator('#plan-capture-form button[type=submit]')).toBeEnabled();return writes;
+ await page.goto('/app/');await page.locator('#focus-add-plan').click();await expect(page.locator('#plan-capture-form button[type=submit]')).toBeEnabled();return writes;
 }
 for(const kind of ['standalone','project','subtask','new'])test(`tree capture creates a ${kind} destination`,async({page})=>{
  const writes=await setup(page);const modal=page.locator('#plan-capture-overlay');await modal.getByLabel('Task',{exact:true}).fill('Write a note');

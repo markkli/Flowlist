@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from uuid import UUID
+from fastapi import APIRouter, Depends, HTTPException, Header
+from app.services.mutations import create_once
 from sqlalchemy import select, delete
 from sqlalchemy.orm import Session, selectinload
 from app import schemas
@@ -9,12 +11,12 @@ from app.services.plan import find_goal, next_goal_position, next_task_position,
 router = APIRouter()
 
 @router.post("/goals", response_model=schemas.Goal)
-def create_goal(goal: schemas.GoalCreate, db: Session = Depends(get_db)):
-    new_goal = GoalModel(position=next_goal_position(db), **goal.model_dump())
-    db.add(new_goal)
-    db.commit()
-    db.refresh(new_goal)
-    return new_goal
+def create_goal(goal: schemas.GoalCreate, db: Session = Depends(get_db), idempotency_key: UUID | None = Header(default=None)):
+    def create():
+        new_goal = GoalModel(position=next_goal_position(db), **goal.model_dump())
+        db.add(new_goal)
+        return new_goal
+    return create_once(db, idempotency_key, "/goals", goal, schemas.Goal, create)
 
 
 @router.get("/goals", response_model=list[schemas.GoalWithTasks | schemas.Goal])
@@ -40,16 +42,16 @@ def reorder_goals(order: schemas.ReorderPayload, db: Session = Depends(get_db)):
 
 
 @router.post("/goals/with-task", response_model=schemas.GoalWithTasks)
-def create_project_with_task(payload: schemas.ProjectWithTask, db: Session = Depends(get_db)):
-    if payload.goal_type != "project":
-        raise HTTPException(422, "Choose a project for this action")
-    goal = GoalModel(title=payload.title, description=payload.description, goal_type="project", position=next_goal_position(db))
-    db.add(goal)
-    db.flush()
-    db.add(TaskModel(goal_id=goal.id, title=payload.task.title, position=1))
-    db.commit()
-    db.refresh(goal)
-    return goal
+def create_project_with_task(payload: schemas.ProjectWithTask, db: Session = Depends(get_db), idempotency_key: UUID | None = Header(default=None)):
+    def create():
+        if payload.goal_type != "project":
+            raise HTTPException(422, "Choose a project for this action")
+        goal = GoalModel(title=payload.title, description=payload.description, goal_type="project", position=next_goal_position(db))
+        db.add(goal)
+        db.flush()
+        db.add(TaskModel(goal_id=goal.id, title=payload.task.title, position=1))
+        return goal
+    return create_once(db, idempotency_key, "/goals/with-task", payload, schemas.GoalWithTasks, create)
 
 
 @router.post("/guide/example", response_model=schemas.GoalWithTasks)
@@ -132,50 +134,50 @@ def delete_goal(goal_id: int, db: Session = Depends(get_db)):
 
 @router.post("/goals/{goal_id}/tasks", response_model=schemas.Task)
 def create_task(
-    goal_id: int, task: schemas.TaskCreate, db: Session = Depends(get_db)
+    goal_id: int, task: schemas.TaskCreate, db: Session = Depends(get_db), idempotency_key: UUID | None = Header(default=None)
 ):
-    goal = find_goal(db, goal_id)
-    goal.completed = False
-    new_task = TaskModel(
-        goal_id=goal_id,
-        position=next_task_position(db, goal_id, None),
-        **task.model_dump(),
-    )
-    db.add(new_task)
-    db.commit()
-    db.refresh(new_task)
-    return new_task
+    def create():
+        goal = find_goal(db, goal_id)
+        goal.completed = False
+        new_task = TaskModel(
+            goal_id=goal_id,
+            position=next_task_position(db, goal_id, None),
+            **task.model_dump(),
+        )
+        db.add(new_task)
+        return new_task
+    return create_once(db, idempotency_key, f"/goals/{goal_id}/tasks", task, schemas.Task, create)
 
 
 @router.post("/standalone-tasks", response_model=schemas.Task)
 def create_standalone_task(
-    task: schemas.TaskCreate, db: Session = Depends(get_db)
+    task: schemas.TaskCreate, db: Session = Depends(get_db), idempotency_key: UUID | None = Header(default=None)
 ):
-    """Add a simple task to the shared task list."""
-    goal = db.scalar(
-        select(GoalModel)
-        .where(GoalModel.goal_type == "standalone")
-        .order_by(GoalModel.id)
-    )
-    if goal is None:
-        goal = GoalModel(
-            title="Tasks",
-            goal_type="standalone",
-            position=next_goal_position(db),
+    def create():
+        """Add a simple task to the shared task list."""
+        goal = db.scalar(
+            select(GoalModel)
+            .where(GoalModel.goal_type == "standalone")
+            .order_by(GoalModel.id)
         )
-        db.add(goal)
-        db.flush()
-    elif goal.title == "Standalone tasks":
-        goal.title = "Tasks"
-    new_task = TaskModel(
-        goal_id=goal.id,
-        position=next_task_position(db, goal.id, None),
-        **task.model_dump(),
-    )
-    db.add(new_task)
-    db.commit()
-    db.refresh(new_task)
-    return new_task
+        if goal is None:
+            goal = GoalModel(
+                title="Tasks",
+                goal_type="standalone",
+                position=next_goal_position(db),
+            )
+            db.add(goal)
+            db.flush()
+        elif goal.title == "Standalone tasks":
+            goal.title = "Tasks"
+        new_task = TaskModel(
+            goal_id=goal.id,
+            position=next_task_position(db, goal.id, None),
+            **task.model_dump(),
+        )
+        db.add(new_task)
+        return new_task
+    return create_once(db, idempotency_key, "/standalone-tasks", task, schemas.Task, create)
 
 
 @router.get("/goals/{goal_id}/tasks", response_model=list[schemas.Task])

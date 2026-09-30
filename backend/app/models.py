@@ -35,6 +35,15 @@ class GoalModel(Base):
     )
 
 
+class PlanMutationModel(Base):
+    """Durable create receipts survive lost responses and deleted plan items."""
+    __tablename__ = "plan_mutations"
+    id: Mapped[str] = mapped_column(primary_key=True)
+    owner_id: Mapped[str | None] = mapped_column(ForeignKey("app_users.id", ondelete="CASCADE"), nullable=True, index=True)
+    fingerprint: Mapped[str]
+    response: Mapped[str]
+
+
 class TaskModel(Base):
     __tablename__ = "tasks"
 

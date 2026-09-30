@@ -52,6 +52,7 @@ import FlowlistCore
          "planSyncIssue": store.workspace.planOutbox?.first?.error as Any? ?? NSNull(),
          "planSyncUncertain": store.workspace.planOutbox?.first?.uncertain == true,
          "onboarding": ["version": store.workspace.webOnboardingVersion as Any? ?? NSNull()],
+         "macSetup": macSetup(),
          "timer": timerSnapshot(), "settings": settings(store.workspace.configuration), "preferences": preferences,
          "notifications": store.permission == .notDetermined ? "default" : store.permission == .denied ? "denied" : "granted",
          "sound": store.workspace.soundEnabled, "reminderPromptSeen": store.workspace.reminderPromptSeen,
@@ -67,6 +68,11 @@ import FlowlistCore
         guard let operation = message["op"] as? String else { throw invalid() }
         switch operation {
         case "bootstrap": return bootstrap()
+        case "macSetup":
+            guard let enabled = message["menuEnabled"] as? Bool else { throw invalid() }
+            UserDefaults.standard.set(enabled, forKey: "flowlist.menu.enabled")
+            UserDefaults.standard.set(1, forKey: "flowlist.macSetupVersion")
+            return macSetup()
         case "api":
             guard let path = message["path"] as? String, let method = message["method"] as? String else { throw invalid() }
             let body = message["body"] as? [String: Any]
@@ -97,13 +103,26 @@ import FlowlistCore
             return bootstrap()
         case "account":
             switch message["action"] as? String {
+            case "providers":
+                let config = try await store.cloud.publicConfiguration()
+                return ["google": config.googleEnabled == true, "email": config.emailEnabled == true]
+            case "emailSend":
+                guard store.canSwitchAccount, let email = message["email"] as? String else { throw invalid() }
+                try await store.cloud.sendEmailCode(email.trimmingCharacters(in: .whitespacesAndNewlines))
+            case "emailVerify":
+                guard let code = message["code"] as? String else { throw invalid() }
+                try await store.connectWithEmail(code: code)
+            case "emailCancel": store.cloud.cancelEmailSignIn()
             case "connect":
                 await store.connect()
                 if let error = store.error { throw CloudFailure(message: error) }
             case "disconnect":
                 guard store.canSwitchAccount else { throw CloudFailure(message: "Save or discard your current session before signing out.") }
                 store.disconnect()
-            case "continueLocal": UserDefaults.standard.set(true, forKey: "flowlist.welcome.seen")
+            case "continueLocal":
+                guard store.canSwitchAccount else { throw invalid() }
+                store.cloud.cancelEmailSignIn()
+                UserDefaults.standard.set(true, forKey: "flowlist.welcome.seen")
             case "retryPlan": try await store.retryPlanChanges(confirmUncertain: message["confirmUncertain"] as? Bool == true)
             case "sync": await store.sync()
             case "settings": openSettings?()
@@ -132,6 +151,15 @@ import FlowlistCore
             return ["saved": false]
         default: throw invalid()
         }
+    }
+    private func macSetup() -> [String: Any] {
+        let group = Bundle.main.object(forInfoDictionaryKey: "FlowlistAppGroup") as? String ?? ""
+        let hasExtension = Bundle.main.builtInPlugInsURL.map {
+            FileManager.default.fileExists(atPath: $0.appendingPathComponent("FlowlistWidget.appex").path)
+        } ?? false
+        return ["version": UserDefaults.standard.integer(forKey: "flowlist.macSetupVersion"),
+                "menuEnabled": UserDefaults.standard.object(forKey: "flowlist.menu.enabled") as? Bool ?? true,
+                "widgetIncluded": hasExtension && !group.isEmpty && !group.contains("$(")]
     }
     private func timerCommand(_ message: [String: Any]) throws -> Any {
         guard !store.storageUnavailable, !store.connecting, let action = message["action"] as? String else { throw saveFailure() }

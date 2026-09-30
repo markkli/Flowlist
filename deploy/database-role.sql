@@ -6,14 +6,16 @@ GRANT USAGE ON SCHEMA public TO flowlist_api;
 DO $$
 DECLARE table_name text; seq_name text;
 BEGIN
-  FOREACH table_name IN ARRAY ARRAY['app_users','goals','tasks','focus_sessions','focus_session_tasks','focus_queue','focus_blocks']
+  FOREACH table_name IN ARRAY ARRAY['app_users','goals','tasks','focus_sessions','focus_session_tasks','focus_queue','focus_blocks','plan_mutations']
   LOOP
     EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.%I TO flowlist_api', table_name);
     -- The server performs per-account authorization. This server-only role can
     -- access app rows; anon/authenticated cannot bypass the API with Supabase REST.
-    EXECUTE format('CREATE POLICY flowlist_server_access ON public.%I TO flowlist_api USING (true) WITH CHECK (true)', table_name);
+    IF NOT EXISTS (SELECT 1 FROM pg_policies p WHERE p.schemaname='public' AND p.tablename=table_name AND p.policyname='flowlist_server_access') THEN
+      EXECUTE format('CREATE POLICY flowlist_server_access ON public.%I TO flowlist_api USING (true) WITH CHECK (true)', table_name);
+    END IF;
     seq_name := NULL;
-    IF table_name NOT IN ('focus_queue', 'app_users') THEN
+    IF table_name NOT IN ('focus_queue', 'app_users', 'plan_mutations') THEN
       seq_name := pg_get_serial_sequence(format('public.%I',table_name), 'id');
     END IF;
     IF seq_name IS NOT NULL THEN

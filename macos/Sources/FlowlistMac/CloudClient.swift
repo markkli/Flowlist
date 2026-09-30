@@ -18,6 +18,9 @@ struct PublicConfiguration: Codable {
     var supabaseUrl: String
     var supabaseKey: String
     var googleEnabled: Bool?
+    var emailEnabled: Bool?
+    var signupEnabled: Bool?
+    var planIdempotency: Bool?
     func validate() throws {
         guard authMode == "supabase", let url = URL(string: supabaseUrl), url.scheme == "https",
               url.host?.hasSuffix(".supabase.co") == true, url.user == nil, url.password == nil,
@@ -94,6 +97,8 @@ private final class NoRedirects: NSObject, URLSessionTaskDelegate {
     private var authentication: ASWebAuthenticationSession?
     private var refresh: Task<CloudCredentials, Error>?
     private var generation = UUID()
+    private var emailAttempt: (email: String, configuration: PublicConfiguration, sentAt: Date)?
+    private var lastEmailSent = Date.distantPast
     private let transport: URLSession
     private let vault: any AuthVault
     init(transport: URLSession? = nil, vault: any AuthVault = SystemAuthVault()) {
@@ -116,11 +121,40 @@ private final class NoRedirects: NSObject, URLSessionTaskDelegate {
     func signOut() throws {
         try vault.clear()
         generation = UUID(); refresh?.cancel(); refresh = nil; credentials = nil
+        emailAttempt = nil
     }
-    func signIn() async throws -> CloudCredentials {
-        guard authentication == nil else { throw CloudFailure(message: "Sign-in is already open.") }
+    func publicConfiguration() async throws -> PublicConfiguration {
         let configuration: PublicConfiguration = try await fetch(URL(string: Self.origin + "/api/config")!)
         try configuration.validate()
+        return configuration
+    }
+    func sendEmailCode(_ email: String) async throws {
+        guard email.count <= 254, email.range(of: #"^[^\s@]+@[^\s@]+\.[^\s@]+$"#, options: .regularExpression) != nil else {
+            throw CloudFailure(message: "Enter a valid email address.")
+        }
+        guard Date().timeIntervalSince(lastEmailSent) >= 60 else { throw CloudFailure(message: "Please wait a minute before requesting another code.", status: 429) }
+        let configuration = try await publicConfiguration()
+        guard configuration.emailEnabled == true else { throw CloudFailure(message: "Email sign-in is not available yet. Continue with Google or as a guest.") }
+        _ = try await fetchData(URL(string: configuration.supabaseUrl + "/auth/v1/otp")!, method: "POST",
+            body: JSONSerialization.data(withJSONObject: ["email": email, "create_user": configuration.signupEnabled == true]), key: configuration.supabaseKey)
+        lastEmailSent = Date()
+        emailAttempt = (email, configuration, lastEmailSent)
+    }
+    func verifyEmailCode(_ code: String) async throws -> CloudCredentials {
+        guard let attempt = emailAttempt, Date().timeIntervalSince(attempt.sentAt) < 600 else {
+            throw CloudFailure(message: "Request a new sign-in code to continue.")
+        }
+        guard code.range(of: #"^[0-9]{6,10}$"#, options: .regularExpression) != nil else { throw CloudFailure(message: "Enter the code from your email.") }
+        let value: TokenResponse = try await fetch(URL(string: attempt.configuration.supabaseUrl + "/auth/v1/verify")!, method: "POST",
+            body: JSONSerialization.data(withJSONObject: ["email": attempt.email, "token": code, "type": "email"]), key: attempt.configuration.supabaseKey)
+        let credentials = try await verifiedCredentials(value, configuration: attempt.configuration)
+        emailAttempt = nil
+        return credentials
+    }
+    func cancelEmailSignIn() { emailAttempt = nil }
+    func signIn() async throws -> CloudCredentials {
+        guard authentication == nil else { throw CloudFailure(message: "Sign-in is already open.") }
+        let configuration = try await publicConfiguration()
         guard configuration.googleEnabled == true else { throw CloudFailure(message: "Google sign-in is not enabled on the server.") }
         let pkce = try PKCE.generate()
         var url = URLComponents(string: configuration.supabaseUrl + "/auth/v1/authorize")!
@@ -147,6 +181,9 @@ private final class NoRedirects: NSObject, URLSessionTaskDelegate {
         do { code = try PKCE.callbackCode(callback) }
         catch { throw CloudFailure(message: "The sign-in return wasn’t valid. Please start sign-in again.") }
         let value: TokenResponse = try await tokenRequest(configuration, grant: "pkce", body: ["auth_code": code, "code_verifier": pkce.verifier])
+        return try await verifiedCredentials(value, configuration: configuration)
+    }
+    private func verifiedCredentials(_ value: TokenResponse, configuration: PublicConfiguration) async throws -> CloudCredentials {
         let verified: CloudIdentity = try await fetch(URL(string: Self.origin + "/api/account")!, bearer: value.accessToken)
         guard verified.id == value.user.id, UUID(uuidString: verified.id) != nil else { throw CloudFailure(message: "Account verification failed.") }
         return CloudCredentials(accessToken: value.accessToken, refreshToken: value.refreshToken,
@@ -162,17 +199,17 @@ private final class NoRedirects: NSObject, URLSessionTaskDelegate {
     }
     /// Preserve backend JSON keys for the shared web UI; typed native requests
     /// continue to use the snake-case decoder above.
-    func requestJSON(_ path: String, method: String = "GET", body: Data? = nil, owner: String) async throws -> Any {
-        let data = try await requestData(path, method: method, body: body, owner: owner)
+    func requestJSON(_ path: String, method: String = "GET", body: Data? = nil, owner: String, idempotencyKey: UUID? = nil) async throws -> Any {
+        let data = try await requestData(path, method: method, body: body, owner: owner, idempotencyKey: idempotencyKey)
         if data.isEmpty { return NSNull() }
         return try JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
     }
-    private func requestData(_ path: String, method: String, body: Data?, owner: String) async throws -> Data {
+    private func requestData(_ path: String, method: String, body: Data?, owner: String, idempotencyKey: UUID? = nil) async throws -> Data {
         let epoch = generation
         guard identity?.id == owner else { throw CloudFailure(message: "The account changed. Please try again.") }
         let token = try await accessToken()
         do {
-            let result = try await fetchData(URL(string: Self.origin + "/api" + path)!, method: method, body: body, bearer: token)
+            let result = try await fetchData(URL(string: Self.origin + "/api" + path)!, method: method, body: body, bearer: token, idempotencyKey: idempotencyKey)
             guard epoch == generation, identity?.id == owner else { throw CloudFailure(message: "The account changed. Your previous request has been ignored.") }
             return result
         } catch let error as CloudFailure where error.status == 401 {
@@ -180,7 +217,7 @@ private final class NoRedirects: NSObject, URLSessionTaskDelegate {
             // with a refreshed token; never retry uncertain transport failures.
             let token = try await accessToken(forceRefresh: true)
             guard epoch == generation, identity?.id == owner else { throw CloudFailure(message: "The account changed.") }
-            let result = try await fetchData(URL(string: Self.origin + "/api" + path)!, method: method, body: body, bearer: token)
+            let result = try await fetchData(URL(string: Self.origin + "/api" + path)!, method: method, body: body, bearer: token, idempotencyKey: idempotencyKey)
             guard epoch == generation else { throw CloudFailure(message: "The account changed.") }
             return result
         }
@@ -212,12 +249,13 @@ private final class NoRedirects: NSObject, URLSessionTaskDelegate {
         do { return try CloudJSON.decoder().decode(T.self, from: data) }
         catch { throw CloudFailure(message: "The server response couldn’t be read. Refresh before trying again.") }
     }
-    private func fetchData(_ url: URL, method: String = "GET", body: Data? = nil, bearer: String? = nil, key: String? = nil) async throws -> Data {
+    private func fetchData(_ url: URL, method: String = "GET", body: Data? = nil, bearer: String? = nil, key: String? = nil, idempotencyKey: UUID? = nil) async throws -> Data {
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 25)
         request.httpMethod = method; request.httpBody = body
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let bearer { request.setValue("Bearer " + bearer, forHTTPHeaderField: "Authorization") }
         if let key { request.setValue(key, forHTTPHeaderField: "apikey") }
+        if let idempotencyKey { request.setValue(idempotencyKey.uuidString, forHTTPHeaderField: "Idempotency-Key") }
         let data: Data, response: URLResponse
         do { (data, response) = try await transport.data(for: request) }
         catch {

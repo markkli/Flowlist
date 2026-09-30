@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.beforeEach(async({page})=>{
   await page.route('**/api/**',route=>route.fulfill({json:new URL(route.request().url()).pathname==='/api/config' ? {auth_mode:'local'} : new URL(route.request().url()).pathname==='/api/dashboard' ? {queue:[],goals:[],stats:{current_streak:0,total_sessions:0,total_minutes:0},week_sessions:0,activity:[]} : []}));
-  await page.goto('/');
+  await page.goto('/app/');
 });
 
 test('appearance persists, independently toggles art, and resets',async({page})=>{

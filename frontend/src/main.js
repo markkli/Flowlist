@@ -8,6 +8,7 @@ import { initHistory } from './features/history';
 import { initTimer } from './features/timer';
 import { initAppearance } from './features/appearance';
 import { initOnboarding } from './features/onboarding';
+import { initMacSetup } from './features/mac-setup';
 
 let toastTimer;
 
@@ -144,6 +145,7 @@ async function boot() {
     showToast(event.reason?.message || 'Could not finish that action. Please try again.', true);
   });
 
+  const macSetup = initMacSetup();
   const onboarding = initOnboarding({
     preferences: auth.onboarding,
     showToast,
@@ -156,7 +158,7 @@ async function boot() {
     },
   });
   document.addEventListener('keydown', event => {
-    if (!onboarding.handleKey(event) && !appearance.handleKey(event)
+    if (!macSetup.handleKey(event) && !onboarding.handleKey(event) && !appearance.handleKey(event)
       && !historyView.handleKey(event) && !timer.handleKey(event)) plan.handleKey(event);
   });
 

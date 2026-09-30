@@ -1,0 +1,10 @@
+{
+  "available": false,
+  "version": "0.5.0",
+  "minimumMacOS": "14.0",
+  "architecture": "Apple silicon",
+  "url": null,
+  "sha256": null,
+  "bytes": null,
+  "widgetIncluded": false
+}

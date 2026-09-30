@@ -78,7 +78,7 @@ const picker = (page: Page) => page.getByRole('dialog', { name: 'Choose prioriti
 
 test('picker offers parents and smaller steps and saves chosen tasks in a custom order that survives reload', async ({ page }) => {
   const state = await mockQueueApi(page);
-  await page.goto('/#dashboard');
+  await page.goto('/app/#dashboard');
   await expect(page.locator('.queue-empty')).toHaveText('Star tasks in Plan to prioritize them here.');
   await page.locator('#edit-queue').click();
   await expect(picker(page).getByRole('checkbox', { name: 'Research section', exact: true })).toBeVisible();
@@ -108,7 +108,7 @@ test('picker offers parents and smaller steps and saves chosen tasks in a custom
 
 test('queue menu reorders and removes membership while keeping the task in Plan', async ({ page }) => {
   const state = await mockQueueApi(page, [11, 12, 21]);
-  await page.goto('/#dashboard');
+  await page.goto('/app/#dashboard');
   await page.getByRole('button', { name: 'Queue options for Outline the chapter', exact: true }).click();
   await page.getByRole('group', { name: 'Queue task actions' }).getByRole('button', { name: 'Move down', exact: true }).click();
   await expect(queueTitles(page)).toHaveText(['Review the references', 'Outline the chapter', 'Pay electricity bill']);
@@ -127,7 +127,7 @@ test('queue menu reorders and removes membership while keeping the task in Plan'
 
 test('completing a queued task and Undo restores its position', async ({ page }) => {
   const state = await mockQueueApi(page, [12, 11]);
-  await page.goto('/#dashboard');
+  await page.goto('/app/#dashboard');
   await page.getByRole('button', { name: 'Complete Review the references', exact: true }).click();
   await expect(queueTitles(page)).toHaveText(['Outline the chapter']);
   expect(state.tasks.find(task => task.id === 12)?.completed).toBe(true);
@@ -143,7 +143,7 @@ test('completing a queued task and Undo restores its position', async ({ page })
 
 test('Cancel and Escape discard picker changes and restore focus to the opener', async ({ page }) => {
   const state = await mockQueueApi(page, [11]);
-  await page.goto('/#dashboard');
+  await page.goto('/app/#dashboard');
   const opener = page.locator('#edit-queue');
   await opener.click();
   await picker(page).getByRole('checkbox', { name: 'Review the references', exact: true }).check();
@@ -167,7 +167,7 @@ test('Cancel and Escape discard picker changes and restore focus to the opener',
 test('failed save keeps selections and allows a safe retry', async ({ page }) => {
   const state = await mockQueueApi(page, [11]);
   state.rejectNextSave = true;
-  await page.goto('/#dashboard');
+  await page.goto('/app/#dashboard');
   await page.locator('#edit-queue').click();
   await picker(page).getByLabel('Find a task').fill('references');
   await picker(page).getByRole('checkbox', { name: 'Review the references', exact: true }).check();
@@ -187,7 +187,7 @@ test('queue rows, action menu, and picker fit a narrow mobile viewport', async (
   state.tasks[0].title = 'Review the chapter about very long task titles and their presentation on a small phone screen';
   state.goals[0].title = 'A project with an unusually long name that should still fit a mobile screen';
   await page.setViewportSize({ width: 375, height: 812 });
-  await page.goto('/#dashboard');
+  await page.goto('/app/#dashboard');
   await expect(queueTitles(page)).toHaveCount(3);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(await page.locator('.queue-item').evaluateAll(rows => rows.every(row => row.scrollWidth <= row.clientWidth))).toBe(true);
@@ -212,7 +212,7 @@ test('queue rows, action menu, and picker fit a narrow mobile viewport', async (
 test('queue picker remains scrollable and save is reachable in short landscape windows', async ({page}) => {
   await mockQueueApi(page, [11,12,21]);
   await page.setViewportSize({width:768,height:375});
-  await page.goto('/#dashboard');
+  await page.goto('/app/#dashboard');
   await page.locator('#edit-queue').click();
   const modal=page.locator('.queue-picker');
   expect(await modal.evaluate(node=>{
@@ -228,7 +228,7 @@ test('queue picker remains scrollable and save is reachable in short landscape w
 
 test('empty queue offers one Choose priorities action', async ({page}) => {
   await mockQueueApi(page, []);
-  await page.goto('/#dashboard');
+  await page.goto('/app/#dashboard');
   await expect(page.getByRole('button',{name:'Choose priorities',exact:true})).toHaveCount(1);
   await page.getByRole('button',{name:'Choose priorities',exact:true}).click();
   await expect(picker(page)).toBeVisible();
