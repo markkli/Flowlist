@@ -7,7 +7,8 @@ proposed download website or additional authentication providers.
 
 | Area | Owns | Entry points |
 | --- | --- | --- |
-| Shared interface | Home, Plan, History, session review, Guide, appearance | `frontend/src/main.js`, `frontend/index.html` |
+| Public site | Product explanation and verified Mac download | `frontend/index.html`, `frontend/download/`, `frontend/src/site/` |
+| Shared interface | Home, Plan, History, session review, Guide, appearance | `frontend/src/main.js`, `frontend/app/index.html` |
 | Browser runtime | Browser timer/draft persistence, Supabase web auth, HTTP | `features/timer/state.ts`, `features/auth/`, `shared/api.ts` |
 | Mac runtime | Native timer, atomic files, account sync, Keychain, reminders | `TimerStore.swift`, `WorkspaceStore.swift`, `CloudClient.swift` |
 | Mac bridge | Bundled web loading, validated IPC, local API contract | `WebWorkspaceView.swift`, `WebBridge.swift`, `WebWorkspaceAPI.swift` |
