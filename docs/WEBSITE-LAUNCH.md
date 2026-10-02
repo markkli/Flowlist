@@ -14,23 +14,43 @@ Render's free service can still sleep before cloud sign-in/sync or browser use.
 Separate static hosting removes that dependency from the public website. It does
 not make the API always awake. Mac guest use and local edits do not wait for it.
 
-## Domain and static hosting
+## Static hosting first; domain optional
 
-The domain is not selected or purchased yet. `getflowlist.app` and
-`tryflowlist.com` had no RDAP registration record at the initial check. That is
-not a reservation or checkout quote. Confirm registration and renewal prices
-before purchasing. The owner performs purchases in their own account.
+Cloudflare Pages is the selected host. Start with the generated `*.pages.dev`
+address; buying a domain is not a prerequisite. The owner signs into Cloudflare
+and authorizes the GitHub integration in their own account.
 
-1. Register the chosen domain with Cloudflare Registrar. Enable account 2FA.
-2. Create a Cloudflare Pages project connected to `markkli/Flowlist`.
-3. Production branch: `main` **after the release branch has been reviewed and
-   merged**. Root directory: `frontend`. Build command: `npm run build:site`.
-   Build output: `dist`. Node version: `22`. No API secrets are needed.
-4. Add the purchased domain under the Pages project's Custom domains. Use the
-   DNS record Cloudflare supplies. Wait for HTTPS activation before sharing it.
-5. `/app/` redirects to the existing Render workspace. Do not change Supabase's
+1. In Cloudflare, open **Workers & Pages → Create application → Pages → Connect
+   to Git**. Connect GitHub and grant access to `markkli/Flowlist`.
+2. Use these initial build settings:
+
+   | Field | Value |
+   |---|---|
+   | Project name | `flowlist-beta` (or an available alternative) |
+   | Production branch | `codex/mac-beta-launch` |
+   | Framework preset | `None` |
+   | Root directory | `frontend` |
+   | Build command | `npm run build:site` |
+   | Build output directory | `dist` |
+   | Environment variable | `NODE_VERSION=22` |
+
+   No API secrets are needed. The launch branch contains the public pages;
+   `main` still serves the existing app. After the launch branch is reviewed
+   and merged, change Cloudflare's production branch to `main`.
+3. Select **Save and Deploy**, then open the generated `*.pages.dev` URL.
+   Verify the homepage, `/download/`, and **Use in browser**. Until the Mac ZIP
+   is published and its manifest promoted, the download page says it is being
+   prepared. That is expected, not a failed deployment.
+4. `/app/` redirects to the existing Render workspace. Do not change Supabase's
    Site URL or Google callback to the static site: the browser's PKCE verifier
    remains on the Render origin. Keep `flowlist://auth-callback` for Mac.
+
+A custom domain can be added later under the Pages project's **Custom domains**.
+The domain is not selected or purchased yet. `getflowlist.app` and
+`tryflowlist.com` had no RDAP registration record at the initial check; that is
+not a reservation or checkout quote. Confirm availability and registration and
+renewal prices before purchasing. Use Cloudflare's supplied DNS record and wait
+for HTTPS activation before sharing the custom address.
 
 `npm run build` remains the combined Render build. `--mode native` produces only
 the bundled workspace. `--mode site` produces only the static public pages,
