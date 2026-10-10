@@ -8,6 +8,7 @@ for (const width of [375,768,1440]) test(`public pages fit ${width}px without co
   await expect(page.getByRole('heading',{level:1})).toHaveText('Focus, from your menu bar.');
   await expect(page.getByRole('link',{name:'Download for Mac',exact:false}).first()).toHaveAttribute('href','/download/');
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.route('**/releases/mac.json',route=>route.fulfill({json:{available:false}}));
   await page.goto('/download/');
   await expect(page.locator('#release-status')).toContainText('being prepared');
   await expect(page.locator('#mac-download')).toBeHidden();

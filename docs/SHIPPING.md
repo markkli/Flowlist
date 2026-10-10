@@ -1,8 +1,19 @@
 # Release status
 
-Updated September 29, 2026. The cleanup was completed in `2cb52f3`. The approved
-Mac beta launch work is on `codex/mac-beta-launch`; production has not been
-replaced by this branch.
+Updated October 10, 2026. The cleanup was completed in `2cb52f3`. The approved
+Mac beta launch work is on `codex/mac-beta-launch`; the existing Render
+workspace has not been replaced by this branch.
+
+## Public download
+
+The product website is hosted at `https://flowlist-beta.pages.dev/`.
+Mac beta `0.5.0` is published in
+[GitHub Releases](https://github.com/markkli/Flowlist/releases/tag/mac-v0.5.0).
+Its public ZIP was downloaded without authentication and its byte count and
+SHA-256 verified before enabling `frontend/public/releases/mac.json`.
+The package requires Apple silicon and macOS 14 or later, is ad-hoc signed,
+and does not include the desktop widget. Native tests, the bundled WebKit
+workspace smoke check, and the website download interaction were checked.
 
 ## Prepared in this branch
 
@@ -19,19 +30,18 @@ replaced by this branch.
 
 ## External steps still required
 
-1. Select and purchase a domain. Create the static hosting project and connect
-   its DNS after the branch is reviewed and merged.
+1. Optionally purchase a custom website domain and connect its DNS to the
+   existing Cloudflare Pages project. A domain is needed for the email sender.
 2. Verify a sending domain in Resend, configure Supabase SMTP/code templates,
    and test a real email sign-in before enabling it publicly.
 3. Deploy API migration `20260928_16`, then intentionally enable open signup in
    both the API and Supabase. Check Google OAuth audience settings.
-4. Test the actual ZIP's first-run approval on another Mac/fresh account, publish
-   the reviewed release, and promote its checksum-verified public manifest.
+4. Test the actual ZIP's first-run approval on another Mac/fresh account; that
+   installation check has not been completed on a separate Mac.
 
-The website download button is intentionally unavailable until the ZIP exists
-at a verified public URL. Apple sign-in, notarization, App Store distribution,
-automatic updates, and a distributable desktop widget remain deferred. The owner
-has chosen not to buy Apple Developer membership for this beta.
+Future downloads must remain unavailable until their ZIP exists at a verified
+public URL. Apple sign-in, notarization, App Store distribution, automatic
+updates, and a distributable desktop widget remain deferred.
 
 See [WEBSITE-LAUNCH.md](WEBSITE-LAUNCH.md) for the exact commands and provider
 settings. [REPOSITORY-REVIEW.md](REPOSITORY-REVIEW.md) remains the historical

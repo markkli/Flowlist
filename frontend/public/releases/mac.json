@@ -1,10 +1,10 @@
 {
-  "available": false,
+  "available": true,
   "version": "0.5.0",
   "minimumMacOS": "14.0",
   "architecture": "Apple silicon",
-  "url": null,
-  "sha256": null,
-  "bytes": null,
+  "url": "https://github.com/markkli/Flowlist/releases/download/mac-v0.5.0/Flowlist-0.5.0-arm64.zip",
+  "sha256": "4169de8a92e2d3fa838edcd5fc592ea784802e07f20c5ba1be09f11b94cf88f0",
+  "bytes": 6836048,
   "widgetIncluded": false
 }
