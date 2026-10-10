@@ -69,7 +69,7 @@ export async function initAuth() {
     if (signingIn || config.google_enabled !== true) return;
     setSigningIn(true, true);
     el('auth-error').textContent = ''; el('auth-status').textContent = '';
-    try { await startGoogleSignIn(client, { emailEnabled }); }
+    try { await startGoogleSignIn(client, { emailEnabled, redirectPath: config.google_redirect_path }); }
     catch(error) {el('auth-error').textContent = error.message; setSigningIn(false);}
   };
 
@@ -91,8 +91,9 @@ export async function initAuth() {
   async function accept(session) {
     if (!session || checking) return;
     checking=true;
+    const connecting = setTimeout(() => {el('auth-status').textContent='Connecting to your saved workspace…';}, 3000);
     try {
-      const response=await fetch('/api/account',{headers:{Authorization:`Bearer ${session.access_token}`},cache:'no-store',signal:AbortSignal.timeout(15000)});
+      const response=await fetch('/api/account',{headers:{Authorization:`Bearer ${session.access_token}`},cache:'no-store',signal:AbortSignal.timeout(config.browser_host === 'cloudflare' ? 80000 : 15000)});
       const profile=await response.json();
       if (!response.ok) throw new Error(profile.detail || 'Could not verify your beta access.');
       if(profile.id!==session.user.id) throw new Error('Account verification did not match. Please sign in again.');
@@ -124,7 +125,7 @@ export async function initAuth() {
       el('auth-change-email').hidden=!emailEnabled;
       el('auth-retry').hidden=false;
       el('auth-retry').onclick=()=>location.reload();
-    } finally {checking=false;}
+    } finally {clearTimeout(connecting);el('auth-status').textContent='';checking=false;}
   }
   el('auth-form').addEventListener('submit',async event=>{
     event.preventDefault();

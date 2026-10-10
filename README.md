@@ -75,6 +75,7 @@ npm --prefix frontend test
 npm --prefix frontend exec -- playwright install chromium webkit
 npm --prefix frontend run test:e2e -- --workers=4
 FLOWLIST_TEST_BROWSER=webkit npm --prefix frontend run test:e2e -- --workers=2
+npm --prefix frontend run test:cloudflare -- --workers=2
 # On macOS, with Xcode installed:
 bash macos/scripts/build-web.sh
 bash macos/scripts/test.sh

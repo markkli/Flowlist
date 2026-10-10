@@ -22,11 +22,11 @@ export function captureGoogleCallback() {
   return callback;
 }
 
-export async function startGoogleSignIn(client, { emailEnabled = false } = {}) {
+export async function startGoogleSignIn(client, { emailEnabled = false, redirectPath = '/' } = {}) {
   sessionStorage.setItem(INTENT_KEY, JSON.stringify({startedAt:Date.now(), view:returnView()}));
   const {data, error} = await client.auth.signInWithOAuth({
     provider:'google',
-    options:{redirectTo:`${location.origin}/?auth=google`, skipBrowserRedirect:true,
+    options:{redirectTo:`${location.origin}${redirectPath === '/app/' ? '/app/' : '/'}?auth=google`, skipBrowserRedirect:true,
       scopes:'openid email profile', queryParams:{prompt:'select_account'}},
   });
   if (error || !data.url) {

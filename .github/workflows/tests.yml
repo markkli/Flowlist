@@ -25,6 +25,7 @@ jobs:
       - run: npm --prefix frontend run test:e2e -- --workers=2
         env:
           FLOWLIST_TEST_BROWSER: webkit
+      - run: npm --prefix frontend run test:cloudflare -- --workers=2
 
   macos:
     runs-on: macos-15

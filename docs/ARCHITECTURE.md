@@ -1,7 +1,7 @@
 # Architecture
 
-Reviewed September 28, 2026. This describes the current implementation, not the
-proposed download website or additional authentication providers.
+Reviewed September 28, 2026; hosting updated October 10, 2026. This describes the
+current implementation, not additional proposed authentication providers.
 
 ## Application boundaries
 
@@ -75,6 +75,13 @@ Older timer/history readers and the Guide fallback preserve installed-client
 compatibility. Changes to that contract need migration/contract tests.
 
 ## Build ownership
+
+Cloudflare Pages serves the public site and browser workspace. The site build
+also emits a Pages Function restricted to `/api/*`, which forwards private API
+requests to Render without caching or automatic mutation retries. Public sign-in
+configuration is a deployment snapshot; account permissions remain enforced by
+the backend. Browser PKCE stays on the Pages origin. See WEBSITE-LAUNCH.md for
+the callback allowlist and the remaining API cold-start limitation.
 
 - `frontend/dist/` and `macos/Sources/FlowlistMac/Resources/WebUI/` are generated.
 - Xcode and `build-local.sh` run `build-web.sh` before compiling/packaging.

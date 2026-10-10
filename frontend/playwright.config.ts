@@ -1,6 +1,7 @@
 import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
+  testIgnore: ['cloudflare.spec.ts'],
   fullyParallel: true,
   reporter: process.env.CI ? [['line'], ['github']] : 'list',
   use: { baseURL: 'http://127.0.0.1:5511', browserName:process.env.FLOWLIST_TEST_BROWSER==='webkit'?'webkit':'chromium', screenshot:'only-on-failure', trace:'retain-on-failure' },

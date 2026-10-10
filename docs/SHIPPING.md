@@ -1,8 +1,8 @@
 # Release status
 
 Updated October 10, 2026. The cleanup was completed in `2cb52f3`. The approved
-Mac beta launch work is on `codex/mac-beta-launch`; the existing Render
-workspace has not been replaced by this branch.
+Mac beta launch work is on `codex/mac-beta-launch`. The Cloudflare build now
+includes the browser workspace; the account API still runs on Render.
 
 ## Public download
 
@@ -18,8 +18,8 @@ workspace smoke check, and the website download interaction were checked.
 ## Prepared in this branch
 
 - Public product and download pages, with a separate static hosting build.
-- Existing browser workspace at `/app/`, with legacy bookmarks and Google
-  callbacks forwarded on the existing origin.
+- Browser workspace at Cloudflare `/app/`, with same-origin Google PKCE and a
+  private API proxy. Static login configuration does not wait for Render.
 - Mac Google/guest entry and email-code support gated by sender configuration.
 - Guide followed by once-per-device menu-bar setup. Mac settings can change the
   menu choice later. No repeated notification permission prompt is added.
@@ -38,6 +38,9 @@ workspace smoke check, and the website download interaction were checked.
    both the API and Supabase. Check Google OAuth audience settings.
 4. Test the actual ZIP's first-run approval on another Mac/fresh account; that
    installation check has not been completed on a separate Mac.
+5. Allow the Cloudflare `/app/?auth=google` return URL in Supabase before the
+   frontend cutover. The Render account API still has cold starts; migrating
+   that service is separate from this browser-interface deployment.
 
 Future downloads must remain unavailable until their ZIP exists at a verified
 public URL. Apple sign-in, notarization, App Store distribution, automatic

@@ -5,11 +5,7 @@ import './site.css';
 const legacy = new URL(location.href);
 const workspaceHashes = ['#dashboard', '#goals', '#history'];
 const hasAuth = legacy.searchParams.has('auth') || legacy.searchParams.has('code') || /(?:access_token|error_description|error_code)=/.test(legacy.hash);
-if (import.meta.env.MODE === 'site' && hasAuth) {
-  // OAuth remains on the workspace origin. Never relay credentials through a
-  // static-host redirect to another origin.
-  history.replaceState(null, '', legacy.pathname);
-} else if (legacy.pathname === '/' && (workspaceHashes.includes(legacy.hash) || hasAuth)) {
+if (legacy.pathname === '/' && (workspaceHashes.includes(legacy.hash) || hasAuth)) {
   location.replace(`/app/${legacy.search}${legacy.hash}`);
 }
 

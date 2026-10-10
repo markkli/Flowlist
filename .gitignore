@@ -30,7 +30,9 @@ skills-lock.json
 node_modules/
 frontend/dist/
 frontend/test-results/
+frontend/test-results-cloudflare/
 frontend/playwright-report/
+.wrangler/
 
 # Private pre-release database backups
 .local-backups/

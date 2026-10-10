@@ -4,15 +4,18 @@
 
 - Public product and download pages: Cloudflare Pages, static output. They make
   no requests to Render or Supabase on load.
-- Optional browser workspace: `https://flowlist-beta.onrender.com/app/`.
+- Browser workspace: `https://flowlist-beta.pages.dev/app/`, served by Pages.
+- `/api/*`: a same-origin Pages Function forwards requests to the existing
+  Render API. It does not cache account responses or retry mutations.
 - API and migrations: the existing Render service and Supabase database.
 - Mac: bundled workspace, local timer/files; optional account sync to the API.
 - ZIP downloads: versioned GitHub Releases, with SHA-256 and byte count displayed
   by the download page. No tracking scripts or third-party fonts.
 
-Render's free service can still sleep before cloud sign-in/sync or browser use.
-Separate static hosting removes that dependency from the public website. It does
-not make the API always awake. Mac guest use and local edits do not wait for it.
+Render's free API can still sleep before account verification or saved-data
+requests. The public pages and browser sign-in interface load from Cloudflare
+without waking it. This is a frontend move, not a backend migration. Mac guest
+use and local edits do not wait for the API.
 
 ## Static hosting first; domain optional
 
@@ -34,16 +37,36 @@ and authorizes the GitHub integration in their own account.
    | Build output directory | `dist` |
    | Environment variable | `NODE_VERSION=22` |
 
-   No API secrets are needed. The launch branch contains the public pages;
+   No API secrets are needed. The launch branch contains the Cloudflare build;
    `main` still serves the existing app. After the launch branch is reviewed
    and merged, change Cloudflare's production branch to `main`.
-3. Select **Save and Deploy**, then open the generated `*.pages.dev` URL.
-   Verify the homepage, `/download/`, and **Use in browser**. Until the Mac ZIP
-   is published and its manifest promoted, the download page says it is being
-   prepared. That is expected, not a failed deployment.
-4. `/app/` redirects to the existing Render workspace. Do not change Supabase's
-   Site URL or Google callback to the static site: the browser's PKCE verifier
-   remains on the Render origin. Keep `flowlist://auth-callback` for Mac.
+3. Before deploying the browser workspace, add
+   `https://flowlist-beta.pages.dev/app/?auth=google` to Supabase → Authentication
+   → URL Configuration → Redirect URLs. Preserve the existing Render and
+   `flowlist://auth-callback` entries. Google still returns to Supabase's callback;
+   its provider settings do not change. The new web flow creates and exchanges
+   its PKCE verifier on the Cloudflare origin. Do not forward tokens or codes
+   from one origin to another.
+4. Select **Save and Deploy**, then verify the homepage, `/download/`, and
+   **Use in browser**. `/app/` must stay on the Pages address. Sign in with an
+   invited account and check Plan/History. Existing saved account data is in
+   the same database; users sign in once on the new origin. Browser-only drafts,
+   active timers, and appearance choices remain on their original origin.
+
+The site build emits `_worker.js` and `_routes.json`. Only `/api/*` invokes the
+Function; public pages, the app HTML, and assets are served directly by Pages.
+`/api/config` returns the public snapshot in
+`frontend/cloudflare/browser-config.json`, verified against the existing API on
+October 10, 2026. The build only includes allowlisted public fields and rejects
+secret/service-role keys. When changing providers or signup settings, update
+this snapshot and the API settings together. The backend still verifies identity
+and invitation access on every account request; the snapshot grants no access.
+
+The proxy uses a fixed API origin, drops cookies, preserves bearer and
+idempotency headers, refuses upstream redirects, bounds mutation bodies, and
+returns private JSON with `Cache-Control: no-store`. No Cloudflare database or
+account credentials are introduced. A separate API migration is required to
+eliminate Render's saved-data cold starts.
 
 A custom domain can be added later under the Pages project's **Custom domains**.
 The domain is not selected or purchased yet. `getflowlist.app` and
@@ -53,13 +76,16 @@ renewal prices before purchasing. Use Cloudflare's supplied DNS record and wait
 for HTTPS activation before sharing the custom address.
 
 `npm run build` remains the combined Render build. `--mode native` produces only
-the bundled workspace. `--mode site` produces only the static public pages,
-Cloudflare headers, a 404 page, and the workspace redirect.
+the bundled workspace. `--mode site` includes the public pages and browser
+workspace, Cloudflare headers, a 404 page, and the API Function. Run
+`npm run test:cloudflare` to exercise this output in Cloudflare's local runtime;
+login/data tests use mock accounts rather than modifying production data.
 
 ## Email sender: Resend → Supabase
 
-Keep `FLOWLIST_EMAIL_LOGIN=false` until all steps, including a real delivery
-test, have passed. Google and Mac guest use remain available.
+Keep `FLOWLIST_EMAIL_LOGIN=false` and the Cloudflare public configuration's
+`email_enabled` false until all steps, including a real delivery test, have
+passed. Google and Mac guest use remain available.
 
 1. Create a Resend account; add a sending subdomain of the purchased domain,
    such as `auth.YOUR_DOMAIN`. Copy **Resend's actual** DKIM/SPF DNS records into

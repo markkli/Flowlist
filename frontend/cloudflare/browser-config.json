@@ -1,0 +1,8 @@
+{
+  "auth_mode": "supabase",
+  "supabase_url": "https://dzvqftpxjmyhmykxgfyc.supabase.co",
+  "supabase_key": "sb_publishable_Z_O0sX4qYgQ33Y6iQci-qA_XKrSGThD",
+  "google_enabled": true,
+  "email_enabled": false,
+  "signup_enabled": false
+}
